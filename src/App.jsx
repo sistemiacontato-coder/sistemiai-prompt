@@ -145,6 +145,7 @@ export default function App() {
     })
 
     setPendingChanges(null)
+    setAuditResult(null)
   }, [pendingChanges, settings, config, generatedPrompt])
 
   const handleDiscardChanges = useCallback(() => {
@@ -535,9 +536,9 @@ export default function App() {
                       isAuditing={isAuditing}
                       auditResult={auditResult}
                       aiConfig={aiConfig}
-                      onApplyFix={(fix) => {
-                        promptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-                        handleReview(fix)
+                      onApplyFix={async (fix) => {
+                        promptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        await handleReview(fix)
                       }}
                     />
                   )}
