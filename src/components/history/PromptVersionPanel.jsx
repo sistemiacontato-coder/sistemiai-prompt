@@ -161,8 +161,7 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
                     </button>
                     <button
                       onClick={() => handleRevertConfirm(entry)}
-                      className="px-2 py-1 rounded text-[9px] font-mono font-semibold transition-colors"
-                      style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}>
+                      className="px-2 py-1 rounded text-[9px] font-mono font-semibold bg-primary text-on-primary transition-colors hover:opacity-90">
                       Restaurar
                     </button>
                   </div>
@@ -182,8 +181,7 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
                     </button>
                     <button
                       onClick={() => handleDeleteConfirm(entry.id)}
-                      className="px-2 py-1 rounded text-[9px] font-mono font-semibold text-on-error transition-colors"
-                      style={{ background: 'var(--color-error)' }}>
+                      className="px-2 py-1 rounded text-[9px] font-mono font-semibold bg-error text-on-error transition-colors hover:opacity-90">
                       Excluir
                     </button>
                   </div>

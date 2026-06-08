@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:5173/src/App.jsx)",
+      "Bash(curl -sI http://localhost:5173/src/main.jsx)",
+      "Bash(npx playwright *)",
+      "Bash(npm init *)",
+      "Bash(rm -rf /tmp/pm_*.png /tmp/verify_pm*.cjs /tmp/verify_pm*.mjs 2>/dev/null; df -h /tmp | tail -1)",
+      "Bash(pkill -f \"vite\")",
+      "Bash(npm run *)",
+      "Bash(npx playwright@latest chromium install --with-deps)",
+      "Bash(node -e ' *)",
+      "Bash(rm -rf /tmp/pm_*.png && ls \"/Users/saymon/Downloads/Backup 2025/DEV/SistemIA/Criador de Prompt | BotConversa/\" | grep -E \"\\\\.env\")",
+      "Bash(rm -rf /tmp/pm_*.png /tmp/node_modules 2>/dev/null; df -h /tmp | tail -1)",
+      "Bash(CLAUDE_CODE_TMPDIR=/tmp grep -rn \"absolute inset-0 flex items-center\" \"/Users/saymon/Downloads/Backup 2025/DEV/SistemIA/Criador de Prompt | BotConversa/src/\")",
+      "Bash(node --input-type=module --eval ' *)",
+      "Bash(curl -s \"http://localhost:5173/@vite/client\")",
+      "Bash(curl -s -X POST https://xdcdvrlemrkxlherumdx.supabase.co/rest/v1/rpc/version -H 'apikey: sb_publishable_IRu4JxUc1CUBCAw7DIEIiA_UtBD_BiD' -H 'Authorization: Bearer sb_publishable_IRu4JxUc1CUBCAw7DIEIiA_UtBD_BiD')",
+      "Bash(brew --version)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
+    ]
+  }
+}

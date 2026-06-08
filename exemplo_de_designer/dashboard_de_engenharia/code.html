@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Prompt Machine | Engineering Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(20px);
+            border: 1px solid #334155;
+        }
+        .technical-glow:hover {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+        .pulse-indicator {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#4edea3",
+                        "inverse-primary": "#005ac2",
+                        "tertiary-fixed-dim": "#ffb786",
+                        "secondary-container": "#00a572",
+                        "on-secondary-container": "#00311f",
+                        "primary-fixed": "#d8e2ff",
+                        "inverse-on-surface": "#283044",
+                        "surface": "#0b1326",
+                        "on-tertiary-fixed-variant": "#723600",
+                        "surface-dim": "#0b1326",
+                        "tertiary-container": "#df7412",
+                        "on-primary-fixed": "#001a42",
+                        "error-container": "#93000a",
+                        "tertiary": "#ffb786",
+                        "surface-container": "#171f33",
+                        "outline-variant": "#424754",
+                        "surface-variant": "#2d3449",
+                        "on-primary-fixed-variant": "#004395",
+                        "on-error": "#690005",
+                        "secondary": "#4edea3",
+                        "inverse-surface": "#dae2fd",
+                        "background": "#0b1326",
+                        "surface-tint": "#adc6ff",
+                        "on-secondary": "#003824",
+                        "surface-container-high": "#222a3d",
+                        "on-primary-container": "#00285d",
+                        "secondary-fixed": "#6ffbbe",
+                        "on-tertiary-container": "#461f00",
+                        "error": "#ffb4ab",
+                        "on-background": "#dae2fd",
+                        "tertiary-fixed": "#ffdcc6",
+                        "surface-bright": "#31394d",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#adc6ff",
+                        "outline": "#8c909f",
+                        "surface-container-highest": "#2d3449",
+                        "surface-container-low": "#131b2e",
+                        "on-surface": "#dae2fd",
+                        "on-secondary-fixed-variant": "#005236",
+                        "on-tertiary-fixed": "#311400",
+                        "primary": "#adc6ff",
+                        "primary-container": "#4d8eff",
+                        "on-surface-variant": "#c2c6d6",
+                        "surface-container-lowest": "#060e20",
+                        "on-primary": "#002e6a",
+                        "on-tertiary": "#502400",
+                        "on-secondary-fixed": "#002113"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-width": "280px",
+                        "compact-gap": "8px",
+                        "stack-gap": "16px",
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "code-block": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "code-block": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-hidden">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant flex justify-between items-center h-16 px-gutter">
+<div class="flex items-center gap-stack-gap">
+<span class="font-display-lg text-display-lg font-bold text-primary">Prompt Machine</span>
+<div class="hidden md:flex items-center ml-8 gap-gutter">
+<span class="text-primary border-b-2 border-primary pb-1 font-body-md cursor-pointer">Editor</span>
+<span class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer font-body-md">Library</span>
+<span class="text-on-surface-variant hover:text-primary transition-colors cursor-pointer font-body-md">Analytics</span>
+</div>
+</div>
+<div class="flex items-center gap-compact-gap">
+<div class="bg-surface-container border border-outline-variant rounded px-3 py-1 flex items-center gap-2">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-body-md w-48" placeholder="Search prompts..." type="text"/>
+</div>
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded font-label-caps text-label-caps hover:opacity-90 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">play_arrow</span> RUN PROMPT
+            </button>
+<div class="flex items-center gap-2 ml-4">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">notifications</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">settings_suggest</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary">terminal</span>
+<img alt="User profile avatar" class="w-8 h-8 rounded-full border border-outline-variant ml-2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBg4DApC92ef1JK5BzHzJK_DsxTnBHD4ezOjHbxiZX24rjewO2c394cOgflxRPyUV5z4Dg212KboR9QATOqUFP7DX1id7lqvDibO257nbJdMcbwAPyFIc_8oJqBoBKUIPSRFSYOx9w8ljPTVhv0-Iy4SGg2kXn5Or3L-mVBMnGvpbhpsMr_UnFrt83LLt04GNLzpv1AflMZiWFKLLdZMHeDQ14nuE8iK-SN7TMwsdlAmmRYZb5zrIJSl9ozsXwoz4QBfzBvbvdG9F8"/>
+</div>
+</div>
+</nav>
+<div class="flex h-screen pt-16">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-sidebar-width bg-surface-container border-r border-outline-variant flex flex-col py-container-margin z-30">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container">psychology</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-primary leading-none">v2.4.0</h2>
+<p class="text-label-caps font-label-caps text-on-surface-variant opacity-60">STABLE_BUILD</p>
+</div>
+</div>
+</div>
+<button class="mx-6 mb-8 bg-secondary-container text-on-secondary-container font-label-caps text-label-caps py-3 rounded flex items-center justify-center gap-2 hover:brightness-110 transition-all">
+<span class="material-symbols-outlined text-[18px]">add</span> NEW_PROMPT
+            </button>
+<div class="flex flex-col flex-1">
+<div class="border-l-4 border-primary bg-surface-variant text-primary font-bold px-6 py-3 flex items-center gap-3 group cursor-pointer">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</div>
+<div class="text-on-surface-variant px-6 py-3 flex items-center gap-3 hover:bg-surface-container-high transition-all group cursor-pointer">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-caps text-label-caps">Saved History</span>
+</div>
+<div class="text-on-surface-variant px-6 py-3 flex items-center gap-3 hover:bg-surface-container-high transition-all group cursor-pointer">
+<span class="material-symbols-outlined">database</span>
+<span class="font-label-caps text-label-caps">Database Integrations</span>
+</div>
+<div class="text-on-surface-variant px-6 py-3 flex items-center gap-3 hover:bg-surface-container-high transition-all group cursor-pointer">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</div>
+</div>
+<div class="mt-auto px-6 space-y-2">
+<div class="text-on-surface-variant py-2 flex items-center gap-3 hover:text-primary transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[20px]">menu_book</span>
+<span class="font-label-caps text-label-caps uppercase">Documentation</span>
+</div>
+<div class="text-on-surface-variant py-2 flex items-center gap-3 hover:text-primary transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+<span class="font-label-caps text-label-caps uppercase">Support</span>
+</div>
+</div>
+</aside>
+<!-- Main Workspace -->
+<main class="ml-sidebar-width flex-1 grid grid-cols-12 overflow-hidden bg-background">
+<!-- Center Editor Panel -->
+<div class="col-span-8 h-full overflow-y-auto border-r border-outline-variant p-gutter">
+<div class="max-w-4xl mx-auto space-y-stack-gap pb-24">
+<!-- Dados do Cliente -->
+<section class="bg-surface-container p-6 rounded border border-outline-variant">
+<div class="flex items-center gap-2 mb-6">
+<span class="material-symbols-outlined text-primary">person_search</span>
+<h3 class="font-headline-md text-headline-md">Dados do Cliente</h3>
+</div>
+<div class="grid grid-cols-2 gap-stack-gap">
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant">CLIENT_NAME</label>
+<input class="w-full bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded p-3 text-body-md text-on-surface" placeholder="Ex: TechCorp Solutions" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant">INDUSTRY_VERTICAL</label>
+<select class="w-full bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded p-3 text-body-md text-on-surface">
+<option>Fintech &amp; Banking</option>
+<option>Healthcare Systems</option>
+<option>E-commerce Logistics</option>
+<option>SaaS Enterprise</option>
+</select>
+</div>
+</div>
+</section>
+<!-- Escopo da Tarefa -->
+<section class="bg-surface-container p-6 rounded border border-outline-variant">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">assignment</span>
+<h3 class="font-headline-md text-headline-md">Escopo da Tarefa</h3>
+</div>
+<span class="text-label-caps font-label-caps bg-surface-variant px-2 py-1 rounded text-primary">MARKDOWN_ENABLED</span>
+</div>
+<textarea class="w-full min-h-[240px] bg-surface border border-outline-variant focus:border-primary focus:ring-1 focus:ring-primary rounded p-4 font-code-block text-code-block text-on-surface resize-none leading-relaxed" placeholder="Descreva detalhadamente a tarefa do LLM..." spellcheck="false"></textarea>
+</section>
+<!-- Campos Personalizados -->
+<section class="bg-surface-container p-6 rounded border border-outline-variant">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">variables</span>
+<h3 class="font-headline-md text-headline-md">Campos Personalizados</h3>
+</div>
+</div>
+<div class="flex flex-wrap gap-2 p-3 bg-surface border border-dashed border-outline-variant rounded min-h-[60px]">
+<div class="bg-primary-container/20 border border-primary/30 rounded px-3 py-1.5 flex items-center gap-2 text-primary">
+<span class="font-label-caps text-label-caps">user_id</span>
+<span class="material-symbols-outlined text-[14px] cursor-pointer hover:text-white">close</span>
+</div>
+<div class="bg-primary-container/20 border border-primary/30 rounded px-3 py-1.5 flex items-center gap-2 text-primary">
+<span class="font-label-caps text-label-caps">transaction_date</span>
+<span class="material-symbols-outlined text-[14px] cursor-pointer hover:text-white">close</span>
+</div>
+<button class="border border-outline border-dashed rounded px-3 py-1.5 flex items-center gap-2 text-on-surface-variant hover:border-primary hover:text-primary transition-all">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span class="font-label-caps text-label-caps">ADD_TOKEN</span>
+</button>
+</div>
+</section>
+<!-- CTA Center -->
+<div class="flex flex-col items-center py-8">
+<button class="bg-primary text-on-primary px-12 py-4 rounded font-headline-md technical-glow transition-all active:scale-95 flex items-center gap-4 relative overflow-hidden group">
+<div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<span class="material-symbols-outlined text-[28px]">bolt</span>
+                            Gerar Prompt
+                        </button>
+<p class="mt-4 text-label-caps font-label-caps text-on-surface-variant flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary pulse-indicator"></span>
+                            ENGINE_READY: GPT-4o-STABLE
+                        </p>
+</div>
+<!-- Code Preview -->
+<section class="bg-surface-container-low border border-outline-variant rounded overflow-hidden">
+<div class="bg-surface-container-high px-4 py-2 border-b border-outline-variant flex items-center justify-between">
+<span class="text-label-caps font-label-caps text-on-surface-variant">PROMPT_PREVIEW_OUTPUT.md</span>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant cursor-pointer hover:text-primary">content_copy</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant cursor-pointer hover:text-primary">download</span>
+</div>
+</div>
+<div class="p-6 font-code-block text-code-block leading-relaxed">
+<pre class="text-on-surface/80"><span class="text-secondary"># SYSTEM ROLE</span>
+Você é um especialista em análise de dados financeiros para a <span class="text-primary">{{client_name}}</span>.
+
+<span class="text-secondary"># TASK OVERVIEW</span>
+Sua tarefa consiste em validar o histórico de transações identificadas pelo ID <span class="text-primary">{{user_id}}</span>...
+
+<span class="text-secondary"># OUTPUT FORMAT</span>
+Retorne apenas JSON válido contendo:
+- status: "success" | "error"
+- risk_score: 0-100</pre>
+</div>
+</section>
+</div>
+</div>
+<!-- Right Configuration Panel -->
+<aside class="col-span-4 h-full bg-surface-container-low border-l border-outline-variant flex overflow-hidden">
+<!-- Configurações Técnicas -->
+<div class="flex-1 p-6 border-r border-outline-variant overflow-y-auto">
+<h3 class="font-headline-md text-headline-md mb-8 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">settings_applications</span>
+                        Configurações Técnicas
+                    </h3>
+<div class="space-y-8">
+<div class="space-y-4">
+<div class="flex items-center justify-between group">
+<span class="font-label-caps text-label-caps text-on-surface">Output Conditions</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="flex items-center justify-between group">
+<span class="font-label-caps text-label-caps text-on-surface">Success Criteria</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<div class="flex items-center justify-between group">
+<span class="font-label-caps text-label-caps text-on-surface">Failure Protocols</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+<div class="space-y-4">
+<label class="font-label-caps text-label-caps text-on-surface-variant block">OUTPUT_FORMAT</label>
+<div class="grid grid-cols-2 gap-2">
+<button class="bg-primary text-on-primary py-2 rounded font-label-caps text-label-caps">JSON</button>
+<button class="bg-surface-variant text-on-surface-variant py-2 rounded font-label-caps text-label-caps border border-outline-variant hover:border-primary transition-all">MARKDOWN</button>
+</div>
+</div>
+<div class="p-4 bg-surface-container border border-outline-variant rounded">
+<label class="font-label-caps text-label-caps text-on-surface-variant block mb-3">MODEL_TEMPERATURE</label>
+<input class="w-full accent-primary bg-surface h-1 rounded-lg appearance-none cursor-pointer" type="range"/>
+<div class="flex justify-between mt-2 font-code-block text-[10px] text-on-surface-variant">
+<span>PRECISE (0.0)</span>
+<span>CREATIVE (1.0)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Validador de Contexto (Collapsible) -->
+<div class="w-20 lg:w-48 bg-surface-container-highest flex flex-col p-4 border-l border-outline-variant transition-all duration-300">
+<div class="flex items-center gap-2 mb-6 overflow-hidden whitespace-nowrap">
+<span class="material-symbols-outlined text-error">analytics</span>
+<span class="font-label-caps text-label-caps">Validador</span>
+</div>
+<div class="space-y-stack-gap overflow-y-auto">
+<div class="p-3 bg-error-container/20 border border-error/30 rounded flex flex-col gap-2">
+<div class="flex items-center gap-2 text-error">
+<span class="material-symbols-outlined text-[16px]">warning</span>
+<span class="text-[10px] font-bold font-label-caps">CRITICAL</span>
+</div>
+<p class="text-[11px] text-on-error-container leading-tight">Missing client context. Industry vertical impact undefined.</p>
+</div>
+<div class="p-3 bg-tertiary-container/20 border border-tertiary/30 rounded flex flex-col gap-2">
+<div class="flex items-center gap-2 text-tertiary">
+<span class="material-symbols-outlined text-[16px]">error_outline</span>
+<span class="text-[10px] font-bold font-label-caps">WARNING</span>
+</div>
+<p class="text-[11px] text-on-tertiary-container leading-tight">Ambiguous task scope detected in paragraph 2.</p>
+</div>
+<div class="p-3 bg-secondary-container/20 border border-secondary/30 rounded flex flex-col gap-2 opacity-50">
+<div class="flex items-center gap-2 text-secondary">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+<span class="text-[10px] font-bold font-label-caps">VALID</span>
+</div>
+<p class="text-[11px] text-on-secondary-container leading-tight">Variables mapped correctly to system role.</p>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+<!-- Floating Background Atmosphere -->
+<div class="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 opacity-30">
+<div class="absolute top-[20%] right-[10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]"></div>
+<div class="absolute bottom-[10%] left-[20%] w-[400px] h-[400px] bg-secondary/5 rounded-full blur-[100px]"></div>
+</div>
+<script>
+        // Simple micro-interaction for active toggle
+        document.querySelectorAll('input[type="checkbox"]').forEach(toggle => {
+            toggle.addEventListener('change', (e) => {
+                const label = e.target.closest('div').querySelector('span');
+                if (e.target.checked) {
+                    label.classList.add('text-primary');
+                } else {
+                    label.classList.remove('text-primary');
+                }
+            });
+        });
+
+        // Hover effect for the Run button
+        const runBtn = document.querySelector('button.technical-glow');
+        runBtn.addEventListener('mousemove', (e) => {
+            const rect = runBtn.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            runBtn.style.setProperty('--mouse-x', `${x}px`);
+            runBtn.style.setProperty('--mouse-y', `${y}px`);
+        });
+    </script>
+</body></html>

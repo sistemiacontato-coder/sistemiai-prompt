@@ -40,10 +40,11 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
 }
 
 REGRAS OBRIGATÓRIAS:
-- new_agent_name: use APENAS quando a instrução pedir para corrigir ou alterar o nome do agente. Vazio "" se não precisar.
-- new_agent_persona: use quando a instrução alterar a persona, comportamento ou apresentação do agente. Escreva o texto COMPLETO da persona com as correções aplicadas. Vazio "" se não precisar.
-- new_domain: use quando a instrução alterar o que o agente faz ou atende. Escreva o texto COMPLETO do domínio, incorporando as mudanças. Vazio "" se não precisar.
-- IMPORTANTE: corrija APENAS o campo que a instrução apontar. Não altere o domain/objetivo quando a instrução for sobre nome ou persona.
+- new_agent_name: use APENAS quando a instrução pedir para corrigir o nome do agente (campo agentName). Vazio "" se não precisar.
+- new_agent_persona: use APENAS quando a instrução alterar o campo persona do agente — texto de apresentação, comportamento, tom, como o agente se descreve. ESCREVA O TEXTO COMPLETO da persona com as correções aplicadas. Vazio "" se não precisar.
+- new_domain: use APENAS quando a instrução alterar o que o agente faz, o escopo de atendimento ou os objetivos do agente. Vazio "" se não precisar.
+- CRÍTICO: esses três campos são INDEPENDENTES. Corrigir o nome na persona → use new_agent_persona (não new_domain). Corrigir o nome do agente → use new_agent_name (não new_domain). Apenas altere new_domain quando a instrução tratar explicitamente do domínio/objetivo do agente.
+- EXEMPLO: se a instrução for "corrija o nome João para Marcos na persona", retorne new_agent_persona com o texto completo corrigido, e new_agent_name/new_domain vazios.
 - add_variables[].name: minúsculo, underline, sem acento, MÁXIMO 14 caracteres
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
 - add_exits[].description: SEMPRE começar com "Interrompa a IA quando o cliente"

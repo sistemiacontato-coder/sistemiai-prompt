@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Saved History | Prompt Machine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid #334155;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .prompt-card:hover {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border-color: #3b82f6;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b1326;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-fixed-dim": "#4edea3",
+                        "inverse-primary": "#005ac2",
+                        "tertiary-fixed-dim": "#ffb786",
+                        "secondary-container": "#00a572",
+                        "on-secondary-container": "#00311f",
+                        "primary-fixed": "#d8e2ff",
+                        "inverse-on-surface": "#283044",
+                        "surface": "#0b1326",
+                        "on-tertiary-fixed-variant": "#723600",
+                        "surface-dim": "#0b1326",
+                        "tertiary-container": "#df7412",
+                        "on-primary-fixed": "#001a42",
+                        "error-container": "#93000a",
+                        "tertiary": "#ffb786",
+                        "surface-container": "#171f33",
+                        "outline-variant": "#424754",
+                        "surface-variant": "#2d3449",
+                        "on-primary-fixed-variant": "#004395",
+                        "on-error": "#690005",
+                        "secondary": "#4edea3",
+                        "inverse-surface": "#dae2fd",
+                        "background": "#0b1326",
+                        "surface-tint": "#adc6ff",
+                        "on-secondary": "#003824",
+                        "surface-container-high": "#222a3d",
+                        "on-primary-container": "#00285d",
+                        "secondary-fixed": "#6ffbbe",
+                        "on-tertiary-container": "#461f00",
+                        "error": "#ffb4ab",
+                        "on-background": "#dae2fd",
+                        "tertiary-fixed": "#ffdcc6",
+                        "surface-bright": "#31394d",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#adc6ff",
+                        "outline": "#8c909f",
+                        "surface-container-highest": "#2d3449",
+                        "surface-container-low": "#131b2e",
+                        "on-surface": "#dae2fd",
+                        "on-secondary-fixed-variant": "#005236",
+                        "on-tertiary-fixed": "#311400",
+                        "primary": "#adc6ff",
+                        "primary-container": "#4d8eff",
+                        "on-surface-variant": "#c2c6d6",
+                        "surface-container-lowest": "#060e20",
+                        "on-primary": "#002e6a",
+                        "on-tertiary": "#502400",
+                        "on-secondary-fixed": "#002113"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-width": "280px",
+                        "compact-gap": "8px",
+                        "stack-gap": "16px",
+                        "gutter": "16px",
+                        "container-margin": "24px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "code-block": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "code-block": ["13px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="font-body-md overflow-x-hidden">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-40 bg-surface dark:bg-surface border-b border-outline-variant flex justify-between items-center h-16 px-gutter w-full">
+<div class="flex items-center gap-stack-gap">
+<h1 class="font-display-lg text-display-lg font-bold text-primary dark:text-primary">Prompt Machine</h1>
+<div class="hidden md:flex items-center ml-8 gap-gutter">
+<span class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">Workspace</span>
+<span class="font-body-md text-body-md text-primary border-b-2 border-primary pb-1 cursor-pointer active:opacity-80">Saved History</span>
+<span class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80">Datasets</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group hidden lg:block">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline text-sm">search</span>
+<input class="bg-surface-container border border-outline-variant text-body-md py-1.5 pl-10 pr-4 rounded focus:outline-none focus:border-primary w-64" placeholder="Search prompts..." type="text"/>
+</div>
+<div class="flex gap-3 text-primary">
+<span class="material-symbols-outlined cursor-pointer hover:text-primary-container">notifications</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary-container">settings_suggest</span>
+<span class="material-symbols-outlined cursor-pointer hover:text-primary-container">terminal</span>
+</div>
+<button class="bg-primary text-on-primary font-label-caps text-label-caps px-4 py-2 rounded font-bold hover:bg-primary-container transition-all">
+                Run Prompt
+            </button>
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant">
+<img alt="User profile avatar" class="w-full h-full object-cover" data-alt="A professional high-resolution headshot of a software engineer in a technical workspace environment. The individual has a neutral expression, framed by soft blue ambient lighting from computer monitors. The background is a blurred high-tech lab with server racks and glass panels, following a dark technical modernism aesthetic with deep charcoal and neon blue accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCW_ldDNGHZ3GLKnSYQhTj6UyrT1qGWT-E2XU3xvpDLn1p80Vwm6coR0GxwkissHXGVxT9NTHWFXROmDiQkvkkfATrDUhF7_GxSTq99oTBR9rfETm3errADmbGFNL55fxk78nuHKc6Bi9ZB9Qd0qnkujlGt-mhyLptGP0io-JQzxEscL3U1qEdOLQ7_hjUit9u6WlVSpLPJdVhBug49arXuRl7PpME8nya5zrLu_XfOSXaJRhS-4z-0yGi8Qcl3QUsrtouBDfg6Xgo"/>
+</div>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-sidebar-width bg-surface-container dark:bg-surface-container border-r border-outline-variant flex flex-col py-container-margin z-30 pt-20">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary-container rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container">psychology</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-primary leading-tight">Prompt Machine</h2>
+<p class="font-label-caps text-label-caps text-outline">v2.4.0-stable</p>
+</div>
+</div>
+</div>
+<button class="mx-6 mb-8 flex items-center justify-center gap-2 bg-secondary text-on-secondary font-label-caps text-label-caps py-3 rounded-lg font-bold group hover:opacity-90 transition-all">
+<span class="material-symbols-outlined">add</span>
+            NEW_PROMPT
+        </button>
+<nav class="flex-1 space-y-1">
+<div class="group cursor-pointer text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-all flex items-center gap-4">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-caps text-label-caps">Dashboard</span>
+</div>
+<div class="group cursor-pointer border-l-4 border-primary bg-surface-variant text-primary font-bold px-4 py-3 flex items-center gap-4">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-caps text-label-caps">Saved History</span>
+</div>
+<div class="group cursor-pointer text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-all flex items-center gap-4">
+<span class="material-symbols-outlined">database</span>
+<span class="font-label-caps text-label-caps">Database Integrations</span>
+</div>
+<div class="group cursor-pointer text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-all flex items-center gap-4">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-caps text-label-caps">Settings</span>
+</div>
+</nav>
+<div class="mt-auto border-t border-outline-variant pt-4">
+<div class="group cursor-pointer text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-all flex items-center gap-4">
+<span class="material-symbols-outlined">menu_book</span>
+<span class="font-label-caps text-label-caps">Documentation</span>
+</div>
+<div class="group cursor-pointer text-on-surface-variant px-4 py-3 hover:bg-surface-container-high transition-all flex items-center gap-4">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-label-caps text-label-caps">Support</span>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-sidebar-width pt-16 h-screen overflow-hidden flex">
+<!-- Filter Sidebar (Technical Settings) -->
+<aside class="w-72 bg-surface-container-low border-r border-outline-variant flex flex-col p-6 overflow-y-auto">
+<h3 class="font-label-caps text-label-caps text-primary mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">tune</span>
+                FILTER_SYSTEM
+            </h3>
+<div class="space-y-8">
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant mb-3 block">SEARCH_QUERY</label>
+<input class="w-full bg-surface-container-lowest border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none" placeholder="Keywords..." type="text"/>
+</div>
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant mb-3 block">CHRONO_RANGE</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant rounded p-2 text-body-md focus:border-primary outline-none">
+<option>Last 24 Hours</option>
+<option>Past 7 Days</option>
+<option>This Month</option>
+<option>All Time</option>
+</select>
+</div>
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant mb-3 block">PROJECT_SCOPE</label>
+<div class="space-y-2">
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="rounded border-outline-variant bg-surface-container-lowest text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-body-md group-hover:text-primary transition-colors">Core_Engine_v1</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input class="rounded border-outline-variant bg-surface-container-lowest text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-body-md group-hover:text-primary transition-colors">Customer_Service_LLM</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer group">
+<input checked="" class="rounded border-outline-variant bg-surface-container-lowest text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-body-md group-hover:text-primary transition-colors">Analytics_Aggregator</span>
+</label>
+</div>
+</div>
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant mb-3 block">MODEL_CLASS</label>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-1 bg-surface-variant border border-outline-variant rounded text-[10px] font-label-caps text-primary cursor-pointer hover:bg-primary hover:text-on-primary transition-colors">GPT-4O</span>
+<span class="px-2 py-1 bg-surface-variant border border-outline-variant rounded text-[10px] font-label-caps text-primary cursor-pointer hover:bg-primary hover:text-on-primary transition-colors">CLAUDE-3.5</span>
+<span class="px-2 py-1 bg-surface-variant border border-outline-variant rounded text-[10px] font-label-caps text-primary cursor-pointer hover:bg-primary hover:text-on-primary transition-colors">LLAMA-3</span>
+</div>
+</div>
+<!-- Integration Settings Section -->
+<div class="mt-8 pt-8 border-t border-outline-variant">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">link</span>
+                        INTEGRATIONS
+                    </h3>
+<div class="bg-surface-container-lowest p-3 rounded border border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm">database</span>
+<span class="text-body-md font-semibold">Supabase</span>
+</div>
+<div class="flex items-center gap-1.5">
+<div class="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+<span class="text-[10px] font-label-caps text-secondary">ACTIVE</span>
+</div>
+</div>
+<p class="text-[10px] text-outline mt-2 px-1">Syncing logs every 60s</p>
+</div>
+</div>
+</aside>
+<!-- History Grid View -->
+<section class="flex-1 bg-surface-container-lowest p-8 overflow-y-auto">
+<div class="flex items-end justify-between mb-8">
+<div>
+<h2 class="font-display-lg text-display-lg text-primary mb-1">PROMPT_HISTORY</h2>
+<p class="text-on-surface-variant opacity-70">Review and recycle your generated engineering outputs</p>
+</div>
+<div class="flex gap-2">
+<button class="p-2 border border-outline-variant bg-surface-container hover:bg-surface-variant rounded transition-colors">
+<span class="material-symbols-outlined">grid_view</span>
+</button>
+<button class="p-2 border border-outline-variant bg-surface-container hover:bg-surface-variant rounded transition-colors text-primary border-primary">
+<span class="material-symbols-outlined">list</span>
+</button>
+</div>
+</div>
+<!-- Bento Grid of History Items -->
+<div class="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+<!-- History Item 1 -->
+<div class="prompt-card glass-panel rounded-xl p-5 flex flex-col group transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div>
+<span class="font-label-caps text-label-caps text-secondary mb-1 block">JSON_OUTPUT</span>
+<h4 class="font-headline-md text-[18px] text-on-surface font-bold leading-tight">Data_Schema_Generator_v2</h4>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">javascript</span>
+</div>
+<div class="flex-1">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-3 mb-4 font-code-block text-code-block text-on-surface-variant line-clamp-2">
+                            "Generate a robust Supabase edge function schema for user multi-tenancy..."
+                        </div>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="px-2 py-0.5 bg-primary-container/20 border border-primary/30 text-primary text-[10px] font-label-caps rounded-full">{{tenant_id}}</span>
+<span class="px-2 py-0.5 bg-primary-container/20 border border-primary/30 text-primary text-[10px] font-label-caps rounded-full">{{auth_hook}}</span>
+<span class="px-2 py-0.5 bg-primary-container/20 border border-primary/30 text-primary text-[10px] font-label-caps rounded-full">+2 others</span>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="text-[11px] font-label-caps">2024-05-20 14:32</span>
+</div>
+<div class="flex gap-1">
+<button class="p-1.5 hover:bg-primary/20 hover:text-primary rounded transition-all" title="Load in Dashboard">
+<span class="material-symbols-outlined text-sm">open_in_new</span>
+</button>
+<button class="p-1.5 hover:bg-primary/20 hover:text-primary rounded transition-all" title="Duplicate">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+<button class="p-1.5 hover:bg-error/20 hover:text-error rounded transition-all" title="Delete">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- History Item 2 -->
+<div class="prompt-card glass-panel rounded-xl p-5 flex flex-col group transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div>
+<span class="font-label-caps text-label-caps text-tertiary mb-1 block">MARKDOWN_DOCS</span>
+<h4 class="font-headline-md text-[18px] text-on-surface font-bold leading-tight">Readme_Auto_Refactor</h4>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-tertiary transition-colors">article</span>
+</div>
+<div class="flex-1">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-3 mb-4 font-code-block text-code-block text-on-surface-variant line-clamp-2">
+                            "Summarize the following technical debt reports into a readable project README..."
+                        </div>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="px-2 py-0.5 bg-tertiary-container/20 border border-tertiary/30 text-tertiary text-[10px] font-label-caps rounded-full">{{repo_data}}</span>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="text-[11px] font-label-caps">2024-05-19 09:15</span>
+</div>
+<div class="flex gap-1">
+<button class="p-1.5 hover:bg-primary/20 hover:text-primary rounded transition-all" title="Load in Dashboard">
+<span class="material-symbols-outlined text-sm">open_in_new</span>
+</button>
+<button class="p-1.5 hover:bg-primary/20 hover:text-primary rounded transition-all" title="Duplicate">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+<button class="p-1.5 hover:bg-error/20 hover:text-error rounded transition-all" title="Delete">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- History Item 3 -->
+<div class="prompt-card glass-panel rounded-xl p-5 flex flex-col group transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div>
+<span class="font-label-caps text-label-caps text-secondary mb-1 block">PYTHON_SCRIPT</span>
+<h4 class="font-headline-md text-[18px] text-on-surface font-bold leading-tight">SQL_ETL_Optimizer</h4>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">code</span>
+</div>
+<div class="flex-1">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-3 mb-4 font-code-block text-code-block text-on-surface-variant line-clamp-2">
+                            "Review the query execution plan and rewrite the SQL for optimal PostgreSQL index usage..."
+                        </div>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="px-2 py-0.5 bg-primary-container/20 border border-primary/30 text-primary text-[10px] font-label-caps rounded-full">{{sql_blob}}</span>
+<span class="px-2 py-0.5 bg-primary-container/20 border border-primary/30 text-primary text-[10px] font-label-caps rounded-full">{{db_engine}}</span>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="text-[11px] font-label-caps">2024-05-18 22:45</span>
+</div>
+<div class="flex gap-1">
+<button class="p-1.5 hover:bg-primary/20 hover:text-primary rounded transition-all" title="Load in Dashboard">
+<span class="material-symbols-outlined text-sm">open_in_new</span>
+</button>
+<button class="p-1.5 hover:bg-primary/20 hover:text-primary rounded transition-all" title="Duplicate">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+<button class="p-1.5 hover:bg-error/20 hover:text-error rounded transition-all" title="Delete">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- History Item 4 (Asymmetric Large Item) -->
+<div class="prompt-card glass-panel rounded-xl p-5 flex flex-col group transition-all duration-300 border-l-4 border-l-secondary-fixed-dim lg:col-span-2">
+<div class="flex justify-between items-start mb-4">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="font-label-caps text-label-caps text-secondary">AGENT_ORCHESTRATION</span>
+<span class="bg-secondary-container/30 text-secondary-fixed text-[8px] font-bold px-1 rounded">FAVORITE</span>
+</div>
+<h4 class="font-headline-md text-[20px] text-on-surface font-bold leading-tight">Recursive_Problem_Solver_LLM</h4>
+</div>
+<div class="flex gap-2">
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">smart_toy</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-3 font-code-block text-code-block text-on-surface-variant h-24 overflow-hidden relative">
+                            "Define a multi-step chain of thought where the model first identifies constraints, then hypothesizes three solutions, and finally evaluates them against the original prompt parameters..."
+                            <div class="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-surface-container-lowest to-transparent"></div>
+</div>
+<div class="space-y-4">
+<div>
+<label class="text-[10px] font-label-caps text-outline block mb-1">USED_VARIABLES</label>
+<div class="flex flex-wrap gap-2">
+<span class="px-2 py-0.5 bg-primary-container/20 border border-primary/30 text-primary text-[10px] font-label-caps rounded-full">{{input_context}}</span>
+<span class="px-2 py-0.5 bg-primary-container/20 border border-primary/30 text-primary text-[10px] font-label-caps rounded-full">{{constraint_set}}</span>
+</div>
+</div>
+<div class="flex justify-between items-end">
+<div>
+<label class="text-[10px] font-label-caps text-outline block mb-1">OUTPUT_FORMAT</label>
+<span class="text-body-md font-bold text-secondary">RECURSIVE_JSON</span>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-4 mt-4 border-t border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-4 text-outline">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="text-[11px] font-label-caps">2024-05-17 11:00</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-xs">token</span>
+<span class="text-[11px] font-label-caps">2.4k TOKENS</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="bg-primary text-on-primary font-label-caps text-[10px] px-4 py-1.5 rounded font-bold hover:bg-primary-container transition-all flex items-center gap-1.5">
+<span class="material-symbols-outlined text-xs">rocket_launch</span>
+                                LOAD_INSTANCE
+                            </button>
+<button class="p-1.5 border border-outline-variant hover:bg-surface-variant rounded transition-all">
+<span class="material-symbols-outlined text-sm">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+<!-- History Item 5 -->
+<div class="prompt-card glass-panel rounded-xl p-5 flex flex-col group transition-all duration-300">
+<div class="flex justify-between items-start mb-4">
+<div>
+<span class="font-label-caps text-label-caps text-error mb-1 block">UNIT_TESTS</span>
+<h4 class="font-headline-md text-[18px] text-on-surface font-bold leading-tight">React_Hook_Tester</h4>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-error transition-colors">bug_report</span>
+</div>
+<div class="flex-1">
+<div class="bg-surface-container-lowest border border-outline-variant rounded p-3 mb-4 font-code-block text-code-block text-on-surface-variant line-clamp-2">
+                            "Create comprehensive Vitest unit tests for the following custom React hooks including edge cases..."
+                        </div>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="px-2 py-0.5 bg-error-container/20 border border-error/30 text-error text-[10px] font-label-caps rounded-full">{{hook_code}}</span>
+</div>
+</div>
+<div class="pt-4 border-t border-outline-variant flex items-center justify-between">
+<div class="flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span class="text-[11px] font-label-caps">2024-05-16 15:20</span>
+</div>
+<div class="flex gap-1">
+<button class="p-1.5 hover:bg-primary/20 hover:text-primary rounded transition-all" title="Load in Dashboard">
+<span class="material-symbols-outlined text-sm">open_in_new</span>
+</button>
+<button class="p-1.5 hover:bg-primary/20 hover:text-primary rounded transition-all" title="Duplicate">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+<button class="p-1.5 hover:bg-error/20 hover:text-error rounded transition-all" title="Delete">
+<span class="material-symbols-outlined text-sm">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Pagination / Status -->
+<div class="mt-12 flex items-center justify-between">
+<p class="text-[11px] font-label-caps text-outline">SHOWING 5 OF 128 SAVED_PROMPTS</p>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-outline-variant rounded font-label-caps text-[10px] disabled:opacity-30" disabled="">PREV</button>
+<button class="px-3 py-1 border border-primary text-primary bg-primary/10 rounded font-label-caps text-[10px]">1</button>
+<button class="px-3 py-1 border border-outline-variant rounded font-label-caps text-[10px] hover:bg-surface-variant">2</button>
+<button class="px-3 py-1 border border-outline-variant rounded font-label-caps text-[10px] hover:bg-surface-variant">3</button>
+<button class="px-3 py-1 border border-outline-variant rounded font-label-caps text-[10px] hover:bg-surface-variant">NEXT</button>
+</div>
+</div>
+</section>
+</main>
+<script>
+        // Simple micro-interaction for hover glow effect
+        document.querySelectorAll('.prompt-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+                
+                // Active indicator pulse on hover (optional enhancement)
+            });
+        });
+
+        // Search highlight logic (placeholder)
+        const searchInput = document.querySelector('input[placeholder="Keywords..."]');
+        searchInput.addEventListener('input', (e) => {
+            console.log('Searching for:', e.target.value);
+            // In a real app, this would filter the grid items
+        });
+    </script>
+</body></html>

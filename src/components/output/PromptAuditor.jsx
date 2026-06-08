@@ -29,15 +29,19 @@ function IssueRow({ issue, idx, onApplyFix }) {
   const [editing, setEditing] = useState(false)
   const [fixText, setFixText] = useState(issue.fix || '')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState(null)
 
   const s = SEVERITY[issue.severity] || SEVERITY.suggestion
 
   const handleSend = async () => {
     if (!fixText.trim() || sending) return
+    setSendError(null)
     setSending(true)
     try {
       await onApplyFix(fixText.trim(), idx)
       setEditing(false)
+    } catch (err) {
+      setSendError(err.message || 'Erro ao processar. Tente novamente.')
     } finally {
       setSending(false)
     }
@@ -126,7 +130,7 @@ function IssueRow({ issue, idx, onApplyFix }) {
               />
               <div className="flex items-center justify-end gap-2">
                 <button
-                  onClick={() => setEditing(false)}
+                  onClick={() => { setEditing(false); setSendError(null) }}
                   disabled={sending}
                   className="px-3 py-1.5 rounded text-[10px] font-mono hover:opacity-80 transition-all disabled:opacity-40"
                   style={{
@@ -148,6 +152,12 @@ function IssueRow({ issue, idx, onApplyFix }) {
                   }
                 </button>
               </div>
+              {sendError && (
+                <div className="flex items-start gap-1.5 pt-1">
+                  <span className="material-symbols-outlined text-error flex-shrink-0" style={{ fontSize: 12 }}>error</span>
+                  <p className="text-[10px] font-mono text-error leading-snug">{sendError}</p>
+                </div>
+              )}
             </div>
           )}
         </div>

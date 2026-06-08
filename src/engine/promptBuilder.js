@@ -37,9 +37,13 @@ export function buildPrompt(config, settings = {}) {
     })
     .join(',\n')
 
+  const successExit = allExits.find(e => e.key === 'success')
+  const successHasMsg = successExit?.sendExitMessage && successExit?.exitMessage?.trim()
+  const successMsgCol = (successExit?.sendExitMessage) ? 'Preenchida' : 'Vazia ""  '
+
   const statusMapRows = [
     '| `in_process`       | Continuidade         | Preenchida | Fluxo ativo, aguardando resposta do cliente |',
-    '| `success`          | Terminal             | Preenchida | Atendimento concluído pelo agente           |',
+    `| \`success\`          | Terminal             | ${successMsgCol} | Atendimento concluído pelo agente           |`,
     ...customExits.map(e => {
       const hasMsg = e.sendExitMessage && e.exitMessage?.trim()
       const msgCol = hasMsg ? 'Preenchida' : 'Vazia ""  '
@@ -97,8 +101,13 @@ export function buildPrompt(config, settings = {}) {
     lines.push(jsonBlock('in_process', 'Pergunta ou informação ao cliente'))
     lines.push(``)
 
+    const successFormatMsg = successHasMsg
+      ? successExit.exitMessage.trim()
+      : successExit?.sendExitMessage
+        ? 'Mensagem de encerramento ao cliente'
+        : ''
     lines.push(`SE atendimento concluído pelo agente:`)
-    lines.push(jsonBlock('success', 'Mensagem de encerramento ao cliente'))
+    lines.push(jsonBlock('success', successFormatMsg))
     lines.push(``)
 
     for (const exit of customExits) {
@@ -142,7 +151,11 @@ export function buildPrompt(config, settings = {}) {
   lines.push(`**Regra crítica sobre \`message\` em saídas:**`)
   lines.push(`- Saídas marcadas como "Vazia": \`message\` deve ser \`""\`. Contexto via \`variables\` e \`summary\`.`)
   lines.push(`- Saídas marcadas como "Preenchida": usar exatamente o valor definido em § CONDIÇÕES DE SAÍDA.`)
-  lines.push(`- \`success\` sempre tem mensagem explicando o encerramento ao cliente.`)
+  if (successExit?.sendExitMessage) {
+    lines.push(`- \`success\` sempre tem mensagem explicando o encerramento ao cliente.`)
+  } else {
+    lines.push(`- \`success\` está configurado sem mensagem: \`message\` deve ser \`""\`.`)
+  }
   lines.push(``)
 
   lines.push(`# CONDIÇÕES DE SAÍDA`)
@@ -308,6 +321,13 @@ function buildExitSection(exit) {
     lines.push(`## \`success\``)
     lines.push(`**Quando usar:** quando o atendimento é concluído, com agendamento confirmado, orientação de retorno ou encerramento por falta de requisito.`)
     lines.push(`\`success\` não significa êxito total, mas que o agente encerrou sua parte do fluxo.`)
+    if (exit.sendExitMessage && exit.exitMessage?.trim()) {
+      lines.push(`**EXCEÇÃO:** sempre preencher \`message\` com exatamente: "${exit.exitMessage.trim()}"`)
+    } else if (exit.sendExitMessage) {
+      lines.push(`Sempre preencher \`message\` com mensagem de encerramento ao cliente.`)
+    } else {
+      lines.push(`\`message\` deve ser \`""\`. Sem mensagem ao cliente nesta saída.`)
+    }
   } else if (exit.key === 'saida_atendente') {
     lines.push(`## \`saida_atendente\``)
     if (exit.sendExitMessage && exit.exitMessage?.trim()) {
@@ -359,7 +379,9 @@ export function getDefaultConfig() {
         key: 'success',
         label: 'Concluído',
         description: 'Atendimento encerrado pelo agente com orientação ao cliente.',
-        isSystem: true,
+        isDefault: true,
+        sendExitMessage: false,
+        exitMessage: '',
       },
       {
         id: 3,
