@@ -49,7 +49,18 @@ export default function App() {
   const [generatingExitId, setGeneratingExitId] = useState(null)
   const [isAuditing, setIsAuditing] = useState(false)
   const [auditResult, setAuditResult] = useState(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem('pm-sidebar') === 'collapsed'
+  )
   const promptRef = useRef(null)
+
+  const handleToggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => {
+      const next = !prev
+      localStorage.setItem('pm-sidebar', next ? 'collapsed' : 'expanded')
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     const html = document.documentElement
@@ -348,8 +359,6 @@ export default function App() {
   return (
     <div className="bg-background text-on-surface min-h-screen font-sans">
       <TopNav
-        view={view}
-        setView={setView}
         onGenerate={handleGenerate}
         isGenerating={isGenerating}
         isDark={isDark}
@@ -357,9 +366,19 @@ export default function App() {
       />
 
       <div className="flex h-screen pt-16">
-        <SideNav view={view} setView={setView} onNewPrompt={handleNewPrompt} aiConfig={aiConfig} />
+        <SideNav
+          view={view}
+          setView={setView}
+          onNewPrompt={handleNewPrompt}
+          aiConfig={aiConfig}
+          isCollapsed={sidebarCollapsed}
+          onToggle={handleToggleSidebar}
+        />
 
-        <main className="ml-[280px] flex-1 overflow-hidden">
+        <main
+          className="flex-1 overflow-hidden transition-all duration-200"
+          style={{ marginLeft: sidebarCollapsed ? '64px' : '280px' }}
+        >
           {view === 'editor' && (
             <div className="h-full grid grid-cols-12 overflow-hidden">
               {/* Painel Central — Editor */}

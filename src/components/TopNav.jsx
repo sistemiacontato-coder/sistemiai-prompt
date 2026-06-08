@@ -1,34 +1,19 @@
 import { isSupabaseConfigured } from '../lib/supabase'
 
-export default function TopNav({ view, setView, onGenerate, isGenerating, isDark, onToggleTheme }) {
+export default function TopNav({ onGenerate, isGenerating, isDark, onToggleTheme }) {
   return (
     <nav className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant flex justify-between items-center h-16 px-6">
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary-container rounded flex items-center justify-center">
-            <span className="material-symbols-outlined text-on-primary-container text-[18px]">psychology</span>
-          </div>
-          <span className="text-primary font-bold text-lg tracking-tight">SistemIA Prompt</span>
+      {/* Logo */}
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-primary-container rounded flex items-center justify-center">
+          <span className="material-symbols-outlined text-on-primary-container text-[18px]">psychology</span>
         </div>
-
-        <div className="hidden md:flex items-center gap-1 ml-4">
-          {['editor', 'library'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setView(tab)}
-              className={`px-3 py-1.5 rounded text-[11px] font-mono font-semibold tracking-widest uppercase transition-colors
-                ${view === tab
-                  ? 'text-primary border-b-2 border-primary rounded-none pb-3'
-                  : 'text-on-surface-variant hover:text-primary'}`}
-            >
-              {tab === 'editor' ? 'Editor' : 'Histórico'}
-            </button>
-          ))}
-        </div>
+        <span className="text-primary font-bold text-lg tracking-tight">SistemIA Prompt</span>
       </div>
 
+      {/* Ações */}
       <div className="flex items-center gap-3">
-        {/* Botão lua/sol */}
+        {/* Tema */}
         <button
           onClick={onToggleTheme}
           title={isDark ? 'Modo claro' : 'Modo escuro'}
@@ -39,6 +24,7 @@ export default function TopNav({ view, setView, onGenerate, isGenerating, isDark
           </span>
         </button>
 
+        {/* Status banco */}
         <div className={`flex items-center gap-2 px-3 py-1 rounded border ${
           isSupabaseConfigured
             ? 'border-secondary/40 bg-secondary/5'
@@ -50,6 +36,7 @@ export default function TopNav({ view, setView, onGenerate, isGenerating, isDark
           </span>
         </div>
 
+        {/* Gerar prompt */}
         <button
           onClick={onGenerate}
           disabled={isGenerating}
