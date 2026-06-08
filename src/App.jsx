@@ -49,6 +49,7 @@ export default function App() {
   const [generatingExitId, setGeneratingExitId] = useState(null)
   const [isAuditing, setIsAuditing] = useState(false)
   const [auditResult, setAuditResult] = useState(null)
+  const [pendingFixIssueIdx, setPendingFixIssueIdx] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('pm-sidebar') === 'collapsed'
   )
@@ -98,11 +99,13 @@ export default function App() {
       const updated = saveSnapshot({ config, prompt: generatedPrompt, description: pendingChanges.summary || 'Mudanças aplicadas pelo revisor' })
       setHistory(updated)
     }
-    const { new_domain, add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
+    const { new_agent_name, new_agent_persona, new_domain, add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
     const baseId = Date.now()
 
     setConfig(prev => {
-      const domain = new_domain || prev.domain
+      const agentName    = new_agent_name    || prev.agentName
+      const agentPersona = new_agent_persona || prev.agentPersona
+      const domain       = new_domain        || prev.domain
 
       let variables = prev.variables.filter(v => !remove_variables.includes(v.name))
       const newVars = add_variables
@@ -135,7 +138,7 @@ export default function App() {
         .filter(e => e.key.startsWith('saida_') && !exitDestinations.some(ex => ex.key === e.key))
       exitDestinations = [...exitDestinations, ...newExits]
 
-      const newConfig = { ...prev, domain, variables, exitDestinations }
+      const newConfig = { ...prev, agentName, agentPersona, domain, variables, exitDestinations }
       const newPrompt = buildPrompt(newConfig, settings)
       setGeneratedPrompt(newPrompt)
       if (isSupabaseConfigured) {
@@ -145,7 +148,21 @@ export default function App() {
     })
 
     setPendingChanges(null)
-    setAuditResult(null)
+
+    // Remove apenas o issue específico que foi corrigido; mantém o restante da auditoria visível
+    setPendingFixIssueIdx(prev => {
+      if (prev !== null) {
+        setAuditResult(audit => {
+          if (!audit) return null
+          const remaining = audit.issues.filter((_, i) => i !== prev)
+          if (remaining.length === 0) return null
+          return { ...audit, issues: remaining }
+        })
+        return null
+      }
+      setAuditResult(null)
+      return null
+    })
   }, [pendingChanges, settings, config, generatedPrompt])
 
   const handleDiscardChanges = useCallback(() => {
@@ -536,7 +553,8 @@ export default function App() {
                       isAuditing={isAuditing}
                       auditResult={auditResult}
                       aiConfig={aiConfig}
-                      onApplyFix={async (fix) => {
+                      onApplyFix={async (fix, issueIdx) => {
+                        setPendingFixIssueIdx(issueIdx ?? null)
                         await handleReview(fix)
                       }}
                     />

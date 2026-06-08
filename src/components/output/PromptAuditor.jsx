@@ -36,7 +36,7 @@ function IssueRow({ issue, idx, onApplyFix }) {
     if (!fixText.trim() || sending) return
     setSending(true)
     try {
-      await onApplyFix(fixText.trim())
+      await onApplyFix(fixText.trim(), idx)
       setEditing(false)
     } finally {
       setSending(false)

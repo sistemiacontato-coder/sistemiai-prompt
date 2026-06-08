@@ -147,10 +147,35 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
 
   if (!pendingChanges) return null
 
-  const { new_domain, add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
+  const { new_agent_name, new_agent_persona, new_domain, add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
 
   // Monta itens semânticos
   const items = []
+
+  // Nome do agente
+  if (new_agent_name) {
+    const oldName = config?.agentName || ''
+    if (oldName) items.push({ type: 'removed', category: 'nome', title: oldName, detail: null, wordHighlight: null, _key: 'name-old' })
+    items.push({ type: 'added', category: 'nome', title: new_agent_name, detail: null, wordHighlight: null, _key: 'name-new' })
+  }
+
+  // Persona do agente — diff linha a linha
+  if (new_agent_persona) {
+    const oldPersona = config?.agentPersona || ''
+    if (oldPersona && oldPersona !== new_agent_persona) {
+      const personaDiff = diffLines(oldPersona, new_agent_persona)
+      personaDiff.filter(d => d.type === 'removed').forEach((d, i) => {
+        items.push({ type: 'removed', category: 'persona', title: d.content || '(vazio)', detail: null, wordHighlight: null, _key: `per-rem-${i}` })
+      })
+      personaDiff.filter(d => d.type === 'added').forEach((d, i) => {
+        items.push({ type: 'added', category: 'persona', title: d.content || '(vazio)', detail: null, wordHighlight: null, _key: `per-add-${i}` })
+      })
+    } else if (!oldPersona) {
+      new_agent_persona.split('\n').forEach((line, i) => {
+        if (line.trim()) items.push({ type: 'added', category: 'persona', title: line, detail: null, wordHighlight: null, _key: `per-new-${i}` })
+      })
+    }
+  }
 
   // Objetivo — diff linha a linha, com highlight de palavras nos itens adicionados
   if (new_domain) {
@@ -386,7 +411,9 @@ export default function PromptPreview({
   const totalChanges = pendingChanges
     ? (pendingChanges.add_variables.length + pendingChanges.remove_variables.length +
        pendingChanges.add_exits.length + pendingChanges.remove_exits.length +
-       (pendingChanges.new_domain ? 1 : 0))
+       (pendingChanges.new_domain ? 1 : 0) +
+       (pendingChanges.new_agent_name ? 1 : 0) +
+       (pendingChanges.new_agent_persona ? 1 : 0))
     : 0
 
   return (
@@ -473,6 +500,18 @@ export default function PromptPreview({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  {pendingChanges.new_agent_name && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border border-secondary/30 text-secondary">
+                      <span className="material-symbols-outlined" style={{ fontSize: 11 }}>badge</span>
+                      nome atualizado
+                    </span>
+                  )}
+                  {pendingChanges.new_agent_persona && (
+                    <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border border-secondary/30 text-secondary">
+                      <span className="material-symbols-outlined" style={{ fontSize: 11 }}>person</span>
+                      persona atualizada
+                    </span>
+                  )}
                   {pendingChanges.new_domain && (
                     <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border border-secondary/30 text-secondary">
                       <span className="material-symbols-outlined" style={{ fontSize: 11 }}>edit</span>

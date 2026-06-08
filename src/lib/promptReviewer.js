@@ -25,6 +25,8 @@ Com base na instrução, identifique as mudanças necessárias na configuração
 Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de código:
 
 {
+  "new_agent_name": "Novo nome do agente (vazio se não precisar alterar)",
+  "new_agent_persona": "Nova persona COMPLETA do agente (vazio se não precisar alterar)",
   "new_domain": "Texto COMPLETO e FINAL do domínio/objetivo do agente (vazio se não precisar alterar o domínio)",
   "add_variables": [
     { "name": "nome_max14chars", "type": "text", "description": "orientação para a IA", "options": "" }
@@ -38,7 +40,10 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
 }
 
 REGRAS OBRIGATÓRIAS:
-- new_domain: use quando a instrução alterar o que o agente faz ou atende. Escreva o texto COMPLETO do domínio, incorporando as mudanças. Se a instrução contradizer algo existente, corrija a contradição no texto final. Se não houver mudança no domínio, deixe vazio "".
+- new_agent_name: use APENAS quando a instrução pedir para corrigir ou alterar o nome do agente. Vazio "" se não precisar.
+- new_agent_persona: use quando a instrução alterar a persona, comportamento ou apresentação do agente. Escreva o texto COMPLETO da persona com as correções aplicadas. Vazio "" se não precisar.
+- new_domain: use quando a instrução alterar o que o agente faz ou atende. Escreva o texto COMPLETO do domínio, incorporando as mudanças. Vazio "" se não precisar.
+- IMPORTANTE: corrija APENAS o campo que a instrução apontar. Não altere o domain/objetivo quando a instrução for sobre nome ou persona.
 - add_variables[].name: minúsculo, underline, sem acento, MÁXIMO 14 caracteres
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
 - add_exits[].description: SEMPRE começar com "Interrompa a IA quando o cliente"
@@ -58,12 +63,14 @@ function extractJson(text) {
 
 function normalizeResult(parsed) {
   return {
-    new_domain:       typeof parsed.new_domain === 'string' ? parsed.new_domain.trim() : '',
-    add_variables:    Array.isArray(parsed.add_variables)    ? parsed.add_variables    : [],
-    remove_variables: Array.isArray(parsed.remove_variables) ? parsed.remove_variables : [],
-    add_exits:        Array.isArray(parsed.add_exits)        ? parsed.add_exits        : [],
-    remove_exits:     Array.isArray(parsed.remove_exits)     ? parsed.remove_exits     : [],
-    summary:          parsed.summary || 'Mudanças propostas pela IA.',
+    new_agent_name:    typeof parsed.new_agent_name === 'string'    ? parsed.new_agent_name.trim()    : '',
+    new_agent_persona: typeof parsed.new_agent_persona === 'string' ? parsed.new_agent_persona.trim() : '',
+    new_domain:        typeof parsed.new_domain === 'string'        ? parsed.new_domain.trim()        : '',
+    add_variables:     Array.isArray(parsed.add_variables)    ? parsed.add_variables    : [],
+    remove_variables:  Array.isArray(parsed.remove_variables) ? parsed.remove_variables : [],
+    add_exits:         Array.isArray(parsed.add_exits)        ? parsed.add_exits        : [],
+    remove_exits:      Array.isArray(parsed.remove_exits)     ? parsed.remove_exits     : [],
+    summary:           parsed.summary || 'Mudanças propostas pela IA.',
   }
 }
 
@@ -79,7 +86,9 @@ export async function reviewPromptChanges(instruction, config, aiConfig) {
 
   const totalChanges = result.add_variables.length + result.remove_variables.length +
                        result.add_exits.length + result.remove_exits.length +
-                       (result.new_domain ? 1 : 0)
+                       (result.new_domain ? 1 : 0) +
+                       (result.new_agent_name ? 1 : 0) +
+                       (result.new_agent_persona ? 1 : 0)
 
   if (totalChanges === 0) throw new Error('A IA não identificou mudanças necessárias para esta instrução.')
 
@@ -113,6 +122,8 @@ O usuário viu sua proposta anterior e quer um ajuste. Revise as mudanças propo
 Retorne APENAS o JSON abaixo com as mudanças CORRIGIDAS, sem texto adicional, sem markdown:
 
 {
+  "new_agent_name": "Novo nome do agente (vazio se não precisar alterar)",
+  "new_agent_persona": "Nova persona COMPLETA (vazio se não precisar alterar)",
   "new_domain": "Texto COMPLETO e FINAL do domínio (vazio se não precisar alterar)",
   "add_variables": [],
   "remove_variables": [],
@@ -122,6 +133,8 @@ Retorne APENAS o JSON abaixo com as mudanças CORRIGIDAS, sem texto adicional, s
 }
 
 REGRAS OBRIGATÓRIAS:
+- new_agent_name: vazio "" se não precisar alterar o nome
+- new_agent_persona: escreva o texto COMPLETO da persona se precisar alterar. Vazio "" se não precisar.
 - new_domain: escreva o texto COMPLETO do domínio se precisar alterar. Vazio "" se não precisar.
 - add_variables[].name: minúsculo, underline, sem acento, MÁXIMO 14 caracteres
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
@@ -135,7 +148,9 @@ REGRAS OBRIGATÓRIAS:
 
   const totalChanges = result.add_variables.length + result.remove_variables.length +
                        result.add_exits.length + result.remove_exits.length +
-                       (result.new_domain ? 1 : 0)
+                       (result.new_domain ? 1 : 0) +
+                       (result.new_agent_name ? 1 : 0) +
+                       (result.new_agent_persona ? 1 : 0)
 
   if (totalChanges === 0) throw new Error('A IA não identificou mudanças na correção. Tente ser mais específico.')
 
