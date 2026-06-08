@@ -67,9 +67,9 @@ export function validateConfig(config) {
     results.push({ type: 'warning', code: 'DUPLICATE_VARIABLES', message: 'Variáveis com nomes duplicados detectadas. Apenas a primeira será mantida.' })
   }
 
-  // Destinos de saída
-  const exits = exitDestinations?.filter(e => !e.isSystem && e.key)
-  const customExits = exits?.filter(e => e.key !== 'saida_atendente')
+  // Destinos de saída — exclui exits de sistema e padrão (success, saida_atendente)
+  const exits = exitDestinations?.filter(e => !e.isSystem && !e.isDefault && e.key)
+  const customExits = exits
 
   if (customExits?.length === 0) {
     results.push({ type: 'info', code: 'NO_CUSTOM_EXITS', message: 'Nenhum destino de transferência personalizado configurado. Usando apenas saída padrão.' })

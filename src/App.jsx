@@ -50,6 +50,11 @@ export default function App() {
   const [isAuditing, setIsAuditing] = useState(false)
   const [auditResult, setAuditResult] = useState(null)
   const [pendingFixIssueIdx, setPendingFixIssueIdx] = useState(null)
+  const [analyzeOptions, setAnalyzeOptions] = useState({
+    includeNomeCliente: true,
+    includeSaidaAtendente: true,
+    includeSaidaEscopo: false,
+  })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('pm-sidebar') === 'collapsed'
   )
@@ -169,6 +174,15 @@ export default function App() {
     setPendingChanges(null)
   }, [])
 
+  const handleDismissIssue = useCallback((idx) => {
+    setAuditResult(prev => {
+      if (!prev) return null
+      const remaining = prev.issues.filter((_, i) => i !== idx)
+      if (remaining.length === 0) return null
+      return { ...prev, issues: remaining }
+    })
+  }, [])
+
   const handleAudit = useCallback(async () => {
     setIsAuditing(true)
     setAuditResult(null)
@@ -230,7 +244,7 @@ export default function App() {
       })
 
       const baseId = Date.now()
-      const newVars = result.variables.map((v, i) => ({
+      let newVars = result.variables.map((v, i) => ({
         id: baseId + i,
         name: (v.name || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 14),
         type: v.type === 'enum' ? 'enum' : 'text',
@@ -239,29 +253,71 @@ export default function App() {
         generated: true,
       })).filter(v => v.name)
 
+      // Filtrar nome_cliente se desabilitado
+      if (!analyzeOptions.includeNomeCliente) {
+        newVars = newVars.filter(v => v.name !== 'nome_cliente')
+      }
+
       const systemExits = config.exitDestinations.filter(e => e.isSystem)
-      const newExits = result.exits.map((e, i) => {
+      const defaultExits = config.exitDestinations.filter(e => e.isDefault)
+      let newExits = result.exits.map((e, i) => {
         const key = (e.key || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20)
         return {
           id: baseId + 100 + i,
           key,
           label: e.label || key,
           description: normalizeCondition(e.description || ''),
-          isDefault: key === 'saida_atendente',
+          isDefault: false,
           generated: true,
           sendExitMessage: true,
           exitMessage: '',
         }
-      }).filter(e => e.key.startsWith('saida_'))
+      }).filter(e => e.key.startsWith('saida_') && e.key !== 'saida_atendente')
 
-      setConfig(prev => ({
-        ...prev,
-        variables: newVars,
-        exitDestinations: [...systemExits, ...newExits],
-      }))
+      // Saída atendente: manter a existente ou criar nova se habilitado
+      const existingAtendente = defaultExits.find(e => e.key === 'saida_atendente')
+      const atendenteExit = analyzeOptions.includeSaidaAtendente
+        ? (existingAtendente || {
+            id: baseId + 200,
+            key: 'saida_atendente',
+            label: 'Atendente Humano',
+            description: 'Interrompa a IA quando o cliente pedir para falar com um atendente humano, expressar insatisfação ou quando a situação exigir análise humana.',
+            isDefault: true,
+            generated: true,
+            sendExitMessage: true,
+            exitMessage: '',
+          })
+        : null
 
+      // Saída fora do escopo: adicionar se habilitado
+      if (analyzeOptions.includeSaidaEscopo) {
+        newExits.push({
+          id: baseId + 201,
+          key: 'saida_fora_escopo',
+          label: 'Fora do Escopo',
+          description: 'Interrompa a IA quando o cliente fizer perguntas completamente fora do domínio de atendimento do agente.',
+          isDefault: false,
+          generated: true,
+          sendExitMessage: false,
+          exitMessage: '',
+        })
+      }
+
+      // Reconstruir exits: sistema + success + atendente (se habilitado) + personalizadas
+      const successExit = defaultExits.find(e => e.key === 'success') || config.exitDestinations.find(e => e.key === 'success')
+      const builtExits = [
+        ...systemExits,
+        ...(successExit ? [successExit] : []),
+        ...(atendenteExit ? [atendenteExit] : []),
+        ...newExits,
+      ]
+
+      setConfig(prev => ({ ...prev, variables: newVars, exitDestinations: builtExits }))
+
+      // Gerar mensagens apenas para saídas personalizadas com sendExitMessage
+      const exitsNeedingMsg = newExits.filter(e => e.sendExitMessage)
       const messageResults = await Promise.allSettled(
-        newExits.map(exit =>
+        exitsNeedingMsg.map(exit =>
           generateExitMessage({
             exit,
             agentName: config.agentName,
@@ -272,10 +328,7 @@ export default function App() {
         )
       )
 
-      const messages = messageResults
-        .filter(r => r.status === 'fulfilled')
-        .map(r => r.value)
-
+      const messages = messageResults.filter(r => r.status === 'fulfilled').map(r => r.value)
       if (messages.length > 0) {
         setConfig(prev => ({
           ...prev,
@@ -286,7 +339,8 @@ export default function App() {
         }))
       }
 
-      setAnalyzeResult({ vars: newVars.length, exits: newExits.length })
+      const customExitCount = newExits.length + (atendenteExit && !existingAtendente ? 1 : 0)
+      setAnalyzeResult({ vars: newVars.length, exits: customExitCount })
       setTimeout(() => setAnalyzeResult(null), 6000)
     } catch (err) {
       setAnalyzeResult({ error: err.message })
@@ -329,6 +383,8 @@ export default function App() {
       try {
         const prompt = buildPrompt(config, settings)
         setGeneratedPrompt(prompt)
+        // Auto-salva snapshot no histórico de versões
+        setHistory(saveSnapshot({ config, prompt, description: `Gerado — ${config.agentName || 'agente'}` }))
         setTimeout(() => promptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
         if (isSupabaseConfigured) {
           deployAgent({ config, generatedPrompt: prompt }).catch(() => {})
@@ -424,6 +480,38 @@ export default function App() {
                     const activeProvider = aiConfig?.apiKey ? detectProviderFromKey(aiConfig.apiKey) : null
                     return (
                       <div className="space-y-3">
+
+                        {/* Opções de geração */}
+                        <div className="rounded-lg border border-outline-variant/60 px-4 py-3 space-y-2"
+                             style={{ background: 'var(--color-surface-container-high)' }}>
+                          <p className="text-[9px] font-mono font-semibold tracking-widest uppercase text-on-surface-variant/50 mb-2">
+                            Opções de geração automática
+                          </p>
+                          {[
+                            { key: 'includeNomeCliente',     label: 'Campo: nome do cliente',         desc: 'Inclui nome_cliente nos campos gerados' },
+                            { key: 'includeSaidaAtendente',  label: 'Saída: atendente humano',        desc: 'Inclui saida_atendente como saída padrão' },
+                            { key: 'includeSaidaEscopo',     label: 'Saída: perguntas fora do escopo', desc: 'Adiciona saida_fora_escopo aos resultados' },
+                          ].map(opt => (
+                            <label key={opt.key} className="flex items-center gap-3 cursor-pointer group">
+                              <button
+                                type="button"
+                                onClick={() => setAnalyzeOptions(prev => ({ ...prev, [opt.key]: !prev[opt.key] }))}
+                                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors flex-shrink-0 ${
+                                  analyzeOptions[opt.key] ? 'bg-secondary' : 'bg-outline-variant'
+                                }`}
+                              >
+                                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                                  analyzeOptions[opt.key] ? 'translate-x-3.5' : 'translate-x-0.5'
+                                }`} />
+                              </button>
+                              <div>
+                                <span className="text-[11px] font-mono text-on-surface/80">{opt.label}</span>
+                                <span className="text-[10px] font-mono text-on-surface-variant/40 ml-2">{opt.desc}</span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+
                         <button
                           onClick={handleAnalyzeObjective}
                           disabled={!canAnalyze}
@@ -553,6 +641,7 @@ export default function App() {
                       isAuditing={isAuditing}
                       auditResult={auditResult}
                       aiConfig={aiConfig}
+                      onDismissIssue={handleDismissIssue}
                       onApplyFix={async (fix, issueIdx) => {
                         setPendingFixIssueIdx(issueIdx ?? null)
                         await handleReview(fix)

@@ -81,20 +81,20 @@ function highlightChangedWords(oldStr, newStr) {
   return newWords.map((word, i) => ({ word, isBold: i >= start && i <= endNew }))
 }
 
-// Linha de item no painel de diff
-// wordHighlight: array de { word, isBold } — quando fornecido, renderiza o título com negrito seletivo
+// Linha de item no painel de diff — cores via variáveis CSS (funciona em modo claro e escuro)
 function DiffItem({ type, category, title, detail, wordHighlight }) {
   const isAdd = type === 'added'
-  const color = isAdd ? '#4ade80' : '#f87171'
-  const colorFaded = isAdd ? 'rgba(74,222,128,0.6)' : 'rgba(248,113,113,0.6)'
+  const cv = isAdd ? 'secondary' : 'error'
+  const color     = `rgb(var(--color-${cv}))`
+  const colorFade = `rgb(var(--color-${cv}) / 0.75)`
+  const bgItem    = `rgb(var(--color-${cv}) / 0.10)`
+  const bgChip    = `rgb(var(--color-${cv}) / 0.16)`
+  const bdrLeft   = `rgb(var(--color-${cv}) / 0.55)`
 
   return (
     <div
       className="flex items-start gap-2 px-3 py-2 border-b border-outline-variant/10 last:border-0"
-      style={{
-        background: isAdd ? 'rgba(74,222,128,0.10)' : 'rgba(248,113,113,0.10)',
-        borderLeft: `3px solid ${isAdd ? 'rgba(74,222,128,0.55)' : 'rgba(248,113,113,0.55)'}`,
-      }}
+      style={{ background: bgItem, borderLeft: `3px solid ${bdrLeft}` }}
     >
       <span className="font-mono text-[13px] font-bold flex-shrink-0 mt-0.5 w-3" style={{ color }}>
         {isAdd ? '+' : '−'}
@@ -103,14 +103,13 @@ function DiffItem({ type, category, title, detail, wordHighlight }) {
         <div className="flex items-center gap-1.5 flex-wrap">
           <span
             className="text-[8px] font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
-            style={{ background: isAdd ? 'rgba(74,222,128,0.18)' : 'rgba(248,113,113,0.18)', color }}
+            style={{ background: bgChip, color }}
           >
             {category}
           </span>
           <span className="font-mono text-[11px] font-normal leading-snug" style={{ color }}>
             {wordHighlight
               ? (() => {
-                  // Agrupa palavras consecutivas com mesmo isBold em blocos
                   const groups = []
                   for (const w of wordHighlight) {
                     const last = groups[groups.length - 1]
@@ -119,7 +118,7 @@ function DiffItem({ type, category, title, detail, wordHighlight }) {
                   }
                   return groups.map((g, i) =>
                     g.isBold
-                      ? <span key={i} style={{ fontWeight: 900, color: '#ffffff', background: 'rgba(74,222,128,0.28)', borderRadius: '3px', padding: '0 4px' }}>
+                      ? <span key={i} style={{ fontWeight: 900, color, background: `rgb(var(--color-${cv}) / 0.22)`, borderRadius: '3px', padding: '0 4px' }}>
                           {g.words.join(' ')}
                         </span>
                       : <span key={i}>{g.words.join(' ')} </span>
@@ -130,7 +129,7 @@ function DiffItem({ type, category, title, detail, wordHighlight }) {
           </span>
         </div>
         {detail && (
-          <p className="text-[10px] font-mono mt-0.5 leading-snug truncate font-normal" style={{ color: colorFaded }}>
+          <p className="text-[10px] font-mono mt-0.5 leading-relaxed font-normal" style={{ color: colorFade }}>
             {detail}
           </p>
         )}
@@ -497,6 +496,13 @@ export default function PromptPreview({
                 <div className="flex items-start gap-2">
                   <span className="material-symbols-outlined text-secondary flex-shrink-0 mt-0.5" style={{ fontSize: 16 }}>auto_fix_high</span>
                   <p className="text-[12px] font-mono text-secondary leading-relaxed flex-1">{pendingChanges.summary}</p>
+                  <button
+                    onClick={handleDiscard}
+                    title="Descartar mudanças"
+                    className="flex-shrink-0 text-on-surface-variant/30 hover:text-error transition-colors mt-0.5"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                  </button>
                 </div>
 
                 <div className="flex flex-wrap gap-2">

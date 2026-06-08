@@ -52,7 +52,7 @@ export default function ValidatorPanel({ validationResults }) {
                 <span className="material-symbols-outlined text-[14px]">{cfg.icon}</span>
                 <span className="text-[9px] font-mono font-bold tracking-widest">{cfg.label}</span>
               </div>
-              <p className="text-[11px] font-mono leading-tight" style={{ color: 'var(--tw-color-on-surface, #dae2fd)', opacity: 0.8 }}>
+              <p className="text-[11px] font-mono leading-tight text-on-surface/80">
                 {result.message}
               </p>
             </div>

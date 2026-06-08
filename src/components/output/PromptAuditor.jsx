@@ -1,9 +1,21 @@
 import { useState } from 'react'
 
+// Mapeamento para variáveis CSS do tema — funciona em modo claro e escuro
 const SEVERITY = {
-  critical:   { label: 'Crítico',  color: '#f87171', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.35)', icon: 'error' },
-  warning:    { label: 'Aviso',    color: '#fbbf24', bg: 'rgba(251,191,36,0.10)',  border: 'rgba(251,191,36,0.35)',  icon: 'warning' },
-  suggestion: { label: 'Sugestão', color: '#60a5fa', bg: 'rgba(96,165,250,0.10)',  border: 'rgba(96,165,250,0.35)',  icon: 'lightbulb' },
+  critical:   { label: 'Crítico',  colorVar: 'error',    icon: 'error' },
+  warning:    { label: 'Aviso',    colorVar: 'tertiary',  icon: 'warning' },
+  suggestion: { label: 'Sugestão', colorVar: 'primary',   icon: 'lightbulb' },
+}
+
+function getSeverityStyle(key) {
+  const cv = (SEVERITY[key] || SEVERITY.suggestion).colorVar
+  return {
+    label:  (SEVERITY[key] || SEVERITY.suggestion).label,
+    icon:   (SEVERITY[key] || SEVERITY.suggestion).icon,
+    color:  `rgb(var(--color-${cv}))`,
+    bg:     `rgb(var(--color-${cv}) / 0.12)`,
+    border: `rgb(var(--color-${cv}) / 0.40)`,
+  }
 }
 
 function ScoreRing({ score }) {
@@ -25,13 +37,13 @@ function ScoreRing({ score }) {
 }
 
 // Linha de cada problema — gerencia o estado de edição localmente
-function IssueRow({ issue, idx, onApplyFix }) {
+function IssueRow({ issue, idx, onApplyFix, onDismiss }) {
   const [editing, setEditing] = useState(false)
   const [fixText, setFixText] = useState(issue.fix || '')
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState(null)
 
-  const s = SEVERITY[issue.severity] || SEVERITY.suggestion
+  const s = getSeverityStyle(issue.severity)
 
   const handleSend = async () => {
     if (!fixText.trim() || sending) return
@@ -64,18 +76,26 @@ function IssueRow({ issue, idx, onApplyFix }) {
               {s.label}
             </span>
             {issue.category && (
-              <span className="text-[8px] font-mono text-on-surface-variant/40 uppercase tracking-wide">
+              <span className="text-[8px] font-mono text-on-surface-variant/50 uppercase tracking-wide">
                 {issue.category}
               </span>
             )}
           </div>
-          <p className="text-[11px] font-mono font-semibold text-on-surface/90 leading-snug mb-1">
+          <p className="text-[11px] font-mono font-semibold text-on-surface leading-snug mb-1">
             {issue.title}
           </p>
-          <p className="text-[10px] font-mono text-on-surface-variant/60 leading-relaxed">
+          <p className="text-[10px] font-mono text-on-surface-variant/70 leading-relaxed">
             {issue.description}
           </p>
         </div>
+        {/* Botão ignorar */}
+        <button
+          onClick={() => onDismiss(idx)}
+          title="Ignorar este aviso"
+          className="flex-shrink-0 text-on-surface-variant/25 hover:text-on-surface-variant/60 transition-colors mt-0.5"
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 14 }}>close</span>
+        </button>
       </div>
 
       {/* Área de correção */}
@@ -166,7 +186,7 @@ function IssueRow({ issue, idx, onApplyFix }) {
   )
 }
 
-export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConfig, onApplyFix }) {
+export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConfig, onApplyFix, onDismissIssue }) {
   const [expanded, setExpanded] = useState(true)
 
   if (!auditResult && !isAuditing) {
@@ -275,7 +295,7 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
       {expanded && issues.length > 0 && (
         <div className="divide-y divide-outline-variant/20">
           {issues.map((issue, i) => (
-            <IssueRow key={i} issue={issue} idx={i} onApplyFix={onApplyFix} />
+            <IssueRow key={i} issue={issue} idx={i} onApplyFix={onApplyFix} onDismiss={onDismissIssue} />
           ))}
         </div>
       )}
