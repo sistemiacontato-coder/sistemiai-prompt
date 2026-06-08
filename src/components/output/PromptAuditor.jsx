@@ -76,21 +76,27 @@ function IssueRow({ issue, idx, onApplyFix }) {
 
       {/* Área de correção */}
       {issue.fix && (
-        <div className="ml-5 rounded-lg overflow-hidden"
-             style={{ background: 'var(--color-surface)', border: '1px solid rgba(255,255,255,0.06)' }}>
-
+        <div
+          className="ml-5 rounded-lg overflow-hidden transition-all"
+          style={{
+            background: editing ? s.bg : 'var(--color-surface-container-high)',
+            border: editing ? `1.5px solid ${s.border}` : '1px solid rgb(var(--color-outline-variant))',
+          }}
+        >
           {!editing ? (
             /* — Modo leitura: mostra o texto e botão "Corrigir" — */
             <div className="flex items-start gap-2 px-3 py-2.5">
-              <span className="material-symbols-outlined text-on-surface-variant/30 flex-shrink-0 mt-0.5" style={{ fontSize: 12 }}>
+              <span className="material-symbols-outlined flex-shrink-0 mt-0.5"
+                    style={{ fontSize: 12, color: s.color, opacity: 0.6 }}>
                 build
               </span>
-              <p className="text-[10px] font-mono text-on-surface-variant/50 leading-snug flex-1">
+              <p className="text-[10px] font-mono leading-snug flex-1"
+                 style={{ color: 'rgb(var(--color-on-surface-variant))', opacity: 0.8 }}>
                 {issue.fix}
               </p>
               <button
-                onClick={() => { setFixText(issue.fix); setEditing(true) }}
-                className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-mono font-semibold transition-all flex-shrink-0 active:scale-95"
+                onClick={(e) => { e.stopPropagation(); setFixText(issue.fix); setEditing(true) }}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-mono font-semibold transition-all flex-shrink-0 active:scale-95 hover:brightness-110"
                 style={{ border: `1px solid ${s.border}`, color: s.color, background: s.bg }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 11 }}>edit</span>
@@ -100,30 +106,40 @@ function IssueRow({ issue, idx, onApplyFix }) {
           ) : (
             /* — Modo edição: textarea editável + botões — */
             <div className="p-3 space-y-2">
-              <p className="text-[9px] font-mono text-on-surface-variant/40 uppercase tracking-wider">
-                Edite a instrução de correção antes de enviar
-              </p>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="material-symbols-outlined" style={{ fontSize: 13, color: s.color }}>edit_note</span>
+                <p className="text-[9px] font-mono font-semibold uppercase tracking-wider" style={{ color: s.color }}>
+                  Edite a correção e envie para a IA
+                </p>
+              </div>
               <textarea
                 rows={3}
                 value={fixText}
                 onChange={e => setFixText(e.target.value)}
                 disabled={sending}
-                autoFocus
-                className="w-full rounded-lg border border-outline-variant px-3 py-2 text-[11px] font-mono text-on-surface leading-relaxed resize-none focus:border-secondary focus:ring-1 focus:ring-secondary/30 focus:outline-none transition-all disabled:opacity-40"
-                style={{ background: 'var(--color-surface-container)' }}
+                className="w-full rounded-lg px-3 py-2 text-[11px] font-mono leading-relaxed resize-none focus:outline-none transition-all disabled:opacity-40"
+                style={{
+                  background: 'rgb(var(--color-surface))',
+                  border: `1px solid ${s.border}`,
+                  color: 'rgb(var(--color-on-surface))',
+                }}
               />
               <div className="flex items-center justify-end gap-2">
                 <button
                   onClick={() => setEditing(false)}
                   disabled={sending}
-                  className="px-3 py-1.5 rounded text-[10px] font-mono text-on-surface-variant/50 hover:text-on-surface-variant border border-outline-variant/40 transition-all disabled:opacity-40"
+                  className="px-3 py-1.5 rounded text-[10px] font-mono hover:opacity-80 transition-all disabled:opacity-40"
+                  style={{
+                    border: '1px solid rgb(var(--color-outline-variant))',
+                    color: 'rgb(var(--color-on-surface-variant))',
+                  }}
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleSend}
                   disabled={!fixText.trim() || sending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110"
                   style={{ border: `1.5px solid ${s.border}`, color: s.color, background: s.bg }}
                 >
                   {sending

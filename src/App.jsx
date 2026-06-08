@@ -537,7 +537,6 @@ export default function App() {
                       auditResult={auditResult}
                       aiConfig={aiConfig}
                       onApplyFix={async (fix) => {
-                        promptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                         await handleReview(fix)
                       }}
                     />
