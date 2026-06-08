@@ -593,7 +593,6 @@ export default function App() {
                       onApplyChanges={handleApplyChanges}
                       onDiscardChanges={handleDiscardChanges}
                       onRefine={handleRefine}
-                      isReviewing={isReviewing}
                       aiConfig={aiConfig}
                       config={config}
                     />
