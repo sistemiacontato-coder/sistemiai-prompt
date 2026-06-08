@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { COMPAT_ENDPOINTS, detectProviderFromKey, saveAIConfig, testAIConnection } from '../../lib/claude'
+import { isSupabaseConfigured } from '../../lib/supabase'
 
 function SectionCard({ accentColor = 'primary', icon, title, subtitle, badge, children }) {
   return (
@@ -237,17 +238,20 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
           </div>
         </SectionCard>
 
-        {/* ── Supabase ── */}
-        <SectionCard accentColor="tertiary" icon="database" title="Supabase" subtitle="Histórico de agentes e deploy de prompts" badge="OPCIONAL">
-          <div className="space-y-3">
-            <p className="text-[12px] font-mono text-on-surface-variant/60 leading-relaxed">
-              Configure no arquivo <code className="text-primary/70">.env</code> para habilitar histórico e deploy.
-            </p>
-            <div className="rounded-lg border border-outline-variant p-4 space-y-2" style={{ background: 'var(--color-surface)' }}>
-              <code className="block text-[11px] font-mono text-on-surface/70">VITE_SUPABASE_URL=https://seu-projeto.supabase.co</code>
-              <code className="block text-[11px] font-mono text-on-surface/70">VITE_SUPABASE_ANON_KEY=sua-chave-anonima</code>
-            </div>
-            <p className="text-[10px] font-mono text-on-surface-variant/35">Após editar o .env, reinicie o servidor de desenvolvimento.</p>
+        {/* ── Banco de Dados ── */}
+        <SectionCard accentColor="tertiary" icon="database" title="Banco de Dados" subtitle="Persistência automática de prompts gerados">
+          <div className="flex items-center gap-3">
+            {isSupabaseConfigured ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-secondary flex-shrink-0" style={{ boxShadow: '0 0 6px rgba(74,222,128,0.6)' }} />
+                <p className="text-[12px] font-mono text-secondary">Conectado — prompts salvos automaticamente</p>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-error/60 flex-shrink-0" />
+                <p className="text-[12px] font-mono text-on-surface-variant/50">Não conectado</p>
+              </>
+            )}
           </div>
         </SectionCard>
 

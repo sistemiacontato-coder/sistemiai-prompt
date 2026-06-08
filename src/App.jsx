@@ -10,7 +10,7 @@ import ValidatorPanel from './components/output/ValidatorPanel'
 import HistoryPanel from './components/history/HistoryPanel'
 import { buildPrompt, getDefaultConfig, normalizeCondition } from './engine/promptBuilder'
 import { validateConfig, hasCriticalErrors } from './engine/ruleValidator'
-import { deployAgent, fetchAgentHistory, deleteAgent, isSupabaseConfigured, SETUP_SQL } from './lib/supabase'
+import { deployAgent, fetchAgentHistory, deleteAgent, isSupabaseConfigured } from './lib/supabase'
 import { analyzeAgentObjective, generateExitMessage, loadAIConfig, saveAIConfig, detectProviderFromKey } from './lib/claude'
 import { reviewPromptChanges, refinePromptChanges } from './lib/promptReviewer'
 import { auditPrompt } from './lib/promptAuditor'
@@ -26,59 +26,6 @@ const SETTINGS_DEFAULT = {
   communicationRules: true,
 }
 
-function SupabaseSetupModal({ onClose }) {
-  const [copied, setCopied] = useState(false)
-  const copy = async () => {
-    await navigator.clipboard.writeText(SETUP_SQL)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-surface-container border border-outline-variant rounded-lg max-w-2xl w-full shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant">
-          <div className="flex items-center gap-3">
-            <span className="material-symbols-outlined text-tertiary">database</span>
-            <h3 className="font-semibold text-sm">Configurar Supabase</h3>
-          </div>
-          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface">
-            <span className="material-symbols-outlined text-[20px]">close</span>
-          </button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="space-y-2">
-            <p className="label-caps text-[10px] text-on-surface-variant">PASSO 1: Criar arquivo .env</p>
-            <pre className="bg-surface border border-outline-variant rounded p-3 text-[12px] font-mono text-on-surface/80 overflow-x-auto">
-{`VITE_SUPABASE_URL=https://seu-projeto.supabase.co
-VITE_SUPABASE_ANON_KEY=sua-chave-anonima`}
-            </pre>
-          </div>
-          <div className="space-y-2">
-            <p className="label-caps text-[10px] text-on-surface-variant">PASSO 2: Executar SQL no Supabase</p>
-            <div className="relative">
-              <pre className="bg-surface border border-outline-variant rounded p-3 text-[11px] font-mono text-on-surface/70 overflow-x-auto max-h-48 overflow-y-auto whitespace-pre-wrap">
-                {SETUP_SQL}
-              </pre>
-              <button
-                onClick={copy}
-                className="absolute top-2 right-2 p-1.5 bg-surface-container rounded border border-outline-variant text-on-surface-variant hover:text-primary transition-colors"
-              >
-                <span className="material-symbols-outlined text-[16px]">{copied ? 'check' : 'content_copy'}</span>
-              </button>
-            </div>
-          </div>
-          <p className="text-[11px] font-mono text-on-surface-variant/50">
-            Após criar o .env, reinicie o servidor de desenvolvimento para aplicar as variáveis.
-          </p>
-        </div>
-        <div className="px-6 py-4 border-t border-outline-variant flex justify-end">
-          <button onClick={onClose} className="btn-ghost">FECHAR</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function App() {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('pm-theme')
@@ -90,11 +37,8 @@ export default function App() {
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [validationResults, setValidationResults] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
-  const [deployStatus, setDeployStatus] = useState(null)
-  const [isDeploying, setIsDeploying] = useState(false)
   const [agents, setAgents] = useState([])
   const [isLoadingAgents, setIsLoadingAgents] = useState(false)
-  const [showSetupModal, setShowSetupModal] = useState(false)
   const [hasAttemptedGenerate, setHasAttemptedGenerate] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analyzeResult, setAnalyzeResult] = useState(null)
@@ -107,7 +51,6 @@ export default function App() {
   const [auditResult, setAuditResult] = useState(null)
   const promptRef = useRef(null)
 
-  // Tema claro/escuro
   useEffect(() => {
     const html = document.documentElement
     if (isDark) {
@@ -140,7 +83,6 @@ export default function App() {
   const handleApplyChanges = useCallback(() => {
     if (!pendingChanges) return
 
-    // Salvar snapshot antes de aplicar
     if (generatedPrompt) {
       const updated = saveSnapshot({ config, prompt: generatedPrompt, description: pendingChanges.summary || 'Mudanças aplicadas pelo revisor' })
       setHistory(updated)
@@ -183,10 +125,11 @@ export default function App() {
       exitDestinations = [...exitDestinations, ...newExits]
 
       const newConfig = { ...prev, domain, variables, exitDestinations }
-
       const newPrompt = buildPrompt(newConfig, settings)
       setGeneratedPrompt(newPrompt)
-
+      if (isSupabaseConfigured) {
+        deployAgent({ config: newConfig, generatedPrompt: newPrompt }).catch(() => {})
+      }
       return newConfig
     })
 
@@ -288,7 +231,6 @@ export default function App() {
         exitDestinations: [...systemExits, ...newExits],
       }))
 
-      // Gera mensagens de saída para todas as saídas em paralelo
       const messageResults = await Promise.allSettled(
         newExits.map(exit =>
           generateExitMessage({
@@ -325,13 +267,11 @@ export default function App() {
     }
   }, [config.domain, config.agentName, config.agentPersona, config.exitDestinations, aiConfig])
 
-  // Validação em tempo real
   useEffect(() => {
     const results = validateConfig(config)
     setValidationResults(results)
   }, [config])
 
-  // Carregar histórico quando muda para library
   useEffect(() => {
     if (view === 'library') loadAgents()
   }, [view])
@@ -360,33 +300,15 @@ export default function App() {
       try {
         const prompt = buildPrompt(config, settings)
         setGeneratedPrompt(prompt)
-        setDeployStatus(null)
-        // Scroll to preview
         setTimeout(() => promptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
+        if (isSupabaseConfigured) {
+          deployAgent({ config, generatedPrompt: prompt }).catch(() => {})
+        }
       } finally {
         setIsGenerating(false)
       }
     }, 400)
   }, [config, settings])
-
-  const handleDeploy = useCallback(async () => {
-    if (!generatedPrompt) return
-    if (!isSupabaseConfigured) {
-      setShowSetupModal(true)
-      return
-    }
-    setIsDeploying(true)
-    setDeployStatus(null)
-    try {
-      await deployAgent({ config, generatedPrompt, settings })
-      setDeployStatus('success')
-    } catch (e) {
-      console.error('Erro no deploy:', e)
-      setDeployStatus('error')
-    } finally {
-      setIsDeploying(false)
-    }
-  }, [config, generatedPrompt, settings])
 
   const handleDeleteAgent = useCallback(async (id) => {
     if (!window.confirm('Excluir este agente?')) return
@@ -416,7 +338,6 @@ export default function App() {
       setConfig(getDefaultConfig())
       setGeneratedPrompt('')
       setValidationResults([])
-      setDeployStatus(null)
       setView('editor')
     }
   }, [])
@@ -426,8 +347,6 @@ export default function App() {
 
   return (
     <div className="bg-background text-on-surface min-h-screen font-sans">
-      {showSetupModal && <SupabaseSetupModal onClose={() => setShowSetupModal(false)} />}
-
       <TopNav
         view={view}
         setView={setView}
@@ -447,7 +366,6 @@ export default function App() {
               <div className="col-span-8 h-full overflow-y-auto p-6 border-r border-outline-variant">
                 <div className="max-w-3xl mx-auto space-y-4 pb-24">
 
-                  {/* Banner de campos obrigatórios — só após tentativa de geração */}
                   {hasAttemptedGenerate && criticalCount > 0 && (
                     <div className="border border-outline-variant rounded px-4 py-3 flex items-center gap-3"
                          style={{ background: 'var(--color-surface-container-high)' }}>
@@ -463,7 +381,6 @@ export default function App() {
                   <AgentConfigPanel config={config} setConfig={setConfig} />
                   <ToneRulesPanel config={config} setConfig={setConfig} />
 
-                  {/* Botão Analisar e Gerar */}
                   {(() => {
                     const hasAIKey = !!aiConfig?.apiKey
                     const canAnalyze = config.domain.trim().length > 20 && hasAIKey && !isAnalyzing
@@ -549,10 +466,13 @@ export default function App() {
                   })()}
 
                   <VariableManager config={config} setConfig={setConfig} pendingChanges={pendingChanges} />
-                  <ExitDestinations config={config} setConfig={setConfig} pendingChanges={pendingChanges}
-                    aiConfig={aiConfig} generatingExitId={generatingExitId} onGenerateExitMessage={handleGenerateExitMessage}
+                  <ExitDestinations
+                    config={config} setConfig={setConfig} pendingChanges={pendingChanges}
+                    aiConfig={aiConfig} generatingExitId={generatingExitId}
+                    onGenerateExitMessage={handleGenerateExitMessage}
                     hasGeneratedPrompt={!!generatedPrompt}
-                    onRegeneratePrompt={handleGenerate} />
+                    onRegeneratePrompt={handleGenerate}
+                  />
 
                   {/* Botão de Geração */}
                   <div className="flex flex-col items-center py-6">
@@ -572,21 +492,12 @@ export default function App() {
                       </span>
                       {isGenerating ? 'COMPILANDO...' : 'GERAR PROMPT'}
                     </button>
-                    <div className="flex items-center gap-2 mt-3">
-                      <span className="w-2 h-2 rounded-full bg-secondary pulse-glow" />
-                      <p className="label-caps text-[10px] text-on-surface-variant/50">
-                        ENGINE_READY: BotConversa — {config.exitDestinations.filter(e => !e.isSystem).length} SAÍDAS CONFIGURADAS
-                      </p>
-                    </div>
                   </div>
 
                   {/* Preview do Prompt Gerado */}
                   <div ref={promptRef}>
                     <PromptPreview
                       prompt={generatedPrompt}
-                      onDeploy={handleDeploy}
-                      deployStatus={deployStatus}
-                      isDeploying={isDeploying}
                       pendingChanges={pendingChanges}
                       onReview={handleReview}
                       isReviewing={isReviewing}
@@ -626,39 +537,15 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Painel Direito — Config + Validator + State Machine */}
+              {/* Painel Direito — Validator + State Machine */}
               <aside className="col-span-4 h-full bg-surface-container-low flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto p-5 space-y-6">
-
-                  {/* Validador */}
                   <div className="bg-surface-container border border-outline-variant rounded p-4">
                     <ValidatorPanel validationResults={validationResults} />
                   </div>
-
-                  {/* Mapa de Estados */}
                   <div className="bg-surface-container border border-outline-variant rounded p-4">
                     <StateMachineMap exitDestinations={config.exitDestinations} />
                   </div>
-
-                  {/* Supabase Setup */}
-                  {!isSupabaseConfigured && (
-                    <div className="bg-tertiary-container/10 border border-tertiary/20 rounded p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="material-symbols-outlined text-tertiary text-[18px]">cloud_off</span>
-                        <p className="label-caps text-[10px] text-tertiary">SUPABASE OFFLINE</p>
-                      </div>
-                      <p className="text-[11px] font-mono text-on-surface-variant/60 mb-3">
-                        Configure as credenciais para habilitar persistência e histórico.
-                      </p>
-                      <button
-                        onClick={() => setShowSetupModal(true)}
-                        className="btn-ghost text-[10px] w-full justify-center"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">settings</span>
-                        VER INSTRUÇÕES
-                      </button>
-                    </div>
-                  )}
                 </div>
               </aside>
             </div>
@@ -683,7 +570,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Atmosfera de fundo */}
       <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
         <div className="absolute top-[15%] right-[5%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px]" />
         <div className="absolute bottom-[10%] left-[15%] w-[400px] h-[400px] bg-secondary/3 rounded-full blur-[120px]" />

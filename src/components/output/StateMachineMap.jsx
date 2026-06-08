@@ -42,13 +42,13 @@ export default function StateMachineMap({ exitDestinations = [] }) {
 
   return (
     <div className="space-y-3">
-      <p className="label-caps text-[10px] mb-3 opacity-60">STATE_MACHINE_FLOW</p>
+      <p className="label-caps text-[10px] mb-3 opacity-60">FLUXO DE ESTADOS</p>
 
       {/* Entrada */}
       <div className="flex items-center gap-2">
         <div className="bg-surface-container-high border border-outline-variant rounded px-3 py-1.5 flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-secondary pulse-glow" />
-          <span className="font-mono text-[10px] text-secondary">START</span>
+          <span className="font-mono text-[10px] text-secondary">INÍCIO</span>
         </div>
         <div className="flex items-center text-on-surface-variant/30">
           <div className="w-4 h-px bg-outline-variant" />
@@ -60,7 +60,7 @@ export default function StateMachineMap({ exitDestinations = [] }) {
       {/* Loop */}
       <div className="ml-8 border-l border-outline-variant/40 pl-4 space-y-2">
         <div className="flex items-center gap-2">
-          <span className="text-[9px] font-mono text-on-surface-variant/30 flex-shrink-0">loop</span>
+          <span className="text-[9px] font-mono text-on-surface-variant/30 flex-shrink-0">repetição</span>
           <div className="flex items-center text-on-surface-variant/20">
             <div className="w-3 h-px bg-outline-variant/40" />
             <span className="text-[9px]">↺</span>
@@ -82,7 +82,7 @@ export default function StateMachineMap({ exitDestinations = [] }) {
             <div>
               <StateNode config={{ key: 'saida_atendente' }} size="sm" />
               <p className="text-[9px] font-mono text-tertiary/50 ml-6 mt-0.5">
-                ↳ tentativas = {exitDestinations.find(e=>e.key==='saida_atendente')?.maxAttempts || 3} OR pedido humano
+                ↳ tentativas = {exitDestinations.find(e=>e.key==='saida_atendente')?.maxAttempts || 3} OU pedido humano
               </p>
             </div>
           )}

@@ -333,7 +333,7 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
 }
 
 export default function PromptPreview({
-  prompt, onDeploy, deployStatus, isDeploying,
+  prompt,
   pendingChanges, onReview, isReviewing, onApplyChanges, onDiscardChanges, onRefine,
   aiConfig, config,
 }) {
@@ -407,7 +407,7 @@ export default function PromptPreview({
             <>
               <button onClick={handleCopy} className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors">
                 <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
-                <span className="label-caps text-[9px]">{copied ? 'COPIADO' : 'COPY'}</span>
+                <span className="label-caps text-[9px]">{copied ? 'COPIADO' : 'COPIAR'}</span>
               </button>
               <button onClick={handleDownload} className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors">
                 <span className="material-symbols-outlined text-[18px]">download</span>
@@ -572,38 +572,6 @@ export default function PromptPreview({
         </div>
       )}
 
-      {/* Footer Deploy */}
-      {prompt && (
-        <div className="border-t border-outline-variant px-6 py-4 flex items-center justify-between bg-surface-container">
-          <div className="flex items-center gap-3">
-            {deployStatus === 'success' && (
-              <div className="flex items-center gap-2 text-secondary">
-                <span className="material-symbols-outlined text-[18px]">cloud_done</span>
-                <span className="label-caps text-[10px]">DEPLOY REALIZADO COM SUCESSO</span>
-              </div>
-            )}
-            {deployStatus === 'error' && (
-              <div className="flex items-center gap-2 text-error">
-                <span className="material-symbols-outlined text-[18px]">cloud_off</span>
-                <span className="label-caps text-[10px]">ERRO NO DEPLOY. VERIFIQUE AS CREDENCIAIS.</span>
-              </div>
-            )}
-            {!deployStatus && (
-              <p className="text-[11px] font-mono text-on-surface-variant/40">
-                Salva a configuração do agente no banco de dados Supabase.
-              </p>
-            )}
-          </div>
-          <button
-            onClick={onDeploy}
-            disabled={isDeploying}
-            className="technical-glow-green bg-secondary-container text-on-secondary-container px-5 py-2 rounded text-[11px] font-mono font-semibold tracking-widest uppercase flex items-center gap-2 hover:brightness-110 transition-all active:scale-95 disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[16px]">{isDeploying ? 'sync' : 'cloud_upload'}</span>
-            {isDeploying ? 'SALVANDO...' : 'DEPLOY → SUPABASE'}
-          </button>
-        </div>
-      )}
     </section>
   )
 }

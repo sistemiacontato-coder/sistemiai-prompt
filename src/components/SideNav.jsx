@@ -1,6 +1,6 @@
 const NAV_ITEMS = [
   { id: 'editor',   icon: 'dashboard',     label: 'EDITOR' },
-  { id: 'library',  icon: 'history',       label: 'LIBRARY' },
+  { id: 'library',  icon: 'history',       label: 'HISTÓRICO' },
   { id: 'settings', icon: 'manufacturing', label: 'CONFIG IA' },
 ]
 
@@ -28,7 +28,7 @@ export default function SideNav({ view, setView, onNewPrompt, aiConfig }) {
         style={{ background: 'var(--color-secondary-container)', color: 'var(--color-on-secondary-container)' }}
       >
         <span className="material-symbols-outlined text-[18px]">add</span>
-        NEW_PROMPT
+        NOVO PROMPT
       </button>
 
       <nav className="flex flex-col flex-1">
@@ -57,17 +57,6 @@ export default function SideNav({ view, setView, onNewPrompt, aiConfig }) {
           )
         })}
 
-        <div className="mt-4 mx-6 border-t border-outline-variant pt-4">
-          <p className="label-caps text-[10px] mb-3 opacity-50">SPEC TÉCNICA</p>
-          <div className="space-y-1">
-            {['§1 Formato JSON', '§2 Quebra de Linha', '§3 Mapa de Status', '§6 Tentativas', '§8 Comunicação', '§9 Prioridade'].map(sec => (
-              <div key={sec} className="flex items-center gap-2 py-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-secondary/60 flex-shrink-0" />
-                <span className="text-[11px] font-mono text-on-surface-variant/60">{sec}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </nav>
 
       <div className="mt-auto px-4 border-t border-outline-variant pt-3 space-y-1">

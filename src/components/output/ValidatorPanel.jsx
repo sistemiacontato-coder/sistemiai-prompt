@@ -1,15 +1,15 @@
 const TYPE_CONFIG = {
-  critical: { color: 'text-error', bg: 'bg-error-container/20', border: 'border-error/30', icon: 'error', label: 'CRITICAL' },
-  warning: { color: 'text-tertiary', bg: 'bg-tertiary-container/20', border: 'border-tertiary/30', icon: 'warning', label: 'WARNING' },
+  critical: { color: 'text-error', bg: 'bg-error-container/20', border: 'border-error/30', icon: 'error', label: 'CRÍTICO' },
+  warning: { color: 'text-tertiary', bg: 'bg-tertiary-container/20', border: 'border-tertiary/30', icon: 'warning', label: 'AVISO' },
   info: { color: 'text-primary', bg: 'bg-primary/5', border: 'border-primary/20', icon: 'info', label: 'INFO' },
-  success: { color: 'text-secondary', bg: 'bg-secondary/5', border: 'border-secondary/20', icon: 'check_circle', label: 'VALID' },
+  success: { color: 'text-secondary', bg: 'bg-secondary/5', border: 'border-secondary/20', icon: 'check_circle', label: 'VÁLIDO' },
 }
 
 export default function ValidatorPanel({ validationResults }) {
   if (!validationResults || validationResults.length === 0) {
     return (
       <div className="space-y-2">
-        <p className="label-caps text-[10px] mb-3 opacity-60">VALIDATOR</p>
+        <p className="label-caps text-[10px] mb-3 opacity-60">VALIDADOR</p>
         <div className="p-3 bg-surface-container rounded border border-outline-variant flex items-center gap-2">
           <span className="material-symbols-outlined text-[16px] text-on-surface-variant/40">pending</span>
           <p className="text-[11px] font-mono text-on-surface-variant/40">Aguardando configuração...</p>
@@ -26,7 +26,7 @@ export default function ValidatorPanel({ validationResults }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between mb-3">
-        <p className="label-caps text-[10px] opacity-60">VALIDATOR</p>
+        <p className="label-caps text-[10px] opacity-60">VALIDADOR</p>
         <div className="flex items-center gap-2">
           {criticals.length > 0 && (
             <span className="flex items-center gap-1 text-error text-[9px] font-mono font-semibold">

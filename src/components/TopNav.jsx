@@ -21,7 +21,7 @@ export default function TopNav({ view, setView, onGenerate, isGenerating, isDark
                   ? 'text-primary border-b-2 border-primary rounded-none pb-3'
                   : 'text-on-surface-variant hover:text-primary'}`}
             >
-              {tab === 'editor' ? 'Editor' : 'Library'}
+              {tab === 'editor' ? 'Editor' : 'Histórico'}
             </button>
           ))}
         </div>
@@ -46,7 +46,7 @@ export default function TopNav({ view, setView, onGenerate, isGenerating, isDark
         }`}>
           <span className={`w-2 h-2 rounded-full ${isSupabaseConfigured ? 'bg-secondary pulse-glow' : 'bg-outline'}`} />
           <span className="label-caps text-[10px]">
-            {isSupabaseConfigured ? 'SUPABASE_CONNECTED' : 'SUPABASE_OFFLINE'}
+            {isSupabaseConfigured ? 'BANCO CONECTADO' : 'BANCO OFFLINE'}
           </span>
         </div>
 
