@@ -17,11 +17,11 @@
   --color-surface-container-highest: 203 213 225;   /* #cbd5e1 */
   --color-surface-variant:           221 228 237;
   --color-on-surface:                15 23 42;      /* #0f172a */
-  --color-on-surface-variant:        71 85 105;     /* #475569 */
+  --color-on-surface-variant:        30 41 59;      /* #1e293b — escurecido para legibilidade no modo claro */
   --color-inverse-surface:           15 23 42;
   --color-inverse-on-surface:        241 245 249;
-  --color-outline:                   100 116 139;   /* #64748b */
-  --color-outline-variant:           203 213 225;   /* #cbd5e1 */
+  --color-outline:                   51 65 85;      /* #334155 — mais escuro */
+  --color-outline-variant:           148 163 184;   /* #94a3b8 — mais escuro para bordas visíveis */
   --color-surface-tint:              29 78 216;
   --color-primary:                   29 78 216;     /* #1d4ed8 */
   --color-on-primary:                255 255 255;
