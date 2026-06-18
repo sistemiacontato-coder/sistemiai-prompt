@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { runTestSuite, runTestCase, refineConfigWithFeedback } from '../../lib/promptTuner'
 import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
-import { loadHistory } from '../../lib/promptHistory'
+import { loadHistory, saveSnapshot } from '../../lib/promptHistory'
 
 function ModelSelector({ value, onChange, apiKey, endpoint }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -657,10 +657,23 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
         exitDestinations
       }
 
-      // Regenerar o prompt compilado
+      // Regenerar o prompt compilado e salvar snapshot no histórico
       setTimeout(() => {
         const nextPrompt = buildPrompt(nextConfig)
         setGeneratedPrompt(nextPrompt)
+
+        // Salva automaticamente no histórico indicando alteração via simulador
+        const isAuto = Boolean(autoRefineResult)
+        const desc = isAuto 
+          ? "Ajuste via Simulador - Correção de testes em lote" 
+          : "Ajuste via Simulador - Refinamento manual de chat"
+
+        try {
+          saveSnapshot({ config: nextConfig, prompt: nextPrompt, description: desc })
+          setHistoryList(loadHistory())
+        } catch (err) {
+          console.error('Erro ao salvar snapshot automático do simulador:', err)
+        }
       }, 50)
 
       return nextConfig
