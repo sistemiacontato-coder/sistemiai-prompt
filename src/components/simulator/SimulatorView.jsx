@@ -1180,26 +1180,30 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
             </div>
 
             {/* Alerta de refinamento manual */}
-            {Object.keys(ratings).length > 0 && (
-              <div className="mx-6 mb-4 p-3 rounded-lg border border-tertiary/20 bg-tertiary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
-                <div className="flex items-start gap-2">
-                  <span className="material-symbols-outlined text-tertiary" style={{ fontSize: 18 }}>reviews</span>
-                  <div>
-                    <h4 className="text-xs font-mono font-bold text-tertiary leading-none">Notas registradas</h4>
-                    <p className="text-[9px] font-mono text-on-surface-variant/60 mt-1">
-                      Você avaliou {Object.keys(ratings).length} turno(s). Use isso para re-treinar o prompt.
-                    </p>
+            {(() => {
+              const lowRatingsCount = Object.values(ratings).filter(r => r.rating && r.rating <= 3).length
+              if (lowRatingsCount === 0) return null
+              return (
+                <div className="mx-6 mb-4 p-3 rounded-lg border border-tertiary/20 bg-tertiary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+                  <div className="flex items-start gap-2">
+                    <span className="material-symbols-outlined text-tertiary" style={{ fontSize: 18 }}>reviews</span>
+                    <div>
+                      <h4 className="text-xs font-mono font-bold text-tertiary leading-none">Ajustes pendentes</h4>
+                      <p className="text-[9px] font-mono text-on-surface-variant/60 mt-1">
+                        Você identificou {lowRatingsCount} turno(s) com comportamento incorreto. Clique abaixo para ajustar o prompt.
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    onClick={handleRefineManual}
+                    disabled={isRefiningManual}
+                    className="px-4 py-1.5 text-[10px] font-mono font-bold bg-tertiary text-on-tertiary rounded shadow hover:opacity-90 active:scale-95 disabled:opacity-40 whitespace-nowrap"
+                  >
+                    {isRefiningManual ? 'Ajustando...' : 'REPROCESSAR PROMPT'}
+                  </button>
                 </div>
-                <button
-                  onClick={handleRefineManual}
-                  disabled={isRefiningManual}
-                  className="px-4 py-1.5 text-[10px] font-mono font-bold bg-tertiary text-on-tertiary rounded shadow hover:opacity-90 active:scale-95 disabled:opacity-40 whitespace-nowrap"
-                >
-                  {isRefiningManual ? 'Ajustando...' : 'REPROCESSAR PROMPT'}
-                </button>
-              </div>
-            )}
+              )
+            })()}
           </div>
         )}
 
