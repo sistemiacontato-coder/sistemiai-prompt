@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import TopNav from './components/TopNav'
 import SideNav from './components/SideNav'
 import AgentConfigPanel from './components/editor/AgentConfigPanel'
@@ -19,6 +19,7 @@ import { saveSnapshot, loadHistory, deleteSnapshot } from './lib/promptHistory'
 import PromptVersionPanel from './components/history/PromptVersionPanel'
 import SettingsView from './components/settings/SettingsView'
 import ToneRulesPanel from './components/editor/ToneRulesPanel'
+import SimulatorView from './components/simulator/SimulatorView'
 
 const SETTINGS_DEFAULT = {
   enforceJson: true,
@@ -33,7 +34,6 @@ export default function App() {
   })
   const [view, setView] = useState('editor')
   const [config, setConfig] = useState(getDefaultConfig)
-  const settings = SETTINGS_DEFAULT
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [validationResults, setValidationResults] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
@@ -49,12 +49,33 @@ export default function App() {
   const [generatingExitId, setGeneratingExitId] = useState(null)
   const [isAuditing, setIsAuditing] = useState(false)
   const [auditResult, setAuditResult] = useState(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveStatus, setSaveStatus] = useState(null) // 'ok' | 'error' | null
   const [pendingFixIssueIdx, setPendingFixIssueIdx] = useState(null)
   const [analyzeOptions, setAnalyzeOptions] = useState({
     includeNomeCliente: true,
     includeSaidaAtendente: true,
-    includeSaidaEscopo: false,
+    includeSaidaEscopo: true,
+    includeMultiIntencoes: true,
   })
+  const settings = useMemo(() => ({
+    ...SETTINGS_DEFAULT,
+    multiIntencoes: analyzeOptions.includeMultiIntencoes,
+  }), [analyzeOptions.includeMultiIntencoes])
+
+  const agentKey = (config.agentName || '').trim()
+
+  const filteredHistory = useMemo(() => {
+    if (!agentKey) return []
+    return history.filter(e => {
+      // snapshots novos têm agentKey direto; snapshots antigos usam config.agentName
+      const key = e.agentKey !== undefined
+        ? e.agentKey
+        : (e.config?.agentName || '').trim()
+      return key === agentKey
+    })
+  }, [history, agentKey])
+  const [sectionsRevealed, setSectionsRevealed] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem('pm-sidebar') === 'collapsed'
   )
@@ -86,24 +107,31 @@ export default function App() {
     setAIConfig(cfg)
   }, [])
 
+  // Remove campos cujo valor proposto é idêntico ao atual — evita diffs vazios
+  const filterIdenticalChanges = useCallback((changes, cfg) => {
+    return {
+      ...changes,
+      new_agent_name:    changes.new_agent_name    && changes.new_agent_name.trim()    !== (cfg.agentName    || '').trim()    ? changes.new_agent_name    : '',
+      new_agent_persona: changes.new_agent_persona && changes.new_agent_persona.trim() !== (cfg.agentPersona || '').trim()    ? changes.new_agent_persona : '',
+      new_domain:        changes.new_domain        && changes.new_domain.trim()        !== (cfg.domain       || '').trim()    ? changes.new_domain        : '',
+    }
+  }, [])
+
   const handleReview = useCallback(async (instruction) => {
     setIsReviewing(true)
     setPendingChanges(null)
     try {
-      const changes = await reviewPromptChanges(instruction, config, aiConfig)
+      const raw = await reviewPromptChanges(instruction, config, aiConfig)
+      const changes = filterIdenticalChanges(raw, config)
       setPendingChanges({ ...changes, originalInstruction: instruction })
     } finally {
       setIsReviewing(false)
     }
-  }, [config, aiConfig])
+  }, [config, aiConfig, filterIdenticalChanges])
 
   const handleApplyChanges = useCallback(() => {
     if (!pendingChanges) return
 
-    if (generatedPrompt) {
-      const updated = saveSnapshot({ config, prompt: generatedPrompt, description: pendingChanges.summary || 'Mudanças aplicadas pelo revisor' })
-      setHistory(updated)
-    }
     const { new_agent_name, new_agent_persona, new_domain, add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
     const baseId = Date.now()
 
@@ -146,9 +174,6 @@ export default function App() {
       const newConfig = { ...prev, agentName, agentPersona, domain, variables, exitDestinations }
       const newPrompt = buildPrompt(newConfig, settings)
       setGeneratedPrompt(newPrompt)
-      if (isSupabaseConfigured) {
-        deployAgent({ config: newConfig, generatedPrompt: newPrompt }).catch(() => {})
-      }
       return newConfig
     })
 
@@ -200,12 +225,13 @@ export default function App() {
     if (!pendingChanges) return
     setIsReviewing(true)
     try {
-      const refined = await refinePromptChanges(correction, pendingChanges, config, aiConfig)
+      const raw = await refinePromptChanges(correction, pendingChanges, config, aiConfig)
+      const refined = filterIdenticalChanges(raw, config)
       setPendingChanges(refined)
     } finally {
       setIsReviewing(false)
     }
-  }, [pendingChanges, config, aiConfig])
+  }, [pendingChanges, config, aiConfig, filterIdenticalChanges])
 
   const handleGenerateExitMessage = useCallback(async (exitId) => {
     const exit = config.exitDestinations.find(e => e.id === exitId)
@@ -312,6 +338,7 @@ export default function App() {
         ...newExits,
       ]
 
+      setSectionsRevealed(true)
       setConfig(prev => ({ ...prev, variables: newVars, exitDestinations: builtExits }))
 
       // Gerar mensagens apenas para saídas personalizadas com sendExitMessage
@@ -383,12 +410,7 @@ export default function App() {
       try {
         const prompt = buildPrompt(config, settings)
         setGeneratedPrompt(prompt)
-        // Auto-salva snapshot no histórico de versões
-        setHistory(saveSnapshot({ config, prompt, description: `Gerado — ${config.agentName || 'agente'}` }))
         setTimeout(() => promptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
-        if (isSupabaseConfigured) {
-          deployAgent({ config, generatedPrompt: prompt }).catch(() => {})
-        }
       } finally {
         setIsGenerating(false)
       }
@@ -406,8 +428,10 @@ export default function App() {
   }, [])
 
   const handleLoadAgent = useCallback((agent) => {
+    const rawName = agent.agent_name || ''
+    const cleanName = rawName.replace(/\s*\[[^\]]+\]$/, '')
     setConfig({
-      agentName: agent.agent_name || '',
+      agentName: cleanName,
       agentPersona: agent.agent_persona || '',
       domain: agent.domain || '',
       variables: agent.variables || [],
@@ -415,6 +439,7 @@ export default function App() {
       maxAttempts: agent.max_attempts || 3,
     })
     if (agent.generated_prompt) setGeneratedPrompt(agent.generated_prompt)
+    setSectionsRevealed(true)
     setView('editor')
   }, [])
 
@@ -423,9 +448,50 @@ export default function App() {
       setConfig(getDefaultConfig())
       setGeneratedPrompt('')
       setValidationResults([])
+      setSectionsRevealed(false)
       setView('editor')
     }
   }, [])
+
+  const handleSaveToDatabase = useCallback(async () => {
+    if (!generatedPrompt || isSaving) return
+
+    const desc = prompt("Digite uma descrição/identificador para esta versão (ex: 'V1 Estável', 'Ajuste de Variáveis'):")
+    if (desc === null) return // Clicou em cancelar
+
+    const finalDesc = desc.trim() || `Versão salva — ${new Date().toLocaleDateString('pt-BR')}`
+    setIsSaving(true)
+    setSaveStatus(null)
+    try {
+      // 1. Salva no localstorage (Histórico de Versões)
+      const updated = saveSnapshot({ config, prompt: generatedPrompt, description: finalDesc })
+      setHistory(updated)
+
+      // 2. Salva no Supabase (Histórico Principal)
+      if (isSupabaseConfigured) {
+        const configWithVersion = {
+          ...config,
+          agentName: `${config.agentName} [${finalDesc}]`
+        }
+        const data = await deployAgent({ config: configWithVersion, generatedPrompt })
+        setAgents(prev => {
+          if (prev.some(a => a.id === data.id)) {
+            return prev.map(a => a.id === data.id ? data : a)
+          }
+          return [data, ...prev]
+        })
+      }
+
+      setSaveStatus('ok')
+      setTimeout(() => setSaveStatus(null), 4000)
+    } catch (err) {
+      console.error('Erro ao salvar:', err)
+      setSaveStatus('error')
+      setTimeout(() => setSaveStatus(null), 6000)
+    } finally {
+      setIsSaving(false)
+    }
+  }, [config, generatedPrompt, isSaving, isSupabaseConfigured])
 
   const criticalCount = validationResults.filter(r => r.type === 'critical').length
   const canGenerate = criticalCount === 0
@@ -433,8 +499,6 @@ export default function App() {
   return (
     <div className="bg-background text-on-surface min-h-screen font-sans">
       <TopNav
-        onGenerate={handleGenerate}
-        isGenerating={isGenerating}
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
       />
@@ -481,36 +545,81 @@ export default function App() {
                     return (
                       <div className="space-y-3">
 
-                        {/* Opções de geração */}
-                        <div className="rounded-lg border border-outline-variant/60 px-4 py-3 space-y-2"
-                             style={{ background: 'var(--color-surface-container-high)' }}>
-                          <p className="text-[9px] font-mono font-semibold tracking-widest uppercase text-on-surface-variant/50 mb-2">
-                            Opções de geração automática
-                          </p>
-                          {[
-                            { key: 'includeNomeCliente',     label: 'Campo: nome do cliente',         desc: 'Inclui nome_cliente nos campos gerados' },
-                            { key: 'includeSaidaAtendente',  label: 'Saída: atendente humano',        desc: 'Inclui saida_atendente como saída padrão' },
-                            { key: 'includeSaidaEscopo',     label: 'Saída: perguntas fora do escopo', desc: 'Adiciona saida_fora_escopo aos resultados' },
-                          ].map(opt => (
-                            <label key={opt.key} className="flex items-center gap-3 cursor-pointer group">
-                              <button
-                                type="button"
-                                onClick={() => setAnalyzeOptions(prev => ({ ...prev, [opt.key]: !prev[opt.key] }))}
-                                className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors flex-shrink-0 ${
-                                  analyzeOptions[opt.key] ? 'bg-secondary' : 'bg-outline-variant'
-                                }`}
-                              >
-                                <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                                  analyzeOptions[opt.key] ? 'translate-x-3.5' : 'translate-x-0.5'
-                                }`} />
-                              </button>
-                              <div>
-                                <span className="text-[11px] font-mono text-on-surface/80">{opt.label}</span>
-                                <span className="text-[10px] font-mono text-on-surface-variant/40 ml-2">{opt.desc}</span>
+                        {/* Opções de geração — mesmo design que ToneRulesPanel */}
+                        <section className="rounded-lg border border-outline-variant overflow-hidden" style={{ background: 'var(--color-surface-container)' }}>
+                          <div className="h-0.5 bg-gradient-to-r from-tertiary/60 via-tertiary/20 to-transparent" />
+                          <div className="px-6 py-4 border-b border-outline-variant flex items-center gap-3"
+                               style={{ background: 'var(--color-surface-container-high)' }}>
+                            <div className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0"
+                                 style={{ background: 'color-mix(in srgb, var(--color-tertiary) 12%, transparent)' }}>
+                              <span className="material-symbols-outlined text-tertiary" style={{ fontSize: 16 }}>auto_awesome</span>
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-semibold text-on-surface leading-none">Geração Automática</h3>
+                              <p className="text-[10px] font-mono text-on-surface-variant/50 mt-0.5">Campos e saídas gerados pela IA ao analisar o objetivo</p>
+                            </div>
+                          </div>
+                          <div className="p-5">
+                            <div className="space-y-2">
+                              {[
+                                { key: 'includeNomeCliente',    label: 'Campo: nome do cliente',          detail: 'Captura e armazena o nome do cliente na variável nome_cliente.' },
+                                { key: 'includeSaidaAtendente', label: 'Saída: atendente humano',         detail: 'Gera saida_atendente como saída padrão de transferência para humano.' },
+                                { key: 'includeSaidaEscopo',    label: 'Saída: perguntas fora do escopo', detail: 'Gera saida_fora_escopo para transferir quando cliente sai do domínio.' },
+                              ].map(opt => {
+                                const on = analyzeOptions[opt.key]
+                                return (
+                                  <div key={opt.key}
+                                    className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-outline-variant/50 transition-all cursor-pointer"
+                                    style={{
+                                      background: on
+                                        ? 'color-mix(in srgb, var(--color-tertiary) 4%, var(--color-surface-container-high))'
+                                        : 'var(--color-surface-container-high)',
+                                    }}
+                                    onClick={() => setAnalyzeOptions(prev => ({ ...prev, [opt.key]: !prev[opt.key] }))}>
+                                    <button
+                                      type="button"
+                                      onClick={e => { e.stopPropagation(); setAnalyzeOptions(prev => ({ ...prev, [opt.key]: !prev[opt.key] })) }}
+                                      className={`relative inline-flex h-4 w-7 flex-shrink-0 items-center rounded-full transition-colors mt-0.5 ${on ? 'bg-tertiary' : 'bg-outline-variant'}`}>
+                                      <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${on ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                                    </button>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-[12px] font-mono font-semibold leading-none ${on ? 'text-on-surface' : 'text-on-surface-variant/40'}`}>{opt.label}</p>
+                                      <p className={`text-[10px] font-mono mt-0.5 leading-relaxed ${on ? 'text-on-surface-variant/55' : 'text-on-surface-variant/25'}`}>{opt.detail}</p>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+
+                              <div className="mt-3 pt-3 border-t border-outline-variant/30">
+                                <p className="text-[9px] font-mono font-semibold tracking-widest uppercase text-on-surface-variant/35 mb-2 px-1">Regras do Prompt</p>
+                                {(() => {
+                                  const on = analyzeOptions.includeMultiIntencoes
+                                  return (
+                                    <div
+                                      className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-outline-variant/50 transition-all cursor-pointer"
+                                      style={{
+                                        background: on
+                                          ? 'color-mix(in srgb, var(--color-primary) 4%, var(--color-surface-container-high))'
+                                          : 'var(--color-surface-container-high)',
+                                      }}
+                                      onClick={() => setAnalyzeOptions(prev => ({ ...prev, includeMultiIntencoes: !prev.includeMultiIntencoes }))}>
+                                      <button
+                                        type="button"
+                                        onClick={e => { e.stopPropagation(); setAnalyzeOptions(prev => ({ ...prev, includeMultiIntencoes: !prev.includeMultiIntencoes })) }}
+                                        className={`relative inline-flex h-4 w-7 flex-shrink-0 items-center rounded-full transition-colors mt-0.5 ${on ? 'bg-primary' : 'bg-outline-variant'}`}>
+                                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${on ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                                      </button>
+                                      <div className="flex-1 min-w-0">
+                                        <p className={`text-[12px] font-mono font-semibold leading-none ${on ? 'text-on-surface' : 'text-on-surface-variant/40'}`}>Regra: múltiplas intenções</p>
+                                        <p className={`text-[10px] font-mono mt-0.5 leading-relaxed ${on ? 'text-on-surface-variant/55' : 'text-on-surface-variant/25'}`}>Instrui o agente a perguntar qual intenção priorizar quando o cliente mencionar mais de uma na mesma mensagem.</p>
+                                      </div>
+                                    </div>
+                                  )
+                                })()}
                               </div>
-                            </label>
-                          ))}
-                        </div>
+                            </div>
+                          </div>
+                        </section>
 
                         <button
                           onClick={handleAnalyzeObjective}
@@ -586,38 +695,98 @@ export default function App() {
                             Descreva o objetivo com mais detalhes para habilitar a geração automática
                           </p>
                         )}
+
+                        {/* Link para configurar manualmente sem usar IA */}
+                        {!sectionsRevealed && (
+                          <div className="flex justify-center pt-1">
+                            <button
+                              onClick={() => setSectionsRevealed(true)}
+                              className="flex items-center gap-1 text-[10px] font-mono text-on-surface-variant/30 hover:text-on-surface-variant/60 transition-colors"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>settings</span>
+                              Configurar campos e saídas manualmente
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )
                   })()}
 
-                  <VariableManager config={config} setConfig={setConfig} pendingChanges={pendingChanges} />
-                  <ExitDestinations
-                    config={config} setConfig={setConfig} pendingChanges={pendingChanges}
-                    aiConfig={aiConfig} generatingExitId={generatingExitId}
-                    onGenerateExitMessage={handleGenerateExitMessage}
-                    hasGeneratedPrompt={!!generatedPrompt}
-                    onRegeneratePrompt={handleGenerate}
-                  />
+                  {sectionsRevealed && (
+                    <>
+                      <VariableManager config={config} setConfig={setConfig} pendingChanges={pendingChanges} />
+                      <ExitDestinations
+                        config={config} setConfig={setConfig} pendingChanges={pendingChanges}
+                        aiConfig={aiConfig} generatingExitId={generatingExitId}
+                        onGenerateExitMessage={handleGenerateExitMessage}
+                        hasGeneratedPrompt={!!generatedPrompt}
+                        onRegeneratePrompt={handleGenerate}
+                      />
 
-                  {/* Botão de Geração */}
-                  <div className="flex flex-col items-center py-6">
-                    <button
-                      onClick={handleGenerate}
-                      disabled={isGenerating || !canGenerate}
-                      className={`px-12 py-4 rounded font-mono font-bold tracking-widest uppercase text-base
-                        flex items-center gap-4 transition-all active:scale-95 relative overflow-hidden group
-                        ${canGenerate
-                          ? 'bg-primary text-on-primary technical-glow hover:opacity-95'
-                          : 'bg-surface-container-high text-on-surface-variant cursor-not-allowed'
-                        } disabled:opacity-60`}
-                    >
-                      <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <span className="material-symbols-outlined text-[28px]">
-                        {isGenerating ? 'sync' : 'bolt'}
-                      </span>
-                      {isGenerating ? 'COMPILANDO...' : 'GERAR PROMPT'}
-                    </button>
-                  </div>
+                      {/* Botão de Geração + Salvar */}
+                      <div className="flex flex-col items-center py-6 gap-3">
+                        <button
+                          onClick={handleGenerate}
+                          disabled={isGenerating || !canGenerate}
+                          className={`px-12 py-4 rounded font-mono font-bold tracking-widest uppercase text-base
+                            flex items-center gap-4 transition-all active:scale-95 relative overflow-hidden group
+                            ${canGenerate
+                              ? 'bg-primary text-on-primary technical-glow hover:opacity-95'
+                              : 'bg-surface-container-high text-on-surface-variant cursor-not-allowed'
+                            } disabled:opacity-60`}
+                        >
+                          <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <span className="material-symbols-outlined text-[28px]">
+                            {isGenerating ? 'sync' : 'bolt'}
+                          </span>
+                          {isGenerating ? 'COMPILANDO...' : 'GERAR PROMPT'}
+                        </button>
+
+                        {/* Botão Salvar no Banco */}
+                        {generatedPrompt && (
+                          <div className="flex flex-col items-center gap-1">
+                            <button
+                              onClick={handleSaveToDatabase}
+                              disabled={isSaving || !isSupabaseConfigured}
+                              className="flex items-center gap-2 px-5 py-2 rounded-lg text-[11px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                              style={{
+                                border: saveStatus === 'ok'
+                                  ? '1.5px solid rgb(var(--color-secondary) / 0.6)'
+                                  : saveStatus === 'error'
+                                    ? '1.5px solid rgb(var(--color-error) / 0.6)'
+                                    : '1.5px solid rgb(var(--color-outline-variant))',
+                                color: saveStatus === 'ok'
+                                  ? 'rgb(var(--color-secondary))'
+                                  : saveStatus === 'error'
+                                    ? 'rgb(var(--color-error))'
+                                    : 'rgb(var(--color-on-surface-variant))',
+                                background: saveStatus === 'ok'
+                                  ? 'rgb(var(--color-secondary) / 0.07)'
+                                  : saveStatus === 'error'
+                                    ? 'rgb(var(--color-error) / 0.07)'
+                                    : 'transparent',
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
+                                {isSaving ? 'progress_activity' : saveStatus === 'ok' ? 'check_circle' : saveStatus === 'error' ? 'error' : 'cloud_upload'}
+                              </span>
+                              {isSaving ? 'Salvando...' : saveStatus === 'ok' ? 'Salvo com sucesso!' : saveStatus === 'error' ? 'Erro ao salvar' : 'Salvar no Banco'}
+                            </button>
+                            {!isSupabaseConfigured && (
+                              <p className="text-[9px] font-mono text-on-surface-variant/30 text-center">
+                                Banco offline — configure as credenciais Supabase
+                              </p>
+                            )}
+                            {saveStatus === 'error' && (
+                              <p className="text-[9px] font-mono text-error/70 text-center max-w-xs">
+                                Verifique se a tabela <code>prompt_bc_agents</code> foi criada no Supabase
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
 
                   {/* Preview do Prompt Gerado */}
                   <div ref={promptRef}>
@@ -631,6 +800,7 @@ export default function App() {
                       onRefine={handleRefine}
                       aiConfig={aiConfig}
                       config={config}
+                      onNavigateToSimulator={() => setView('simulator')}
                     />
                   </div>
 
@@ -641,6 +811,8 @@ export default function App() {
                       isAuditing={isAuditing}
                       auditResult={auditResult}
                       aiConfig={aiConfig}
+                      prompt={generatedPrompt}
+                      config={config}
                       onDismissIssue={handleDismissIssue}
                       onApplyFix={async (fix, issueIdx) => {
                         setPendingFixIssueIdx(issueIdx ?? null)
@@ -651,8 +823,9 @@ export default function App() {
 
                   {/* Histórico de Versões */}
                   <PromptVersionPanel
-                    history={history}
+                    history={filteredHistory}
                     currentPrompt={generatedPrompt}
+                    agentKey={agentKey}
                     onRevert={(entry) => {
                       setConfig({ ...getDefaultConfig(), ...entry.config })
                       setGeneratedPrompt(entry.prompt || '')
@@ -675,6 +848,16 @@ export default function App() {
                 </div>
               </aside>
             </div>
+          )}
+
+          {view === 'simulator' && (
+            <SimulatorView
+              config={config}
+              setConfig={setConfig}
+              generatedPrompt={generatedPrompt}
+              setGeneratedPrompt={setGeneratedPrompt}
+              aiConfig={aiConfig}
+            />
           )}
 
           {view === 'library' && (

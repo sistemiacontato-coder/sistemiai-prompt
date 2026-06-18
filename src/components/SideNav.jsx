@@ -1,7 +1,8 @@
 const NAV_ITEMS = [
-  { id: 'editor',   icon: 'dashboard',     label: 'EDITOR' },
-  { id: 'library',  icon: 'history',       label: 'HISTÓRICO' },
-  { id: 'settings', icon: 'manufacturing', label: 'CONFIG IA' },
+  { id: 'editor',    icon: 'dashboard',     label: 'EDITOR' },
+  { id: 'simulator', icon: 'science',       label: 'SIMULADOR' },
+  { id: 'library',   icon: 'history',       label: 'HISTÓRICO' },
+  { id: 'settings',  icon: 'manufacturing', label: 'CONFIG IA' },
 ]
 
 export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollapsed, onToggle }) {

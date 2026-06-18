@@ -16,8 +16,8 @@ function DiffBadge({ before, after }) {
   )
 }
 
-export default function PromptVersionPanel({ history, currentPrompt, onRevert, onHistoryChange }) {
-  const [expanded, setExpanded] = useState(true)
+export default function PromptVersionPanel({ history, currentPrompt, onRevert, onHistoryChange, agentKey }) {
+  const [expanded, setExpanded] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [confirmRevertId, setConfirmRevertId] = useState(null)
@@ -56,7 +56,7 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
       setTimeout(() => setConfirmClear(false), 3000)
       return
     }
-    const updated = clearHistory()
+    const updated = clearHistory(agentKey)
     onHistoryChange(updated)
     setConfirmClear(false)
   }

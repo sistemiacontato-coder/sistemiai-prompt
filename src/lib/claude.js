@@ -17,8 +17,26 @@ export function detectProviderFromKey(key) {
   if (k.startsWith('AIza') || k.startsWith('AQ.')) return { provider: 'gemini', name: 'Google Gemini',  icon: 'stars',      color: 'secondary' }
   if (k.startsWith('gsk_'))               return { provider: 'compat',  name: 'Groq',             icon: 'bolt',       color: 'tertiary', endpoint: COMPAT_ENDPOINTS[2].url, model: COMPAT_ENDPOINTS[2].model }
   if (k.startsWith('sk-or-'))             return { provider: 'compat',  name: 'OpenRouter',       icon: 'hub',        color: 'secondary', endpoint: COMPAT_ENDPOINTS[1].url, model: COMPAT_ENDPOINTS[1].model }
-  if (k.startsWith('sk-'))               return { provider: 'compat',  name: 'OpenAI / Compatível', icon: 'smart_toy', color: 'on-surface-variant' }
+  if (k.startsWith('sk-'))               return { provider: 'compat',  name: 'OpenAI',           icon: 'smart_toy',  color: 'on-surface-variant' }
   return                                         { provider: 'compat',  name: 'API Compatível',   icon: 'key',        color: 'on-surface-variant' }
+}
+
+// Detecta o provedor com base no nome do modelo de IA
+export function detectProviderFromModel(modelName) {
+  const m = (modelName || '').toLowerCase()
+  if (m.startsWith('gpt-') || m.startsWith('o1-') || m.startsWith('o3-')) {
+    return { provider: 'compat', name: 'OpenAI', icon: 'smart_toy', color: 'on-surface-variant' }
+  }
+  if (m.startsWith('claude-')) {
+    return { provider: 'claude', name: 'Anthropic Claude', icon: 'psychology', color: 'primary' }
+  }
+  if (m.startsWith('gemini-')) {
+    return { provider: 'gemini', name: 'Google Gemini', icon: 'stars', color: 'secondary' }
+  }
+  if (m.includes('llama') || m.includes('mixtral') || m.includes('deepseek')) {
+    return { provider: 'compat', name: 'Compatível / OpenRouter', icon: 'hub', color: 'tertiary' }
+  }
+  return { provider: 'compat', name: 'OpenAI', icon: 'smart_toy', color: 'on-surface-variant' }
 }
 
 function getEnvDefault() {
@@ -33,8 +51,7 @@ export function loadAIConfig() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
-      const parsed = JSON.parse(stored)
-      if (parsed?.apiKey) return parsed
+      return JSON.parse(stored)
     }
   } catch {}
   return getEnvDefault()
@@ -42,6 +59,29 @@ export function loadAIConfig() {
 
 export function saveAIConfig(config) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+}
+
+export async function fetchOpenAIModels(apiKey, endpoint) {
+  if (!apiKey) throw new Error('Chave API não informada.')
+  const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
+  const url = `${base}/models`
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+    },
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error?.message || `Erro ao buscar modelos: ${res.status}`)
+  }
+
+  const data = await res.json()
+  return (data.data || [])
+    .map(m => m.id)
+    .sort()
 }
 
 function buildAnalysisPrompt(agentName, domain) {
@@ -139,18 +179,32 @@ async function callClaude(apiKey, prompt) {
 async function callOpenAICompat(apiKey, prompt, endpoint, model) {
   const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
   const url = `${base}/chat/completions`
+  const isNewModel = model && (
+    model.toLowerCase().includes('o1') || 
+    model.toLowerCase().includes('o3') || 
+    model.toLowerCase().includes('gpt-5') || 
+    model.toLowerCase().startsWith('o-')
+  )
+
+  const body = {
+    model: model || 'gpt-4o-mini',
+    messages: [{ role: 'user', content: prompt }],
+  }
+
+  if (isNewModel) {
+    body.max_completion_tokens = 2048
+  } else {
+    body.max_tokens = 2048
+    body.temperature = 0.2
+  }
+
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: model || 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-      max_tokens: 2048,
-      temperature: 0.2,
-    }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

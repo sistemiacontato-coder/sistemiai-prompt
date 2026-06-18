@@ -11,9 +11,11 @@ export function loadHistory() {
 
 export function saveSnapshot({ config, prompt, description }) {
   const history = loadHistory()
+  const agentKey = (config.agentName || '').trim()
   const entry = {
     id: Date.now(),
     timestamp: new Date().toISOString(),
+    agentKey,
     description,
     config: JSON.parse(JSON.stringify(config)),
     prompt,
@@ -30,7 +32,13 @@ export function deleteSnapshot(id) {
   return updated
 }
 
-export function clearHistory() {
+export function clearHistory(agentKey) {
+  const history = loadHistory()
+  if (agentKey !== undefined) {
+    const updated = history.filter(e => e.agentKey !== agentKey)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+    return updated
+  }
   localStorage.removeItem(STORAGE_KEY)
   return []
 }

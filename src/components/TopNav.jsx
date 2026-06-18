@@ -1,6 +1,6 @@
 import { isSupabaseConfigured } from '../lib/supabase'
 
-export default function TopNav({ onGenerate, isGenerating, isDark, onToggleTheme }) {
+export default function TopNav({ isDark, onToggleTheme }) {
   return (
     <nav className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant flex justify-between items-center h-16 px-6">
       {/* Logo */}
@@ -36,15 +36,6 @@ export default function TopNav({ onGenerate, isGenerating, isDark, onToggleTheme
           </span>
         </div>
 
-        {/* Gerar prompt */}
-        <button
-          onClick={onGenerate}
-          disabled={isGenerating}
-          className="bg-primary text-on-primary px-5 py-2 rounded text-[11px] font-mono font-semibold tracking-widest uppercase hover:opacity-90 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
-        >
-          <span className="material-symbols-outlined text-[16px]">bolt</span>
-          {isGenerating ? 'PROCESSANDO...' : 'GERAR PROMPT'}
-        </button>
       </div>
     </nav>
   )

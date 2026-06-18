@@ -20,6 +20,7 @@ export function buildPrompt(config, settings = {}) {
     enforceJson = true,
     lineBreakRules = true,
     communicationRules = true,
+    multiIntencoes = true,
   } = settings
 
   const customExits = exitDestinations.filter(e => !e.isDefault && e.key && e.key.startsWith('saida_'))
@@ -52,7 +53,8 @@ export function buildPrompt(config, settings = {}) {
     hasAtendente ? '| `saida_atendente`  | Transferência humana | Preenchida | EXCEÇÃO: sempre tem mensagem de transição   |' : null,
   ].filter(Boolean).join('\n')
 
-  const exitSections = allExits.map(e => buildExitSection(e)).join('\n\n')
+  // success é saída automática do sistema — não precisa de condição explícita
+  const exitSections = allExits.filter(e => e.key !== 'success').map(e => buildExitSection(e)).join('\n\n')
 
   const lines = []
 
@@ -184,14 +186,16 @@ export function buildPrompt(config, settings = {}) {
   lines.push(`**CRÍTICO:** Após ${maxAttempts} tentativas sem identificação, acionar \`saida_atendente\` imediatamente.`)
   lines.push(``)
 
-  lines.push(`# REGRA DE MÚLTIPLAS INTENÇÕES`)
-  lines.push(``)
-  lines.push(`Quando o cliente mencionar mais de uma intenção na mesma mensagem:`)
-  lines.push(``)
-  lines.push(`1. NUNCA escolha arbitrariamente.`)
-  lines.push(`2. Pergunte qual o cliente deseja resolver primeiro.`)
-  lines.push(`3. Se o cliente não tiver preferência, encaminhe pela **primeira intenção mencionada**.`)
-  lines.push(``)
+  if (multiIntencoes) {
+    lines.push(`# REGRA DE MÚLTIPLAS INTENÇÕES`)
+    lines.push(``)
+    lines.push(`Quando o cliente mencionar mais de uma intenção na mesma mensagem:`)
+    lines.push(``)
+    lines.push(`1. NUNCA escolha arbitrariamente.`)
+    lines.push(`2. Pergunte qual o cliente deseja resolver primeiro.`)
+    lines.push(`3. Se o cliente não tiver preferência, encaminhe pela **primeira intenção mencionada**.`)
+    lines.push(``)
+  }
 
   if (communicationRules) {
     lines.push(`# REGRAS DE COMUNICAÇÃO`)
@@ -317,24 +321,8 @@ function buildExitSection(exit) {
   if (exit.key === 'in_process') {
     lines.push(`## \`in_process\``)
     lines.push(`**Quando usar:** a qualquer momento em que o fluxo está ativo e o agente aguarda resposta.`)
-  } else if (exit.key === 'success') {
-    lines.push(`## \`success\``)
-    lines.push(`**Quando usar:** quando o atendimento é concluído, com agendamento confirmado, orientação de retorno ou encerramento por falta de requisito.`)
-    lines.push(`\`success\` não significa êxito total, mas que o agente encerrou sua parte do fluxo.`)
-    if (exit.sendExitMessage && exit.exitMessage?.trim()) {
-      lines.push(`**EXCEÇÃO:** sempre preencher \`message\` com exatamente: "${exit.exitMessage.trim()}"`)
-    } else if (exit.sendExitMessage) {
-      lines.push(`Sempre preencher \`message\` com mensagem de encerramento ao cliente.`)
-    } else {
-      lines.push(`\`message\` deve ser \`""\`. Sem mensagem ao cliente nesta saída.`)
-    }
   } else if (exit.key === 'saida_atendente') {
     lines.push(`## \`saida_atendente\``)
-    if (exit.sendExitMessage && exit.exitMessage?.trim()) {
-      lines.push(`**EXCEÇÃO:** sempre preencher \`message\` com exatamente: "${exit.exitMessage.trim()}"`)
-    } else {
-      lines.push(`**EXCEÇÃO:** sempre preencher \`message\` com mensagem de transição ao atendente.`)
-    }
     lines.push(`**Quando usar:**`)
     lines.push(`1. Cliente solicita explicitamente falar com humano, atendente, pessoa real ou similar.`)
     lines.push(`2. Agente não identificou intenção após ${exit.maxAttempts || 3} tentativas.`)
@@ -344,11 +332,6 @@ function buildExitSection(exit) {
     const fallbackDesc = `quando identificada necessidade de transferência para ${exit.label || exit.key}`
     const condition = normalizeCondition(exit.description || fallbackDesc)
     lines.push(`**Quando usar:** ${condition}.`)
-    if (exit.sendExitMessage && exit.exitMessage?.trim()) {
-      lines.push(`\`message\` deve ser exatamente: "${exit.exitMessage.trim()}"`)
-    } else {
-      lines.push(`\`message\` deve ser \`""\`. Contexto é passado via \`variables\` e \`summary\`.`)
-    }
   }
   return lines.join('\n')
 }
@@ -378,7 +361,7 @@ export function getDefaultConfig() {
         id: 2,
         key: 'success',
         label: 'Concluído',
-        description: 'Atendimento encerrado pelo agente com orientação ao cliente.',
+        description: 'Atendimento encerrado pelo agente.',
         isDefault: true,
         sendExitMessage: false,
         exitMessage: '',
@@ -390,7 +373,7 @@ export function getDefaultConfig() {
         description: 'Interrompa a IA quando o cliente pedir para falar com um atendente humano, expressar insatisfação com o atendimento ou quando a situação exigir análise humana.',
         isDefault: true,
         sendExitMessage: true,
-        exitMessage: '',
+        exitMessage: 'Certo! Vou te transferir para um atendente humano. Por favor, aguarde um momento.',
       },
     ],
     maxAttempts: 3,

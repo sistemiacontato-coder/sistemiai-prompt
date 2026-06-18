@@ -8,8 +8,18 @@ function formatDate(isoString) {
   })
 }
 
-function AgentCard({ agent, onLoad, onDelete, onView }) {
+function AgentCard({ agent, onLoad, onDelete }) {
   const [expanded, setExpanded] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    const text = agent.generated_prompt || ''
+    if (!text) return
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   return (
     <div className="bg-surface-container border border-outline-variant rounded hover:border-primary/40 transition-colors group">
@@ -45,6 +55,18 @@ function AgentCard({ agent, onLoad, onDelete, onView }) {
           >
             <span className="material-symbols-outlined text-[18px]">{expanded ? 'expand_less' : 'expand_more'}</span>
           </button>
+          {agent.generated_prompt && (
+            <button
+              onClick={handleCopy}
+              className="p-1.5 transition-colors"
+              style={{ color: copied ? 'rgb(var(--color-secondary))' : undefined }}
+              title={copied ? 'Copiado!' : 'Copiar prompt'}
+            >
+              <span className={`material-symbols-outlined text-[18px] ${copied ? '' : 'text-on-surface-variant hover:text-secondary'}`}>
+                {copied ? 'check' : 'content_copy'}
+              </span>
+            </button>
+          )}
           <button
             onClick={() => onLoad(agent)}
             className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
@@ -85,7 +107,7 @@ export default function HistoryPanel({ agents, isLoading, onLoad, onDelete, onRe
     <div className="h-full flex flex-col p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-lg font-semibold text-on-surface">Library</h2>
+          <h2 className="text-lg font-semibold text-on-surface">Histórico</h2>
           <p className="text-[12px] font-mono text-on-surface-variant/50 mt-0.5">
             {agents.length} agente{agents.length !== 1 ? 's' : ''} salvos no Supabase
           </p>

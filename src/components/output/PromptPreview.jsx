@@ -91,45 +91,48 @@ function DiffItem({ type, category, title, detail, wordHighlight }) {
   const bgChip    = `rgb(var(--color-${cv}) / 0.16)`
   const bdrLeft   = `rgb(var(--color-${cv}) / 0.55)`
 
+  const renderedContent = wordHighlight
+    ? (() => {
+        const groups = []
+        for (const w of wordHighlight) {
+          const last = groups[groups.length - 1]
+          if (last && last.isBold === w.isBold) last.words.push(w.word)
+          else groups.push({ isBold: w.isBold, words: [w.word] })
+        }
+        return groups.map((g, i) =>
+          g.isBold
+            ? <span key={i} style={{ fontWeight: 900, color, background: `rgb(var(--color-${cv}) / 0.22)`, borderRadius: '3px', padding: '0 4px' }}>
+                {g.words.join(' ')}
+              </span>
+            : <span key={i}>{g.words.join(' ')} </span>
+        )
+      })()
+    : title
+
   return (
     <div
-      className="flex items-start gap-2 px-3 py-2 border-b border-outline-variant/10 last:border-0"
+      className="flex items-start gap-2 px-3 py-2.5 border-b border-outline-variant/10 last:border-0"
       style={{ background: bgItem, borderLeft: `3px solid ${bdrLeft}` }}
     >
       <span className="font-mono text-[13px] font-bold flex-shrink-0 mt-0.5 w-3" style={{ color }}>
         {isAdd ? '+' : '−'}
       </span>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Chip de categoria — sempre na própria linha */}
+        <div className="mb-1">
           <span
-            className="text-[8px] font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded flex-shrink-0"
+            className="text-[8px] font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
             style={{ background: bgChip, color }}
           >
             {category}
           </span>
-          <span className="font-mono text-[11px] font-normal leading-snug" style={{ color }}>
-            {wordHighlight
-              ? (() => {
-                  const groups = []
-                  for (const w of wordHighlight) {
-                    const last = groups[groups.length - 1]
-                    if (last && last.isBold === w.isBold) last.words.push(w.word)
-                    else groups.push({ isBold: w.isBold, words: [w.word] })
-                  }
-                  return groups.map((g, i) =>
-                    g.isBold
-                      ? <span key={i} style={{ fontWeight: 900, color, background: `rgb(var(--color-${cv}) / 0.22)`, borderRadius: '3px', padding: '0 4px' }}>
-                          {g.words.join(' ')}
-                        </span>
-                      : <span key={i}>{g.words.join(' ')} </span>
-                  )
-                })()
-              : title
-            }
-          </span>
         </div>
+        {/* Conteúdo — sempre na linha abaixo do chip */}
+        <span className="font-mono text-[11px] font-normal leading-snug" style={{ color }}>
+          {renderedContent}
+        </span>
         {detail && (
-          <p className="text-[10px] font-mono mt-0.5 leading-relaxed font-normal" style={{ color: colorFade }}>
+          <p className="text-[10px] font-mono mt-1 leading-relaxed font-normal" style={{ color: colorFade }}>
             {detail}
           </p>
         )}
@@ -155,20 +158,25 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
   if (new_agent_name) {
     const oldName = config?.agentName || ''
     if (oldName) items.push({ type: 'removed', category: 'nome', title: oldName, detail: null, wordHighlight: null, _key: 'name-old' })
-    items.push({ type: 'added', category: 'nome', title: new_agent_name, detail: null, wordHighlight: null, _key: 'name-new' })
+    items.push({ type: 'added', category: 'nome', title: new_agent_name, detail: null, wordHighlight: highlightChangedWords(oldName, new_agent_name), _key: 'name-new' })
   }
 
-  // Persona do agente — diff linha a linha
+  // Persona do agente — diff pareado com word-highlight (igual ao domínio)
   if (new_agent_persona) {
     const oldPersona = config?.agentPersona || ''
     if (oldPersona && oldPersona !== new_agent_persona) {
       const personaDiff = diffLines(oldPersona, new_agent_persona)
-      personaDiff.filter(d => d.type === 'removed').forEach((d, i) => {
-        items.push({ type: 'removed', category: 'persona', title: d.content || '(vazio)', detail: null, wordHighlight: null, _key: `per-rem-${i}` })
-      })
-      personaDiff.filter(d => d.type === 'added').forEach((d, i) => {
-        items.push({ type: 'added', category: 'persona', title: d.content || '(vazio)', detail: null, wordHighlight: null, _key: `per-add-${i}` })
-      })
+      const perRemoved = personaDiff.filter(d => d.type === 'removed').map(d => d.content || '')
+      const perAdded   = personaDiff.filter(d => d.type === 'added').map(d => d.content || '')
+      const pairCount  = Math.max(perRemoved.length, perAdded.length)
+      for (let i = 0; i < pairCount; i++) {
+        if (perRemoved[i] !== undefined)
+          items.push({ type: 'removed', category: 'persona', title: perRemoved[i] || '(vazio)', detail: null, wordHighlight: null, _key: `per-rem-${i}` })
+        if (perAdded[i] !== undefined) {
+          const highlight = highlightChangedWords(perRemoved[i] || '', perAdded[i])
+          items.push({ type: 'added', category: 'persona', title: perAdded[i] || '(vazio)', detail: null, wordHighlight: highlight, _key: `per-add-${i}` })
+        }
+      }
     } else if (!oldPersona) {
       new_agent_persona.split('\n').forEach((line, i) => {
         if (line.trim()) items.push({ type: 'added', category: 'persona', title: line, detail: null, wordHighlight: null, _key: `per-new-${i}` })
@@ -360,6 +368,7 @@ export default function PromptPreview({
   prompt,
   pendingChanges, onReview, isReviewing, onApplyChanges, onDiscardChanges, onRefine,
   aiConfig, config,
+  onNavigateToSimulator,
 }) {
   const [copied, setCopied] = useState(false)
   const [instruction, setInstruction] = useState('')
@@ -431,6 +440,12 @@ export default function PromptPreview({
         <div className="flex items-center gap-2">
           {prompt && (
             <>
+              {onNavigateToSimulator && (
+                <button onClick={onNavigateToSimulator} className="flex items-center gap-1.5 text-secondary hover:brightness-110 transition-colors mr-3">
+                  <span className="material-symbols-outlined text-[18px]">science</span>
+                  <span className="label-caps text-[9.5px]">TESTAR PROMPT</span>
+                </button>
+              )}
               <button onClick={handleCopy} className="flex items-center gap-1.5 text-on-surface-variant hover:text-primary transition-colors">
                 <span className="material-symbols-outlined text-[18px]">{copied ? 'check' : 'content_copy'}</span>
                 <span className="label-caps text-[9px]">{copied ? 'COPIADO' : 'COPIAR'}</span>

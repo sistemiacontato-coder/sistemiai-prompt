@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 
 let nextId = 10
 const MAX_CHARS = 20
@@ -22,8 +23,8 @@ function TypeToggle({ value, onChange }) {
             }`}
             style={{
               background: value === opt.key
-                ? `color-mix(in srgb, var(--color-${opt.color}) 10%, transparent)`
-                : 'var(--color-surface)'
+                ? `rgb(var(--color-${opt.color}) / 0.10)`
+                : 'rgb(var(--color-surface))'
             }}>
             <div className="flex items-center gap-1.5">
               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{opt.icon}</span>
@@ -64,21 +65,27 @@ function VariableModal({ variable, agentId, onSave, onCancel }) {
 
   const optionLines = options.trim().split('\n').filter(l => l.trim())
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="rounded-xl border border-outline-variant w-full max-w-md shadow-2xl overflow-hidden"
-           style={{ background: 'var(--color-surface-container)' }}>
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="rounded-xl border border-outline-variant w-full max-w-md shadow-2xl overflow-hidden"
+        style={{ background: 'rgb(var(--color-surface-container))' }}
+        onClick={e => e.stopPropagation()}
+      >
 
         {/* Accent */}
         <div className={`h-0.5 bg-gradient-to-r ${type === 'enum' ? 'from-secondary via-secondary/50' : 'from-primary via-primary/50'} to-transparent`} />
 
         {/* Header */}
         <div className="flex items-center gap-3 px-6 py-4 border-b border-outline-variant"
-             style={{ background: 'var(--color-surface-container-high)' }}>
+             style={{ background: 'rgb(var(--color-surface-container-high))' }}>
           <div className="w-7 h-7 rounded flex items-center justify-center"
                style={{ background: type === 'enum'
-                 ? 'color-mix(in srgb, var(--color-secondary) 12%, transparent)'
-                 : 'color-mix(in srgb, var(--color-primary) 12%, transparent)' }}>
+                 ? 'rgb(var(--color-secondary) / 0.12)'
+                 : 'rgb(var(--color-primary) / 0.12)' }}>
             <span className={`material-symbols-outlined ${type === 'enum' ? 'text-secondary' : 'text-primary'}`} style={{ fontSize: 16 }}>
               {type === 'enum' ? 'list' : 'data_object'}
             </span>
@@ -96,7 +103,8 @@ function VariableModal({ variable, agentId, onSave, onCancel }) {
           </button>
         </div>
 
-        <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+        <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto"
+             style={{ background: 'rgb(var(--color-surface-container))' }}>
 
           {/* Tipo */}
           <TypeToggle value={type} onChange={setType} />
@@ -111,10 +119,10 @@ function VariableModal({ variable, agentId, onSave, onCancel }) {
             </div>
             <div className={`flex items-center rounded-lg border overflow-hidden transition-all
               ${isOver ? 'border-error ring-1 ring-error/30' : 'border-outline-variant focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/50'}`}
-              style={{ background: 'var(--color-surface)' }}>
+              style={{ background: 'rgb(var(--color-surface))' }}>
               {prefix && (
                 <div className="flex items-center gap-1 pl-3 pr-1 border-r border-outline-variant py-3 flex-shrink-0"
-                     style={{ background: 'var(--color-surface-container-high)' }}>
+                     style={{ background: 'rgb(var(--color-surface-container-high))' }}>
                   <code className="font-mono text-[12px] font-bold text-primary/70">{prefix}</code>
                 </div>
               )}
@@ -150,7 +158,7 @@ function VariableModal({ variable, agentId, onSave, onCancel }) {
                 onChange={e => setOptions(e.target.value)}
                 placeholder={"Uma opção por linha:\nCertidão de Nascimento\nCertidão de Casamento\nCertidão de Óbito\nCorreção de Registro"}
                 className="w-full rounded-lg border border-outline-variant p-3 text-sm font-mono text-on-surface leading-relaxed resize-none focus:border-secondary focus:ring-1 focus:ring-secondary/50 focus:outline-none transition-all"
-                style={{ background: 'var(--color-surface)' }}
+                style={{ background: 'rgb(var(--color-surface))' }}
               />
               <p className="text-[10px] font-mono text-on-surface-variant/35 mt-1.5">
                 Uma opção por linha. A IA classificará a intenção nestes valores exatos.
@@ -169,7 +177,7 @@ function VariableModal({ variable, agentId, onSave, onCancel }) {
                 ? 'Salvar aqui a classificação da intenção do usuário conforme uma das opções acima.'
                 : 'Salvar aqui o valor exato informado pelo usuário. Ex: Salvar aqui o nome completo informado pelo cliente durante a conversa.'}
               className="w-full rounded-lg border border-outline-variant p-3 text-sm font-mono text-on-surface leading-relaxed resize-none focus:border-primary focus:ring-1 focus:ring-primary/50 focus:outline-none transition-all"
-              style={{ background: 'var(--color-surface)' }}
+              style={{ background: 'rgb(var(--color-surface))' }}
             />
             <p className="text-[10px] font-mono text-on-surface-variant/35 mt-1.5">
               Instrui a IA sobre o que salvar e como interpretar este campo.
@@ -179,7 +187,7 @@ function VariableModal({ variable, agentId, onSave, onCancel }) {
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-outline-variant"
-             style={{ background: 'var(--color-surface-container-high)' }}>
+             style={{ background: 'rgb(var(--color-surface-container-high))' }}>
           <button onClick={onCancel}
             className="px-4 py-2 rounded-lg border border-outline-variant text-sm font-mono text-on-surface-variant hover:border-primary hover:text-primary transition-all">
             Cancelar
@@ -195,7 +203,8 @@ function VariableModal({ variable, agentId, onSave, onCancel }) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
