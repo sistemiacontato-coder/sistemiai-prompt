@@ -188,18 +188,30 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     localStorage.setItem('pm-test-presets', JSON.stringify(presets))
   }, [presets])
 
-  // Auto-salvar modelo/temperatura no preset selecionado
+  const [isEditingPreset, setIsEditingPreset] = useState(false)
+  const [editPresetName, setEditPresetName] = useState('')
+  const [originalPresetValues, setOriginalPresetValues] = useState(null)
+
+  // Cancelar modo edição ao mudar de aba
+  const handleCancelEditPreset = useCallback(() => {
+    setIsEditingPreset(prev => {
+      if (prev) {
+        setOriginalPresetValues(orig => {
+          if (orig) {
+            setModel(orig.model)
+            setTemperature(orig.temperature)
+            setConfig(c => ({ ...c, testModel: orig.model }))
+          }
+          return null
+        })
+      }
+      return false
+    })
+  }, [setConfig])
+
   useEffect(() => {
-    if (activePresetId) {
-      setPresets(prev => {
-        const current = prev.find(p => p.id === activePresetId)
-        if (current && (current.model !== model || current.temperature !== temperature)) {
-          return prev.map(p => p.id === activePresetId ? { ...p, model, temperature } : p)
-        }
-        return prev
-      })
-    }
-  }, [model, temperature, activePresetId])
+    handleCancelEditPreset()
+  }, [activeTab, handleCancelEditPreset])
 
   // Handlers para presets
   const handleSavePreset = async () => {
@@ -217,13 +229,19 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setActivePresetId(newId)
   }
 
-
-  const handleRenamePreset = async () => {
+  const handleStartEditPreset = () => {
     const p = presets.find(pr => pr.id === activePresetId)
     if (!p) return
-    const name = await showDialog({ type: 'prompt', message: "Digite o novo nome para o preset:", defaultValue: p.name })
-    if (!name || !name.trim()) return
-    setPresets(prev => prev.map(pr => pr.id === activePresetId ? { ...pr, name: name.trim() } : pr))
+    setOriginalPresetValues({ name: p.name, model: model, temperature: temperature })
+    setEditPresetName(p.name)
+    setIsEditingPreset(true)
+  }
+
+  const handleSavePresetEdits = () => {
+    if (!editPresetName.trim()) return
+    setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, name: editPresetName.trim(), model, temperature } : p))
+    setIsEditingPreset(false)
+    setOriginalPresetValues(null)
   }
 
   const handleToggleDefaultPreset = async () => {
@@ -245,6 +263,20 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setModel(nextActive.model)
     setTemperature(nextActive.temperature)
     setConfig(prev => ({ ...prev, testModel: nextActive.model }))
+  }
+
+  const handleSelectPreset = (nextId) => {
+    if (isEditingPreset) {
+      setIsEditingPreset(false)
+      setOriginalPresetValues(null)
+    }
+    setActivePresetId(nextId)
+    const p = presets.find(pr => pr.id === nextId)
+    if (p) {
+      setModel(p.model)
+      setTemperature(p.temperature)
+      setConfig(prev => ({ ...prev, testModel: p.model }))
+    }
   }
 
   const handleModelChange = (newModel) => {
@@ -665,74 +697,109 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
           <p className="text-[10px] text-on-surface-variant/40 font-mono mt-0.5">Defina o ambiente para simular</p>
         </div>
 
-        <div className="space-y-3 p-3 rounded-lg border border-outline-variant bg-surface-container-high/40">
+        <div className={`space-y-3 p-3 rounded-lg border transition-all ${isEditingPreset ? 'border-primary bg-primary/5 shadow-lg shadow-primary/5' : 'border-outline-variant bg-surface-container-high/40'}`}>
           <div>
             <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1 flex justify-between items-center">
-              <span>PRESET DE CONFIGURAÇÃO</span>
+              <span>{isEditingPreset ? 'EDITANDO PRESET' : 'PRESET DE CONFIGURAÇÃO'}</span>
               <div className="flex gap-1.5 items-center">
-                {activePresetId && (
-                  <span className="text-[9px] font-mono text-secondary flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
-                    Salvo
+                {isEditingPreset ? (
+                  <span className="text-[9px] font-mono text-primary flex items-center gap-1 font-bold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    Modo Edição
                   </span>
+                ) : (
+                  activePresetId && (
+                    <span className="text-[9px] font-mono text-secondary flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
+                      Preset Ativo
+                    </span>
+                  )
                 )}
-                <button 
-                  onClick={handleSavePreset}
-                  title="Criar novo preset com as configurações atuais"
-                  className="text-[9px] text-primary hover:underline cursor-pointer bg-transparent border-0 p-0 font-bold flex items-center gap-0.5"
-                >
-                  <span className="material-symbols-outlined text-[10px]">add</span> Criar Novo
-                </button>
+                {!isEditingPreset && (
+                  <button 
+                    onClick={handleSavePreset}
+                    title="Criar novo preset com as configurações atuais"
+                    className="text-[9px] text-primary hover:underline cursor-pointer bg-transparent border-0 p-0 font-bold flex items-center gap-0.5"
+                  >
+                    <span className="material-symbols-outlined text-[10px]">add</span> Criar Novo
+                  </button>
+                )}
               </div>
             </label>
-            <div className="flex gap-1">
-              <select
-                value={activePresetId}
-                onChange={e => {
-                  const nextId = e.target.value
-                  setActivePresetId(nextId)
-                  const p = presets.find(pr => pr.id === nextId)
-                  if (p) {
-                    setModel(p.model)
-                    setTemperature(p.temperature)
-                    setConfig(prev => ({ ...prev, testModel: p.model }))
-                  }
-                }}
-                className="flex-1 bg-surface border border-outline-variant rounded px-2 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
-              >
-                <option value="">Nenhum preset selecionado</option>
-                {presets.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} {p.isDefault ? '⭐' : ''}
-                  </option>
-                ))}
-              </select>
-              
-              <button
-                onClick={handleRenamePreset}
-                title="Renomear Preset"
-                className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center transition-colors"
-              >
-                <span className="material-symbols-outlined text-[12px]">edit</span>
-              </button>
-              
-              <button
-                onClick={handleToggleDefaultPreset}
-                title="Tornar Padrão Inicial"
-                className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center transition-colors"
-              >
-                <span className="material-symbols-outlined text-[12px] text-yellow-500">star</span>
-              </button>
+            
+            {isEditingPreset ? (
+              <div className="flex gap-1">
+                <input
+                  type="text"
+                  value={editPresetName}
+                  onChange={e => setEditPresetName(e.target.value)}
+                  placeholder="Nome do preset..."
+                  className="flex-1 bg-surface border border-primary rounded px-2 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
+                  autoFocus
+                />
+                
+                <button
+                  onClick={handleSavePresetEdits}
+                  title="Salvar alterações no preset"
+                  className="px-2.5 bg-primary hover:bg-primary/95 text-on-primary rounded flex items-center justify-center transition-colors cursor-pointer"
+                  disabled={!editPresetName.trim()}
+                >
+                  <span className="material-symbols-outlined text-[14px]">check</span>
+                </button>
+                
+                <button
+                  onClick={handleCancelEditPreset}
+                  title="Cancelar alterações"
+                  className="px-2.5 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface flex items-center justify-center transition-colors cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[14px]">close</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-1">
+                <select
+                  value={activePresetId}
+                  onChange={e => handleSelectPreset(e.target.value)}
+                  className="flex-1 bg-surface border border-outline-variant rounded px-2 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
+                >
+                  <option value="">Nenhum preset selecionado</option>
+                  {presets.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.isDefault ? '⭐' : ''}
+                    </option>
+                  ))}
+                </select>
+                
+                {activePresetId && (
+                  <>
+                    <button
+                      onClick={handleStartEditPreset}
+                      title="Editar Preset (Nome, Provedor e Temperatura)"
+                      className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">edit</span>
+                    </button>
+                    
+                    <button
+                      onClick={handleToggleDefaultPreset}
+                      title="Tornar Padrão Inicial"
+                      className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-[12px] text-yellow-500">star</span>
+                    </button>
 
-              <button
-                onClick={handleDeletePreset}
-                title="Excluir Preset"
-                className="px-2 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center transition-colors"
-                disabled={presets.length <= 1}
-              >
-                <span className="material-symbols-outlined text-[12px]">delete</span>
-              </button>
-            </div>
+                    <button
+                      onClick={handleDeletePreset}
+                      title="Excluir Preset"
+                      className="px-2 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                      disabled={presets.length <= 1}
+                    >
+                      <span className="material-symbols-outlined text-[12px]">delete</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
