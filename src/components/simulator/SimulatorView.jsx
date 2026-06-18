@@ -194,24 +194,24 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
   // Cancelar modo edição ao mudar de aba
   const handleCancelEditPreset = useCallback(() => {
-    setIsEditingPreset(prev => {
-      if (prev) {
-        setOriginalPresetValues(orig => {
-          if (orig) {
-            setModel(orig.model)
-            setTemperature(orig.temperature)
-            setConfig(c => ({ ...c, testModel: orig.model }))
-          }
-          return null
-        })
-      }
-      return false
-    })
-  }, [setConfig])
+    if (originalPresetValues) {
+      setModel(originalPresetValues.model)
+      setTemperature(originalPresetValues.temperature)
+      setConfig(c => ({ ...c, testModel: originalPresetValues.model }))
+    }
+    setIsEditingPreset(false)
+    setOriginalPresetValues(null)
+  }, [originalPresetValues, setConfig])
 
   useEffect(() => {
-    handleCancelEditPreset()
-  }, [activeTab, handleCancelEditPreset])
+    if (isEditingPreset && originalPresetValues) {
+      setModel(originalPresetValues.model)
+      setTemperature(originalPresetValues.temperature)
+      setConfig(c => ({ ...c, testModel: originalPresetValues.model }))
+      setIsEditingPreset(false)
+      setOriginalPresetValues(null)
+    }
+  }, [activeTab])
 
   // Handlers para presets
   const handleSavePreset = async () => {
