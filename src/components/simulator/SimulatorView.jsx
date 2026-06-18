@@ -188,7 +188,18 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     localStorage.setItem('pm-test-presets', JSON.stringify(presets))
   }, [presets])
 
-  const presetModified = activePreset && (activePreset.model !== model || activePreset.temperature !== temperature)
+  // Auto-salvar modelo/temperatura no preset selecionado
+  useEffect(() => {
+    if (activePresetId) {
+      setPresets(prev => {
+        const current = prev.find(p => p.id === activePresetId)
+        if (current && (current.model !== model || current.temperature !== temperature)) {
+          return prev.map(p => p.id === activePresetId ? { ...p, model, temperature } : p)
+        }
+        return prev
+      })
+    }
+  }, [model, temperature, activePresetId])
 
   // Handlers para presets
   const handleSavePreset = async () => {
@@ -206,10 +217,6 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setActivePresetId(newId)
   }
 
-  const handleUpdateCurrentPreset = () => {
-    if (!activePresetId) return
-    setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, model, temperature } : p))
-  }
 
   const handleRenamePreset = async () => {
     const p = presets.find(pr => pr.id === activePresetId)
@@ -663,14 +670,11 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
             <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1 flex justify-between items-center">
               <span>PRESET DE CONFIGURAÇÃO</span>
               <div className="flex gap-1.5 items-center">
-                {presetModified && (
-                  <button 
-                    onClick={handleUpdateCurrentPreset}
-                    title="Salvar alterações no preset selecionado"
-                    className="text-[9px] text-secondary hover:underline cursor-pointer bg-transparent border-0 p-0 font-bold flex items-center gap-0.5"
-                  >
-                    <span className="material-symbols-outlined text-[10px]">save</span> Salvar
-                  </button>
+                {activePresetId && (
+                  <span className="text-[9px] font-mono text-secondary flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
+                    Salvo
+                  </span>
                 )}
                 <button 
                   onClick={handleSavePreset}
