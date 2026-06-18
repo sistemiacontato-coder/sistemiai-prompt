@@ -111,6 +111,106 @@ function SaveVersionModal({ isOpen, onClose, onSave, isSaving }) {
   )
 }
 
+function CustomDialogModal({ isOpen, type, message, placeholder, defaultValue, resolve, onClose }) {
+  const [value, setValue] = useState(defaultValue || '')
+
+  useEffect(() => {
+    if (isOpen) {
+      setValue(defaultValue || '')
+    }
+  }, [isOpen, defaultValue])
+
+  if (!isOpen) return null
+
+  const handleConfirm = () => {
+    if (type === 'prompt') {
+      resolve(value)
+    } else {
+      resolve(true)
+    }
+    onClose()
+  }
+
+  const handleCancel = () => {
+    if (type === 'prompt') {
+      resolve(null)
+    } else {
+      resolve(false)
+    }
+    onClose()
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 animate-fade-in"
+      onClick={handleCancel}
+    >
+      <div
+        className="rounded-xl border border-outline-variant w-full max-w-sm shadow-2xl overflow-hidden"
+        style={{ background: 'rgb(var(--color-surface-container))' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Accent */}
+        <div className="h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent" />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-outline-variant"
+             style={{ background: 'rgb(var(--color-surface-container-high))' }}>
+          <div className="w-7 h-7 rounded flex items-center justify-center"
+               style={{ background: 'rgb(var(--color-primary) / 0.12)' }}>
+            <span className="material-symbols-outlined text-primary" style={{ fontSize: 16 }}>
+              {type === 'prompt' ? 'edit' : type === 'confirm' ? 'help_outline' : 'info'}
+            </span>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-on-surface leading-none">
+              {type === 'prompt' ? 'Entrada' : type === 'confirm' ? 'Confirmação' : 'Aviso'}
+            </h3>
+          </div>
+          <button onClick={handleCancel} className="ml-auto text-on-surface-variant/40 hover:text-on-surface transition-colors">
+            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4" style={{ background: 'rgb(var(--color-surface-container))' }}>
+          <p className="text-xs font-mono text-on-surface-variant leading-relaxed">
+            {message}
+          </p>
+
+          {type === 'prompt' && (
+            <input
+              type="text"
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              placeholder={placeholder || 'Digite aqui...'}
+              autoFocus
+              onKeyDown={e => e.key === 'Enter' && handleConfirm()}
+              className="w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/30"
+            />
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-outline-variant"
+             style={{ background: 'rgb(var(--color-surface-container-high))' }}>
+          {type !== 'alert' && (
+            <button onClick={handleCancel}
+              className="px-4 py-2 rounded-lg border border-outline-variant text-xs font-mono text-on-surface-variant hover:border-primary hover:text-primary transition-all">
+              {type === 'prompt' ? 'Cancelar' : 'Não'}
+            </button>
+          )}
+          <button onClick={handleConfirm}
+            className="px-5 py-2 bg-primary text-on-primary hover:opacity-90 rounded-lg text-xs font-mono font-semibold transition-all active:scale-95">
+            {type === 'alert' ? 'OK' : type === 'prompt' ? 'Confirmar' : 'Sim'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 export default function App() {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('pm-theme')
@@ -120,6 +220,14 @@ export default function App() {
   const [config, setConfig] = useState(getDefaultConfig)
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
+  const [dialogState, setDialogState] = useState(null)
+
+  const showDialog = useCallback(({ type, message, placeholder, defaultValue }) => {
+    return new Promise((resolve) => {
+      setDialogState({ type, message, placeholder, defaultValue, resolve })
+    })
+  }, [])
+
   const [validationResults, setValidationResults] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [agents, setAgents] = useState([])
@@ -503,14 +611,15 @@ export default function App() {
   }, [config, settings])
 
   const handleDeleteAgent = useCallback(async (id) => {
-    if (!window.confirm('Excluir este agente?')) return
+    const ok = await showDialog({ type: 'confirm', message: 'Deseja realmente excluir este agente? Esta ação é irreversível.' })
+    if (!ok) return
     try {
       await deleteAgent(id)
       setAgents(prev => prev.filter(a => a.id !== id))
     } catch (e) {
       console.error('Erro ao excluir:', e)
     }
-  }, [])
+  }, [showDialog])
 
   const handleLoadAgent = useCallback((agent) => {
     const rawName = agent.agent_name || ''
@@ -528,15 +637,16 @@ export default function App() {
     setView('editor')
   }, [])
 
-  const handleNewPrompt = useCallback(() => {
-    if (window.confirm('Criar novo prompt? O editor atual será limpo.')) {
+  const handleNewPrompt = useCallback(async () => {
+    const ok = await showDialog({ type: 'confirm', message: 'Criar novo prompt? O editor atual será limpo.' })
+    if (ok) {
       setConfig(getDefaultConfig())
       setGeneratedPrompt('')
       setValidationResults([])
       setSectionsRevealed(false)
       setView('editor')
     }
-  }, [])
+  }, [showDialog])
 
   const handleSaveToDatabase = useCallback(async () => {
     if (!generatedPrompt || isSaving) return
@@ -547,7 +657,6 @@ export default function App() {
     const finalDesc = desc.trim() || `Versão salva — ${new Date().toLocaleDateString('pt-BR')}`
     setIsSaving(true)
     setSaveStatus(null)
-    setShowSaveModal(false)
     try {
       // 1. Salva no localstorage (Histórico de Versões)
       const updated = saveSnapshot({ config, prompt: generatedPrompt, description: finalDesc })
@@ -569,15 +678,17 @@ export default function App() {
       }
 
       setSaveStatus('ok')
+      setShowSaveModal(false)
       setTimeout(() => setSaveStatus(null), 4000)
     } catch (err) {
       console.error('Erro ao salvar:', err)
       setSaveStatus('error')
+      await showDialog({ type: 'alert', message: `Erro ao salvar: ${err.message}` })
       setTimeout(() => setSaveStatus(null), 6000)
     } finally {
       setIsSaving(false)
     }
-  }, [config, generatedPrompt, isSupabaseConfigured])
+  }, [config, generatedPrompt, isSupabaseConfigured, showDialog])
 
   const criticalCount = validationResults.filter(r => r.type === 'critical').length
   const canGenerate = criticalCount === 0
@@ -943,6 +1054,7 @@ export default function App() {
               generatedPrompt={generatedPrompt}
               setGeneratedPrompt={setGeneratedPrompt}
               aiConfig={aiConfig}
+              showDialog={showDialog}
             />
           )}
 
@@ -976,6 +1088,18 @@ export default function App() {
           onClose={() => setShowSaveModal(false)}
           onSave={handleConfirmSave}
           isSaving={isSaving}
+        />
+      )}
+
+      {dialogState && (
+        <CustomDialogModal
+          isOpen={!!dialogState}
+          type={dialogState.type}
+          message={dialogState.message}
+          placeholder={dialogState.placeholder}
+          defaultValue={dialogState.defaultValue}
+          resolve={dialogState.resolve}
+          onClose={() => setDialogState(null)}
         />
       )}
     </div>

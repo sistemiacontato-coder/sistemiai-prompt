@@ -113,7 +113,7 @@ function ModelSelector({ value, onChange, apiKey, endpoint }) {
   )
 }
 
-export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig }) {
+export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig, showDialog }) {
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
   const [presets, setPresets] = useState(() => {
     const saved = localStorage.getItem('pm-test-presets')
@@ -172,8 +172,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const presetModified = activePreset && (activePreset.model !== model || activePreset.temperature !== temperature)
 
   // Handlers para presets
-  const handleSavePreset = () => {
-    const name = prompt("Digite o nome para o novo preset de teste:")
+  const handleSavePreset = async () => {
+    const name = await showDialog({ type: 'prompt', message: "Digite o nome para o novo preset de teste:" })
     if (!name || !name.trim()) return
     const newId = Date.now().toString()
     const newPreset = {
@@ -192,25 +192,26 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, model, temperature } : p))
   }
 
-  const handleRenamePreset = () => {
+  const handleRenamePreset = async () => {
     const p = presets.find(pr => pr.id === activePresetId)
     if (!p) return
-    const name = prompt("Digite o novo nome para o preset:", p.name)
+    const name = await showDialog({ type: 'prompt', message: "Digite o novo nome para o preset:", defaultValue: p.name })
     if (!name || !name.trim()) return
     setPresets(prev => prev.map(pr => pr.id === activePresetId ? { ...pr, name: name.trim() } : pr))
   }
 
-  const handleToggleDefaultPreset = () => {
+  const handleToggleDefaultPreset = async () => {
     setPresets(prev => prev.map(p => ({
       ...p,
       isDefault: p.id === activePresetId
     })))
-    alert("Este preset foi configurado como padrão inicial!")
+    await showDialog({ type: 'alert', message: "Este preset foi configurado como padrão inicial!" })
   }
 
-  const handleDeletePreset = () => {
+  const handleDeletePreset = async () => {
     if (presets.length <= 1) return
-    if (!confirm("Tem certeza de que deseja excluir este preset de teste?")) return
+    const ok = await showDialog({ type: 'confirm', message: "Tem certeza de que deseja excluir este preset de teste?" })
+    if (!ok) return
     const index = presets.findIndex(p => p.id === activePresetId)
     const nextActive = presets[index === 0 ? 1 : index - 1].id
     setPresets(prev => prev.filter(p => p.id !== activePresetId))
@@ -484,7 +485,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     }).filter(t => t.rating <= 3) // Focar nas avaliações regulares/ruins/péssimas para correção
 
     if (ratedTurns.length === 0) {
-      alert('Por favor, dê notas baixas (1 a 3 estrelas) e insira feedbacks nas mensagens com problemas para orientar a IA.')
+      await showDialog({ type: 'alert', message: 'Por favor, dê notas baixas (1 a 3 estrelas) e insira feedbacks nas mensagens com problemas para orientar a IA.' })
       return
     }
 
@@ -510,7 +511,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       const adjustments = await refineConfigWithFeedback(config, mockSuiteResults, aiConfig)
       setManualRefineResult(adjustments)
     } catch (err) {
-      alert(`Erro no refinamento: ${err.message}`)
+      await showDialog({ type: 'alert', message: `Erro no refinamento: ${err.message}` })
     } finally {
       setIsRefiningManual(false)
     }
@@ -526,7 +527,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       const results = await runTestSuite(generatedPrompt, config, testCases, targetModelConfig)
       setSuiteResults(results)
     } catch (err) {
-      alert(`Erro na execução dos testes: ${err.message}`)
+      await showDialog({ type: 'alert', message: `Erro na execução dos testes: ${err.message}` })
     } finally {
       setIsRunningTests(false)
     }
@@ -541,14 +542,14 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       const adjustments = await refineConfigWithFeedback(config, suiteResults, aiConfig)
       setAutoRefineResult(adjustments)
     } catch (err) {
-      alert(`Erro no refinamento automático: ${err.message}`)
+      await showDialog({ type: 'alert', message: `Erro no refinamento automático: ${err.message}` })
     } finally {
       setIsRefiningAuto(false)
     }
   }
 
   // Aplica as sugestões da IA na configuração do editor principal
-  const handleApplyAdjustments = (adjustments) => {
+  const handleApplyAdjustments = async (adjustments) => {
     if (!adjustments) return
 
     setConfig(prev => {
@@ -590,7 +591,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       return nextConfig
     })
 
-    alert('Configurações e prompt atualizados com sucesso com base nas correções do Simulador!')
+    await showDialog({ type: 'alert', message: 'Configurações e prompt atualizados com sucesso com base nas correções do Simulador!' })
     setManualRefineResult(null)
     setAutoRefineResult(null)
     setSuiteResults(null)
@@ -608,8 +609,9 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setEditingTestCase(null)
   }
 
-  const handleDeleteTestCase = (id) => {
-    if (window.confirm('Excluir este caso de teste?')) {
+  const handleDeleteTestCase = async (id) => {
+    const ok = await showDialog({ type: 'confirm', message: 'Excluir este caso de teste?' })
+    if (ok) {
       setTestCases(prev => prev.filter(t => t.id !== id))
     }
   }
