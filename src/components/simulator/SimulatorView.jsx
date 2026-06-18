@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { runTestSuite, runTestCase, refineConfigWithFeedback } from '../../lib/promptTuner'
 import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
+import { loadHistory } from '../../lib/promptHistory'
 
 function ModelSelector({ value, onChange, apiKey, endpoint }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -120,6 +121,19 @@ const DEFAULT_PRESETS = [
 ]
 
 export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig, showDialog }) {
+  const [promptSource, setPromptSource] = useState('current')
+  const [historyList, setHistoryList] = useState([])
+
+  useEffect(() => {
+    setHistoryList(loadHistory())
+  }, [])
+
+  const activePromptText = useMemo(() => {
+    if (promptSource === 'current') return generatedPrompt
+    const found = historyList.find(h => h.id.toString() === promptSource.toString())
+    return found ? found.prompt : ''
+  }, [promptSource, historyList, generatedPrompt])
+
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
   const [presets, setPresets] = useState(() => {
     const saved = localStorage.getItem('pm-test-presets')
@@ -453,7 +467,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
     try {
       const messagesToSend = [
-        { role: 'system', content: generatedPrompt },
+        { role: 'system', content: activePromptText },
         ...newTechnicalMsgs
       ]
 
@@ -585,7 +599,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setAutoRefineResult(null)
 
     try {
-      const results = await runTestSuite(generatedPrompt, config, testCases, targetModelConfig)
+      const results = await runTestSuite(activePromptText, config, testCases, targetModelConfig)
       setSuiteResults(results)
     } catch (err) {
       await showDialog({ type: 'alert', message: `Erro na execução dos testes: ${err.message}` })
@@ -836,6 +850,50 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
           </div>
         </div>
 
+        {/* --- SEÇÃO: PROMPT SOB TESTE --- */}
+        <div className="space-y-3 p-3 rounded-lg border border-outline-variant bg-surface-container-high/40">
+          <div>
+            <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1 flex justify-between items-center">
+              <span>PROMPT SOB TESTE</span>
+              {promptSource !== 'current' && (
+                <button
+                  onClick={() => setPromptSource('current')}
+                  title="Restaurar para o Rascunho Atual do Editor"
+                  className="text-[9px] text-primary hover:underline cursor-pointer bg-transparent border-0 p-0 font-bold"
+                >
+                  Usar Atual
+                </button>
+              )}
+            </label>
+            <select
+              value={promptSource}
+              onChange={e => setPromptSource(e.target.value)}
+              className="w-full bg-surface border border-outline-variant rounded px-2 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
+            >
+              <option value="current">Rascunho Atual do Editor</option>
+              {historyList.map(h => (
+                <option key={h.id} value={h.id}>
+                  {h.agentKey ? `[${h.agentKey}] ` : ''}{h.description}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {activePromptText && (
+            <div className="rounded border border-outline-variant/40 bg-surface/80 p-2 space-y-1">
+              <div className="flex justify-between items-center text-[9px] font-mono text-on-surface-variant/60">
+                <span className="uppercase">Visualizar Prompt</span>
+                <span>{activePromptText.length} chars</span>
+              </div>
+              <textarea
+                readOnly
+                value={activePromptText}
+                className="w-full h-20 bg-transparent text-[10px] font-mono text-on-surface-variant/80 focus:outline-none resize-none border-0 p-0 scrollbar-thin"
+              />
+            </div>
+          )}
+        </div>
+
         {/* Abas do simulador */}
         <div className="flex border-b border-outline-variant/60">
           <button
@@ -1008,12 +1066,12 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Linha do tempo de mensagens */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {!generatedPrompt || !generatedPrompt.trim() ? (
+               {!activePromptText || !activePromptText.trim() ? (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-outline-variant/60 rounded-xl bg-surface-container-high/20">
                   <span className="material-symbols-outlined text-[48px] text-amber-500 mb-2">warning</span>
-                  <p className="text-xs font-mono font-bold text-on-surface">Prompt não gerado ainda!</p>
+                  <p className="text-xs font-mono font-bold text-on-surface">Nenhum prompt disponível para simulação!</p>
                   <p className="text-[10px] font-mono text-on-surface-variant/60 mt-1 max-w-sm leading-relaxed">
-                    Você precisa preencher as especificações na aba <strong>Editor</strong> e clicar no botão <strong>Gerar Prompt</strong> no painel de ações antes de usar o simulador.
+                    Você precisa gerar um prompt no <strong>Editor</strong> ou selecionar um prompt salvo no histórico na barra lateral esquerda antes de usar o simulador.
                   </p>
                 </div>
               ) : chatMessages.length === 0 ? (
@@ -1102,19 +1160,19 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                 value={userInput}
                 onChange={e => setUserInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSendManual()}
-                disabled={isSending || !aiConfig?.apiKey || !generatedPrompt || !generatedPrompt.trim()}
+                disabled={isSending || !aiConfig?.apiKey || !activePromptText || !activePromptText.trim()}
                 placeholder={
                   !aiConfig?.apiKey
                     ? "Cadastre uma chave de IA nas Configurações para simular"
-                    : (!generatedPrompt || !generatedPrompt.trim())
-                    ? "⚠️ Gere o prompt no Editor antes de digitar..."
+                    : (!activePromptText || !activePromptText.trim())
+                    ? "⚠️ Selecione ou gere um prompt antes de digitar..."
                     : "Digite sua mensagem simulando o cliente..."
                 }
                 className="flex-1 rounded-lg border border-outline-variant bg-surface px-4 py-3 text-xs font-mono focus:outline-none focus:border-primary disabled:opacity-40"
               />
               <button
                 onClick={handleSendManual}
-                disabled={isSending || !userInput.trim() || !aiConfig?.apiKey || !generatedPrompt || !generatedPrompt.trim()}
+                disabled={isSending || !userInput.trim() || !aiConfig?.apiKey || !activePromptText || !activePromptText.trim()}
                 className="btn-primary py-2.5 px-4 h-full rounded-lg font-mono text-xs uppercase flex items-center justify-center disabled:opacity-40"
               >
                 Enviar
