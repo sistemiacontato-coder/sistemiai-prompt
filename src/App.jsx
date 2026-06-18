@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import TopNav from './components/TopNav'
 import SideNav from './components/SideNav'
 import AgentConfigPanel from './components/editor/AgentConfigPanel'
@@ -27,6 +28,89 @@ const SETTINGS_DEFAULT = {
   communicationRules: true,
 }
 
+function SaveVersionModal({ isOpen, onClose, onSave, isSaving }) {
+  const [description, setDescription] = useState('')
+
+  if (!isOpen) return null
+
+  const handleConfirm = () => {
+    onSave(description)
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="rounded-xl border border-outline-variant w-full max-w-sm shadow-2xl overflow-hidden"
+        style={{ background: 'rgb(var(--color-surface-container))' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Accent */}
+        <div className="h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent" />
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-outline-variant"
+             style={{ background: 'rgb(var(--color-surface-container-high))' }}>
+          <div className="w-7 h-7 rounded flex items-center justify-center"
+               style={{ background: 'rgb(var(--color-primary) / 0.12)' }}>
+            <span className="material-symbols-outlined text-primary" style={{ fontSize: 16 }}>
+              cloud_upload
+            </span>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-on-surface leading-none">
+              Salvar Nova Versão
+            </h3>
+            <p className="text-[10px] font-mono text-on-surface-variant/50 mt-0.5">
+              Identifique esta versão do prompt no histórico
+            </p>
+          </div>
+          <button onClick={onClose} className="ml-auto text-on-surface-variant/40 hover:text-on-surface transition-colors">
+            <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4" style={{ background: 'rgb(var(--color-surface-container))' }}>
+          <div>
+            <label className="label-caps block mb-1.5">DESCRIÇÃO / IDENTIFICADOR</label>
+            <input
+              type="text"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Ex: V1 Estável, Ajuste de Variáveis"
+              autoFocus
+              onKeyDown={e => e.key === 'Enter' && handleConfirm()}
+              className="w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-on-surface-variant/30"
+            />
+            <p className="text-[9px] font-mono text-on-surface-variant/35 mt-1.5 leading-normal">
+              Esta descrição ficará visível no histórico de versões para você restaurar quando quiser.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-outline-variant"
+             style={{ background: 'rgb(var(--color-surface-container-high))' }}>
+          <button onClick={onClose} disabled={isSaving}
+            className="px-4 py-2 rounded-lg border border-outline-variant text-xs font-mono text-on-surface-variant hover:border-primary hover:text-primary transition-all disabled:opacity-40">
+            Cancelar
+          </button>
+          <button onClick={handleConfirm}
+            disabled={isSaving}
+            className="px-5 py-2 bg-primary text-on-primary hover:opacity-90 rounded-lg text-xs font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 flex items-center gap-1.5">
+            {isSaving && <span className="material-symbols-outlined animate-spin text-[12px]">progress_activity</span>}
+            {isSaving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 export default function App() {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('pm-theme')
@@ -35,6 +119,7 @@ export default function App() {
   const [view, setView] = useState('editor')
   const [config, setConfig] = useState(getDefaultConfig)
   const [generatedPrompt, setGeneratedPrompt] = useState('')
+  const [showSaveModal, setShowSaveModal] = useState(false)
   const [validationResults, setValidationResults] = useState([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [agents, setAgents] = useState([])
@@ -455,13 +540,14 @@ export default function App() {
 
   const handleSaveToDatabase = useCallback(async () => {
     if (!generatedPrompt || isSaving) return
+    setShowSaveModal(true)
+  }, [generatedPrompt, isSaving])
 
-    const desc = prompt("Digite uma descrição/identificador para esta versão (ex: 'V1 Estável', 'Ajuste de Variáveis'):")
-    if (desc === null) return // Clicou em cancelar
-
+  const handleConfirmSave = useCallback(async (desc) => {
     const finalDesc = desc.trim() || `Versão salva — ${new Date().toLocaleDateString('pt-BR')}`
     setIsSaving(true)
     setSaveStatus(null)
+    setShowSaveModal(false)
     try {
       // 1. Salva no localstorage (Histórico de Versões)
       const updated = saveSnapshot({ config, prompt: generatedPrompt, description: finalDesc })
@@ -491,7 +577,7 @@ export default function App() {
     } finally {
       setIsSaving(false)
     }
-  }, [config, generatedPrompt, isSaving, isSupabaseConfigured])
+  }, [config, generatedPrompt, isSupabaseConfigured])
 
   const criticalCount = validationResults.filter(r => r.type === 'critical').length
   const canGenerate = criticalCount === 0
@@ -883,6 +969,15 @@ export default function App() {
         <div className="absolute top-[15%] right-[5%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-[150px]" />
         <div className="absolute bottom-[10%] left-[15%] w-[400px] h-[400px] bg-secondary/3 rounded-full blur-[120px]" />
       </div>
+
+      {showSaveModal && (
+        <SaveVersionModal
+          isOpen={showSaveModal}
+          onClose={() => setShowSaveModal(false)}
+          onSave={handleConfirmSave}
+          isSaving={isSaving}
+        />
+      )}
     </div>
   )
 }
