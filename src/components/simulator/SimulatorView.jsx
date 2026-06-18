@@ -113,6 +113,12 @@ function ModelSelector({ value, onChange, apiKey, endpoint }) {
   )
 }
 
+const DEFAULT_PRESETS = [
+  { id: 'creative', name: 'Criativo (Gemini Flash / Temp 1.0)', model: 'gemini-1.5-flash', temperature: 1.0, isDefault: false },
+  { id: 'balanced', name: 'Balanceado (GPT-4o Mini / Temp 0.5)', model: 'gpt-4o-mini', temperature: 0.5, isDefault: true },
+  { id: 'precise', name: 'Preciso (GPT-4o Mini / Temp 0.1)', model: 'gpt-4o-mini', temperature: 0.1, isDefault: false }
+]
+
 export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig, showDialog }) {
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
   const [presets, setPresets] = useState(() => {
@@ -120,16 +126,23 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) return parsed
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
       } catch {}
     }
-    return []
+    return DEFAULT_PRESETS
   })
 
   const [activePresetId, setActivePresetId] = useState(() => {
-    const def = presets.find(p => p.isDefault)
-    if (def) return def.id
-    return ''
+    const saved = localStorage.getItem('pm-test-presets')
+    let list = DEFAULT_PRESETS
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) list = parsed
+      } catch {}
+    }
+    const def = list.find(p => p.isDefault)
+    return def ? def.id : (list[0]?.id || '')
   })
 
   const activePreset = useMemo(() => {
@@ -138,12 +151,28 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
   const [model, setModel] = useState(() => {
     if (config?.testModel) return config.testModel
-    const def = presets.find(p => p.isDefault)
+    const saved = localStorage.getItem('pm-test-presets')
+    let list = DEFAULT_PRESETS
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) list = parsed
+      } catch {}
+    }
+    const def = list.find(p => p.isDefault)
     return def ? def.model : 'gpt-4o-mini'
   })
 
   const [temperature, setTemperature] = useState(() => {
-    const def = presets.find(p => p.isDefault)
+    const saved = localStorage.getItem('pm-test-presets')
+    let list = DEFAULT_PRESETS
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed) && parsed.length > 0) list = parsed
+      } catch {}
+    }
+    const def = list.find(p => p.isDefault)
     return def ? def.temperature : 0.1
   })
 
@@ -158,16 +187,6 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   useEffect(() => {
     localStorage.setItem('pm-test-presets', JSON.stringify(presets))
   }, [presets])
-
-  // Quando o preset selecionado muda, atualiza o modelo e temperatura
-  useEffect(() => {
-    const p = presets.find(pr => pr.id === activePresetId)
-    if (p) {
-      setModel(p.model)
-      setTemperature(p.temperature)
-      setConfig(prev => ({ ...prev, testModel: p.model }))
-    }
-  }, [activePresetId])
 
   const presetModified = activePreset && (activePreset.model !== model || activePreset.temperature !== temperature)
 
@@ -213,9 +232,12 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     const ok = await showDialog({ type: 'confirm', message: "Tem certeza de que deseja excluir este preset de teste?" })
     if (!ok) return
     const index = presets.findIndex(p => p.id === activePresetId)
-    const nextActive = presets[index === 0 ? 1 : index - 1].id
+    const nextActive = presets[index === 0 ? 1 : index - 1]
     setPresets(prev => prev.filter(p => p.id !== activePresetId))
-    setActivePresetId(nextActive)
+    setActivePresetId(nextActive.id)
+    setModel(nextActive.model)
+    setTemperature(nextActive.temperature)
+    setConfig(prev => ({ ...prev, testModel: nextActive.model }))
   }
 
   const handleModelChange = (newModel) => {
@@ -662,7 +684,16 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
             <div className="flex gap-1">
               <select
                 value={activePresetId}
-                onChange={e => setActivePresetId(e.target.value)}
+                onChange={e => {
+                  const nextId = e.target.value
+                  setActivePresetId(nextId)
+                  const p = presets.find(pr => pr.id === nextId)
+                  if (p) {
+                    setModel(p.model)
+                    setTemperature(p.temperature)
+                    setConfig(prev => ({ ...prev, testModel: p.model }))
+                  }
+                }}
                 className="flex-1 bg-surface border border-outline-variant rounded px-2 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
               >
                 <option value="">Nenhum preset selecionado</option>
