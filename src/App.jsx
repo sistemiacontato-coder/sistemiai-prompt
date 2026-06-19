@@ -239,6 +239,10 @@ export default function App() {
   const [pendingChanges, setPendingChanges] = useState(null)
   const [isReviewing, setIsReviewing] = useState(false)
   const [history, setHistory] = useState(() => loadHistory())
+
+  useEffect(() => {
+    setHistory(loadHistory())
+  }, [view])
   const [generatingExitId, setGeneratingExitId] = useState(null)
   const [isAuditing, setIsAuditing] = useState(false)
   const [auditResult, setAuditResult] = useState(null)
