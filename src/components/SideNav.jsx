@@ -1,5 +1,6 @@
 const NAV_ITEMS = [
   { id: 'editor',    icon: 'dashboard',     label: 'EDITOR' },
+  { id: 'editor-v2', icon: 'experiment',    label: 'EDITOR V2', badge: 'NOVO' },
   { id: 'simulator', icon: 'science',       label: 'SIMULADOR' },
   { id: 'library',   icon: 'history',       label: 'HISTÓRICO' },
   { id: 'settings',  icon: 'manufacturing', label: 'CONFIG IA' },
@@ -73,6 +74,11 @@ export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollap
             >
               <span className="material-symbols-outlined text-[20px] flex-shrink-0">{item.icon}</span>
               {!isCollapsed && <span className="label-caps flex-1">{item.label}</span>}
+              {!isCollapsed && item.badge && (
+                <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-secondary) 15%, transparent)', color: 'var(--color-secondary)' }}>
+                  {item.badge}
+                </span>
+              )}
               {!isCollapsed && showBadge && (
                 <span className="w-1.5 h-1.5 rounded-full bg-secondary flex-shrink-0" />
               )}

@@ -21,6 +21,7 @@ import PromptVersionPanel from './components/history/PromptVersionPanel'
 import SettingsView from './components/settings/SettingsView'
 import ToneRulesPanel from './components/editor/ToneRulesPanel'
 import SimulatorView from './components/simulator/SimulatorView'
+import MensagemInicialPanel from './components/editor/MensagemInicialPanel'
 
 const SETTINGS_DEFAULT = {
   enforceJson: true,
@@ -253,6 +254,12 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null) // 'ok' | 'error' | null
   const [loadedAgentId, setLoadedAgentId] = useState(null)
+  const [mensagemInicial, setMensagemInicial] = useState({
+    tipo: 'fixa',
+    textoFixo: '',
+    instrucoesIndividuais: '',
+    preInstrucaoIA: '',
+  })
   const [pendingFixIssueIdx, setPendingFixIssueIdx] = useState(null)
   const [analyzeOptions, setAnalyzeOptions] = useState({
     includeNomeCliente: true,
@@ -304,7 +311,7 @@ export default function App() {
 
   const handleToggleTheme = useCallback(() => setIsDark(prev => !prev), [])
 
-  const VIEW_HASH = { editor: '', library: 'biblioteca', simulator: 'simulador', settings: 'config' }
+  const VIEW_HASH = { editor: '', 'editor-v2': 'v2', library: 'biblioteca', simulator: 'simulador', settings: 'config' }
 
   useEffect(() => {
     const hash = VIEW_HASH[view] ? `#/${VIEW_HASH[view]}` : '#/'
@@ -314,7 +321,7 @@ export default function App() {
   useEffect(() => {
     const onHashChange = () => {
       const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase()
-      const hashMap = { biblioteca: 'library', simulador: 'simulator', config: 'settings' }
+      const hashMap = { v2: 'editor-v2', biblioteca: 'library', simulador: 'simulator', config: 'settings' }
       const next = hashMap[hash] || 'editor'
       setView(prev => (prev !== next ? next : prev))
     }
@@ -775,7 +782,7 @@ export default function App() {
           className="flex-1 overflow-hidden transition-all duration-200"
           style={{ marginLeft: sidebarCollapsed ? '64px' : '280px' }}
         >
-          {view === 'editor' && (
+          {(view === 'editor' || view === 'editor-v2') && (
             <div className="h-full grid grid-cols-12 overflow-hidden">
               {/* Painel Central — Editor */}
               <div className="col-span-8 h-full overflow-y-auto p-6 border-r border-outline-variant">
@@ -1076,6 +1083,16 @@ export default function App() {
                         setPendingFixIssueIdx(issueIdx ?? null)
                         await handleReview(fix)
                       }}
+                    />
+                  )}
+
+                  {/* Mensagem Inicial — Editor V2 */}
+                  {view === 'editor-v2' && (
+                    <MensagemInicialPanel
+                      config={config}
+                      mensagemInicial={mensagemInicial}
+                      setMensagemInicial={setMensagemInicial}
+                      aiConfig={aiConfig}
                     />
                   )}
 
