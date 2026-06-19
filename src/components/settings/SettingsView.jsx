@@ -273,10 +273,10 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
 
   const isDirty = apiKey !== (aiConfig?.apiKey || '')
     || model !== (aiConfig?.model || '')
-    || customEndpoint !== (aiConfig?.endpoint || '')
+    || effectiveEndpoint !== (aiConfig?.endpoint || '')
     || refinerApiKey !== (aiConfig?.refinerApiKey || '')
     || refinerModel !== (aiConfig?.refinerModel || '')
-    || customRefinerEndpoint !== (aiConfig?.refinerEndpoint || '')
+    || effectiveRefinerEndpoint !== (aiConfig?.refinerEndpoint || '')
 
   const handleSave = () => {
     saveAIConfig(currentConfig)

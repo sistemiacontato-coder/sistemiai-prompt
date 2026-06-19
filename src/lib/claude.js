@@ -232,10 +232,16 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 204
 export async function callAI(prompt, config) {
   const cfg = config || loadAIConfig()
   if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Config IA.')
+
+  // Sempre derivar endpoint da chave — ignora o que está salvo se houver detecção
+  const detected = detectProviderFromKey(cfg.apiKey)
+  const provider  = detected?.provider || cfg.provider || 'compat'
+  const endpoint  = detected?.endpoint || cfg.endpoint || 'https://api.openai.com/v1'
   const maxTokens = cfg.maxTokens || 2048
-  if (cfg.provider === 'claude')  return callClaude(cfg.apiKey, prompt, maxTokens)
-  if (cfg.provider === 'gemini')  return callGemini(cfg.apiKey, prompt)
-  return callOpenAICompat(cfg.apiKey, prompt, cfg.endpoint, cfg.model, maxTokens)
+
+  if (provider === 'claude')  return callClaude(cfg.apiKey, prompt, maxTokens)
+  if (provider === 'gemini')  return callGemini(cfg.apiKey, prompt)
+  return callOpenAICompat(cfg.apiKey, prompt, endpoint, cfg.model, maxTokens)
 }
 
 export async function analyzeAgentObjective({ agentName, domain, aiConfig: cfg }) {
