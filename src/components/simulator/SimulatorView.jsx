@@ -130,9 +130,10 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   }, [])
 
   const activePromptText = useMemo(() => {
-    if (promptSource === 'current') return generatedPrompt
-    const found = historyList.find(h => h.id.toString() === promptSource.toString())
-    return found ? found.prompt : ''
+    if (promptSource === 'current') return generatedPrompt || ''
+    if (!historyList || !promptSource) return ''
+    const found = historyList.find(h => h && h.id && h.id.toString() === promptSource.toString())
+    return found ? found.prompt || '' : ''
   }, [promptSource, historyList, generatedPrompt])
 
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
@@ -366,49 +367,6 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [manualRefineResult, setManualRefineResult] = useState(null)
   const [modalTab, setModalTab] = useState('summary') // 'summary' | 'diff'
 
-  const oldPrompt = activePromptText
-
-  const nextConfig = useMemo(() => {
-    const res = manualRefineResult || autoRefineResult
-    if (!res) return null
-    
-    let variables = [...config.variables]
-    let exitDestinations = [...config.exitDestinations]
-
-    if (res.update_variables) {
-      res.update_variables.forEach(uv => {
-        variables = variables.map(v => 
-          v.name === uv.name ? { ...v, description: uv.description } : v
-        )
-      })
-    }
-
-    if (res.update_exits) {
-      res.update_exits.forEach(ue => {
-        exitDestinations = exitDestinations.map(e => 
-          e.key === ue.key ? { ...e, description: ue.description, exitMessage: ue.exitMessage || e.exitMessage } : e
-        )
-      })
-    }
-
-    return {
-      ...config,
-      agentPersona: res.agentPersona || config.agentPersona,
-      domain: res.domain || config.domain,
-      variables,
-      exitDestinations
-    }
-  }, [manualRefineResult, autoRefineResult, config])
-
-  const nextPromptText = useMemo(() => {
-    if (!nextConfig) return ''
-    return buildPrompt(nextConfig)
-  }, [nextConfig])
-
-  const promptDiffResult = useMemo(() => {
-    if (!oldPrompt || !nextPromptText) return []
-    return diffLines(oldPrompt, nextPromptText)
-  }, [oldPrompt, nextPromptText])
 
   // Estado atualizado do Bot (valores acumulados na conversa)
   const [botState, setBotState] = useState({
@@ -460,6 +418,50 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [editingTestCase, setEditingTestCase] = useState(null)
 
   const chatEndRef = useRef(null)
+
+  const oldPrompt = activePromptText
+
+  const nextConfig = useMemo(() => {
+    const res = manualRefineResult || autoRefineResult
+    if (!res || !config) return null
+    
+    let variables = config.variables ? [...config.variables] : []
+    let exitDestinations = config.exitDestinations ? [...config.exitDestinations] : []
+
+    if (res.update_variables) {
+      res.update_variables.forEach(uv => {
+        variables = variables.map(v => 
+          v.name === uv.name ? { ...v, description: uv.description } : v
+        )
+      })
+    }
+
+    if (res.update_exits) {
+      res.update_exits.forEach(ue => {
+        exitDestinations = exitDestinations.map(e => 
+          e.key === ue.key ? { ...e, description: ue.description, exitMessage: ue.exitMessage || e.exitMessage } : e
+        )
+      })
+    }
+
+    return {
+      ...config,
+      agentPersona: res.agentPersona || config.agentPersona || '',
+      domain: res.domain || config.domain || '',
+      variables,
+      exitDestinations
+    }
+  }, [manualRefineResult, autoRefineResult, config])
+
+  const nextPromptText = useMemo(() => {
+    if (!nextConfig) return ''
+    return buildPrompt(nextConfig)
+  }, [nextConfig])
+
+  const promptDiffResult = useMemo(() => {
+    if (!oldPrompt || !nextPromptText) return []
+    return diffLines(oldPrompt, nextPromptText)
+  }, [oldPrompt, nextPromptText])
 
   useEffect(() => {
     localStorage.setItem('pm-test-cases', JSON.stringify(testCases))
