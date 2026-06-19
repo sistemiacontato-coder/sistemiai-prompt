@@ -152,6 +152,9 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
 
 export default function ExitDestinations({ config, setConfig, pendingChanges, aiConfig, generatingExitId, onGenerateExitMessage, hasGeneratedPrompt, onRegeneratePrompt }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [confirmBatchDelete, setConfirmBatchDelete] = useState(false)
 
   const systemExits  = config.exitDestinations.filter(e => e.isSystem)
   const defaultExits = config.exitDestinations.filter(e => e.isDefault)
@@ -169,6 +172,32 @@ export default function ExitDestinations({ config, setConfig, pendingChanges, ai
   const handleDeleteRequest = (id) => {
     if (!hasGeneratedPrompt) { removeExit(id); return }
     setConfirmDeleteId(id)
+  }
+
+  const toggleSelect = (id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleBatchDelete = () => {
+    if (!confirmBatchDelete) { setConfirmBatchDelete(true); return }
+    setConfig(prev => ({
+      ...prev,
+      exitDestinations: prev.exitDestinations.filter(e => !selectedIds.has(e.id)),
+    }))
+    setSelectedIds(new Set())
+    setSelectionMode(false)
+    setConfirmBatchDelete(false)
+    if (hasGeneratedPrompt) onRegeneratePrompt?.()
+  }
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+    setConfirmBatchDelete(false)
   }
 
   const addExit = () => {
@@ -199,11 +228,43 @@ export default function ExitDestinations({ config, setConfig, pendingChanges, ai
           <span className="font-mono text-[10px] text-on-surface-variant/50">
             {config.exitDestinations.filter(e => !e.isSystem).length} saídas
           </span>
-          <button onClick={addExit}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary transition-all text-[11px] font-mono font-semibold">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
-            ADICIONAR
-          </button>
+          {customExits.length > 1 && !pendingChanges && (
+            selectionMode ? (
+              <>
+                {selectedIds.size > 0 && (
+                  <button
+                    onClick={handleBatchDelete}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-mono font-semibold transition-all ${
+                      confirmBatchDelete
+                        ? 'bg-error text-white'
+                        : 'border border-error/50 text-error hover:bg-error/10'
+                    }`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>delete_sweep</span>
+                    {confirmBatchDelete ? 'Confirmar exclusão' : `Excluir ${selectedIds.size}`}
+                  </button>
+                )}
+                <button
+                  onClick={exitSelectionMode}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-outline-variant/50 text-[10px] font-mono text-on-surface-variant/60 hover:text-on-surface-variant transition-all">
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setSelectionMode(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant/60 hover:border-error/50 hover:text-error transition-all text-[11px] font-mono font-semibold">
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>checklist</span>
+                SELECIONAR
+              </button>
+            )
+          )}
+          {!selectionMode && (
+            <button onClick={addExit}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary transition-all text-[11px] font-mono font-semibold">
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>add</span>
+              ADICIONAR
+            </button>
+          )}
         </div>
       </div>
 
@@ -255,11 +316,25 @@ export default function ExitDestinations({ config, setConfig, pendingChanges, ai
               {customExits.map(e => {
                 const isPendingRemoval = pendingChanges?.remove_exits?.includes(e.key)
                 const isConfirming = confirmDeleteId === e.id
+                const isSelected = selectedIds.has(e.id)
                 return (
-                  <div key={e.id} className={isPendingRemoval ? 'relative' : ''}>
-                    <ExitCard exit={e} editable={!isPendingRemoval && !isConfirming}
-                      onChange={!isPendingRemoval && !isConfirming ? updated => updateExit(e.id, updated) : undefined}
-                      onDelete={!isPendingRemoval && !isConfirming ? () => handleDeleteRequest(e.id) : undefined}
+                  <div key={e.id} className={`flex items-start gap-2 ${isPendingRemoval ? 'relative' : ''}`}>
+                    {/* Checkbox no modo seleção */}
+                    {selectionMode && !isPendingRemoval && (
+                      <button
+                        onClick={() => toggleSelect(e.id)}
+                        className={`mt-3 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all ${
+                          isSelected
+                            ? 'bg-error border-error'
+                            : 'border-outline-variant hover:border-error/60'
+                        }`}>
+                        {isSelected && <span className="material-symbols-outlined text-white" style={{ fontSize: 13 }}>check</span>}
+                      </button>
+                    )}
+                    <div className="flex-1 min-w-0">
+                    <ExitCard exit={e} editable={!isPendingRemoval && !isConfirming && !selectionMode}
+                      onChange={!isPendingRemoval && !isConfirming && !selectionMode ? updated => updateExit(e.id, updated) : undefined}
+                      onDelete={!isPendingRemoval && !isConfirming && !selectionMode ? () => handleDeleteRequest(e.id) : undefined}
                       onGenerateMessage={() => onGenerateExitMessage?.(e.id)}
                       isGeneratingMessage={generatingExitId === e.id}
                       aiAvailable={!!aiConfig?.apiKey}
@@ -267,21 +342,21 @@ export default function ExitDestinations({ config, setConfig, pendingChanges, ai
 
                     {/* Confirmação de exclusão inline */}
                     {isConfirming && (
-                      <div className="mt-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border border-error/30"
-                           style={{ background: 'color-mix(in srgb, var(--color-error) 7%, var(--color-surface-container-high))' }}>
+                      <div className="mt-1 flex items-center gap-2 px-3 py-2.5 rounded-lg border border-error/40"
+                           style={{ background: 'rgb(var(--color-error) / 0.08)' }}>
                         <span className="material-symbols-outlined text-error flex-shrink-0" style={{ fontSize: 14 }}>warning</span>
-                        <p className="text-[10px] font-mono text-error/80 flex-1 leading-snug">
+                        <p className="text-[10px] font-mono text-error flex-1 leading-snug">
                           Excluir esta saída e regenerar o prompt?
                         </p>
                         <button
                           onClick={() => setConfirmDeleteId(null)}
-                          className="px-2 py-1 rounded text-[9px] font-mono text-on-surface-variant/60 hover:text-on-surface-variant border border-outline-variant/50 transition-colors">
+                          className="px-2 py-1 rounded text-[9px] font-mono text-on-surface-variant hover:text-on-surface border border-outline-variant transition-colors">
                           Cancelar
                         </button>
                         <button
                           onClick={() => removeExit(e.id)}
                           className="px-2 py-1 rounded text-[9px] font-mono font-semibold text-white transition-colors"
-                          style={{ background: 'var(--color-error)' }}>
+                          style={{ background: 'rgb(var(--color-error))' }}>
                           Excluir e Regenerar
                         </button>
                       </div>
@@ -296,6 +371,7 @@ export default function ExitDestinations({ config, setConfig, pendingChanges, ai
                         </span>
                       </div>
                     )}
+                    </div>
                   </div>
                 )
               })}
@@ -315,7 +391,7 @@ export default function ExitDestinations({ config, setConfig, pendingChanges, ai
                         }}>
                         <div className="flex">
                           <div className="w-0.5 flex-shrink-0"
-                               style={{ background: 'var(--color-secondary)', opacity: 0.5 }} />
+                               style={{ background: 'rgb(var(--color-secondary))', opacity: 0.5 }} />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-3 px-4 py-3 border-b border-outline-variant/40">
                               <span className="w-2 h-2 rounded-full flex-shrink-0 bg-secondary/60" />

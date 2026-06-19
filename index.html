@@ -13,7 +13,7 @@
     // Aplica tema salvo ANTES do React renderizar — evita flash
     (function() {
       var saved = localStorage.getItem('pm-theme');
-      var isDark = saved ? saved === 'dark' : true; // padrão: escuro
+      var isDark = saved ? saved === 'dark' : false; // padrão: claro
       if (isDark) document.documentElement.classList.add('dark');
     })();
   </script>

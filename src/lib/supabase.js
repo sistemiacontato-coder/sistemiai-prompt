@@ -49,6 +49,68 @@ export async function deployAgent({ config, generatedPrompt }) {
   return data
 }
 
+// ── Renomeia um agente ───────────────────────────────────────────────────────
+export async function renameAgent(id, name) {
+  if (IS_PROD) {
+    const res = await fetch(`/api/agents/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent_name: name }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Erro ao renomear agente.')
+    }
+    return res.json()
+  }
+
+  if (!supabaseDirect) throw new Error('Supabase não configurado.')
+  const { data, error } = await supabaseDirect
+    .from('prompt_bc_agents')
+    .update({ agent_name: name })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ── Atualiza um agente existente ─────────────────────────────────────────────
+export async function updateAgent(id, { config, generatedPrompt }) {
+  const record = {
+    agent_name:        config.agentName,
+    agent_persona:     config.agentPersona,
+    domain:            config.domain,
+    variables:         config.variables,
+    exit_destinations: config.exitDestinations,
+    max_attempts:      config.maxAttempts,
+    generated_prompt:  generatedPrompt,
+  }
+
+  if (IS_PROD) {
+    const res = await fetch(`/api/agents/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(record),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Erro ao atualizar agente.')
+    }
+    return res.json()
+  }
+
+  if (!supabaseDirect) throw new Error('Supabase não configurado. Crie o arquivo .env com as credenciais.')
+  const { data, error } = await supabaseDirect
+    .from('prompt_bc_agents')
+    .update(record)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // ── Busca histórico ──────────────────────────────────────────────────────────
 export async function fetchAgentHistory() {
   if (IS_PROD) {

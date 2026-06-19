@@ -4,6 +4,8 @@ import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
 import { loadHistory, saveSnapshot } from '../../lib/promptHistory'
 import { diffLines } from '../../lib/promptDiff'
+import { deployAgent, isSupabaseConfigured } from '../../lib/supabase'
+
 
 function ModelSelector({ value, onChange, apiKey, endpoint }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -706,7 +708,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       }
 
       // Regenerar o prompt compilado e salvar snapshot no histórico
-      setTimeout(() => {
+      setTimeout(async () => {
         const nextPrompt = buildPrompt(nextConfig)
         setGeneratedPrompt(nextPrompt)
 
@@ -719,6 +721,14 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
         try {
           saveSnapshot({ config: nextConfig, prompt: nextPrompt, description: desc })
           setHistoryList(loadHistory())
+
+          if (isSupabaseConfigured) {
+            const configWithVersion = {
+              ...nextConfig,
+              agentName: `${nextConfig.agentName || 'Agente'} [${desc}]`
+            }
+            await deployAgent({ config: configWithVersion, generatedPrompt: nextPrompt })
+          }
         } catch (err) {
           console.error('Erro ao salvar snapshot automático do simulador:', err)
         }

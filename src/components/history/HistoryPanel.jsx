@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 
 function formatDate(isoString) {
   if (!isoString) return '—'
@@ -8,9 +8,20 @@ function formatDate(isoString) {
   })
 }
 
-function AgentCard({ agent, onLoad, onDelete }) {
+function AgentCard({ agent, onLoad, onDelete, onRename }) {
   const [expanded, setExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState(agent.agent_name || '')
+  const [isSavingName, setIsSavingName] = useState(false)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (renaming && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [renaming])
 
   const handleCopy = () => {
     const text = agent.generated_prompt || ''
@@ -21,6 +32,30 @@ function AgentCard({ agent, onLoad, onDelete }) {
     })
   }
 
+  const startRename = () => {
+    setRenameValue(agent.agent_name || '')
+    setRenaming(true)
+  }
+
+  const cancelRename = () => {
+    setRenaming(false)
+    setRenameValue(agent.agent_name || '')
+  }
+
+  const confirmRename = async () => {
+    const trimmed = renameValue.trim()
+    if (!trimmed || trimmed === agent.agent_name) { cancelRename(); return }
+    setIsSavingName(true)
+    await onRename(agent.id, trimmed)
+    setIsSavingName(false)
+    setRenaming(false)
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') confirmRename()
+    if (e.key === 'Escape') cancelRename()
+  }
+
   return (
     <div className="bg-surface-container border border-outline-variant rounded hover:border-primary/40 transition-colors group">
       <div className="p-4 flex items-start justify-between gap-4">
@@ -29,7 +64,45 @@ function AgentCard({ agent, onLoad, onDelete }) {
             <span className="material-symbols-outlined text-primary text-[18px]">smart_toy</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-on-surface truncate">{agent.agent_name}</p>
+            {renaming ? (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={renameValue}
+                  onChange={e => setRenameValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  disabled={isSavingName}
+                  className="flex-1 min-w-0 text-sm font-semibold bg-surface border border-primary/50 rounded px-2 py-0.5 text-on-surface focus:outline-none focus:border-primary"
+                />
+                <button
+                  onClick={confirmRename}
+                  disabled={isSavingName}
+                  className="p-1 rounded text-secondary hover:bg-secondary/10 transition-colors flex-shrink-0"
+                  title="Confirmar">
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isSavingName ? 'progress_activity' : 'check'}
+                  </span>
+                </button>
+                <button
+                  onClick={cancelRename}
+                  disabled={isSavingName}
+                  className="p-1 rounded text-on-surface-variant/60 hover:text-on-surface-variant transition-colors flex-shrink-0"
+                  title="Cancelar">
+                  <span className="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 group/name">
+                <p className="font-semibold text-sm text-on-surface truncate">{agent.agent_name}</p>
+                <button
+                  onClick={startRename}
+                  className="opacity-0 group-hover/name:opacity-100 p-0.5 rounded text-on-surface-variant/40 hover:text-primary transition-all"
+                  title="Renomear">
+                  <span className="material-symbols-outlined text-[13px]">edit</span>
+                </button>
+              </div>
+            )}
             <p className="text-[11px] font-mono text-on-surface-variant/60 mt-0.5 truncate">
               {agent.domain?.slice(0, 80) || 'Sem domínio definido'}...
             </p>
@@ -47,41 +120,43 @@ function AgentCard({ agent, onLoad, onDelete }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
-            title="Visualizar prompt"
-          >
-            <span className="material-symbols-outlined text-[18px]">{expanded ? 'expand_less' : 'expand_more'}</span>
-          </button>
-          {agent.generated_prompt && (
+        {!renaming && (
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
             <button
-              onClick={handleCopy}
-              className="p-1.5 transition-colors"
-              style={{ color: copied ? 'rgb(var(--color-secondary))' : undefined }}
-              title={copied ? 'Copiado!' : 'Copiar prompt'}
+              onClick={() => setExpanded(!expanded)}
+              className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
+              title="Visualizar prompt"
             >
-              <span className={`material-symbols-outlined text-[18px] ${copied ? '' : 'text-on-surface-variant hover:text-secondary'}`}>
-                {copied ? 'check' : 'content_copy'}
-              </span>
+              <span className="material-symbols-outlined text-[18px]">{expanded ? 'expand_less' : 'expand_more'}</span>
             </button>
-          )}
-          <button
-            onClick={() => onLoad(agent)}
-            className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
-            title="Carregar no editor"
-          >
-            <span className="material-symbols-outlined text-[18px]">edit</span>
-          </button>
-          <button
-            onClick={() => onDelete(agent.id)}
-            className="p-1.5 text-on-surface-variant hover:text-error transition-colors"
-            title="Excluir"
-          >
-            <span className="material-symbols-outlined text-[18px]">delete</span>
-          </button>
-        </div>
+            {agent.generated_prompt && (
+              <button
+                onClick={handleCopy}
+                className="p-1.5 transition-colors"
+                style={{ color: copied ? 'rgb(var(--color-secondary))' : undefined }}
+                title={copied ? 'Copiado!' : 'Copiar prompt'}
+              >
+                <span className={`material-symbols-outlined text-[18px] ${copied ? '' : 'text-on-surface-variant hover:text-secondary'}`}>
+                  {copied ? 'check' : 'content_copy'}
+                </span>
+              </button>
+            )}
+            <button
+              onClick={() => onLoad(agent)}
+              className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
+              title="Carregar no editor"
+            >
+              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+            </button>
+            <button
+              onClick={() => onDelete(agent.id)}
+              className="p-1.5 text-on-surface-variant hover:text-error transition-colors"
+              title="Excluir"
+            >
+              <span className="material-symbols-outlined text-[18px]">delete</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {expanded && agent.generated_prompt && (
@@ -95,7 +170,7 @@ function AgentCard({ agent, onLoad, onDelete }) {
   )
 }
 
-export default function HistoryPanel({ agents, isLoading, onLoad, onDelete, onRefresh }) {
+export default function HistoryPanel({ agents, isLoading, onLoad, onDelete, onRename, onRefresh }) {
   const [search, setSearch] = useState('')
 
   const filtered = agents.filter(a =>
@@ -163,6 +238,7 @@ export default function HistoryPanel({ agents, isLoading, onLoad, onDelete, onRe
               agent={agent}
               onLoad={onLoad}
               onDelete={onDelete}
+              onRename={onRename}
             />
           ))
         )}

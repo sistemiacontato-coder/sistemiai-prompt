@@ -12,7 +12,11 @@ function PricingTable({ recommendedModel }) {
     setError(null)
     try {
       const res = await fetch('/api/pricing')
-      const data = await res.json()
+      const text = await res.text()
+      let data
+      try { data = JSON.parse(text) } catch {
+        throw new Error('Serviço de preços indisponível. Tente novamente mais tarde.')
+      }
       if (data.error) throw new Error(data.error)
       setPricing(data)
     } catch (e) {
@@ -361,10 +365,29 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
     )
   }
 
-  const { issues, overallScore, summary } = auditResult
+  const { issues, overallScore, summary, isError } = auditResult
   const criticals   = issues.filter(i => i.severity === 'critical')
   const warnings    = issues.filter(i => i.severity === 'warning')
   const suggestions = issues.filter(i => i.severity === 'suggestion')
+
+  // Estado de erro: IA não respondeu corretamente
+  if (isError) {
+    return (
+      <div className="flex items-center gap-3 px-5 py-3 rounded-lg border border-error/30"
+           style={{ background: 'rgb(var(--color-error) / 0.06)' }}>
+        <span className="material-symbols-outlined text-error flex-shrink-0" style={{ fontSize: 18 }}>error</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-mono font-semibold text-error/80">Erro na auditoria</p>
+          <p className="text-[10px] font-mono text-on-surface-variant/60 leading-snug mt-0.5">{summary}</p>
+        </div>
+        <button
+          onClick={onAudit}
+          className="text-[9px] font-mono text-on-surface-variant/50 hover:text-on-surface-variant transition-colors px-2 py-1 rounded border border-outline-variant/40 flex-shrink-0">
+          Tentar novamente
+        </button>
+      </div>
+    )
+  }
 
   return (
     <section className="rounded-lg border border-outline-variant overflow-hidden"
@@ -387,7 +410,7 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-[12px] font-mono font-semibold text-on-surface">Auditoria de Prompt</p>
-            {issues.length === 0 && (
+            {issues.length === 0 && overallScore != null && (
               <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
                     style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}>
                 APROVADO
@@ -446,8 +469,8 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
             <p className="text-[11px] font-mono text-on-surface-variant/50">Nenhum problema encontrado</p>
           </div>
 
-          {/* Explicação da pontuação quando < 100 */}
-          {(overallScore ?? 0) < 100 && (
+          {/* Explicação da pontuação quando < 100 — só mostra se há score real */}
+          {overallScore != null && overallScore < 100 && (
             <div className="rounded-lg border border-outline-variant/40 px-4 py-3"
                  style={{ background: 'rgb(var(--color-surface-container-high))' }}>
               <div className="flex items-start gap-2.5">
