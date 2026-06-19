@@ -142,11 +142,18 @@ function AgentCard({ agent, onLoad, onDelete, onRename }) {
               </button>
             )}
             <button
-              onClick={() => onLoad(agent)}
+              onClick={() => onLoad(agent, 'editor')}
               className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
-              title="Carregar no editor"
+              title="Abrir no Editor"
             >
-              <span className="material-symbols-outlined text-[18px]">open_in_new</span>
+              <span className="material-symbols-outlined text-[18px]">dashboard</span>
+            </button>
+            <button
+              onClick={() => onLoad(agent, 'editor-v2')}
+              className="p-1.5 text-on-surface-variant hover:text-secondary transition-colors"
+              title="Abrir no Editor V2"
+            >
+              <span className="material-symbols-outlined text-[18px]">experiment</span>
             </button>
             <button
               onClick={() => onDelete(agent.id)}

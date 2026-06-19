@@ -666,7 +666,7 @@ export default function App() {
     }
   }, [])
 
-  const handleLoadAgent = useCallback((agent) => {
+  const handleLoadAgent = useCallback((agent, targetView = 'editor') => {
     const rawName = agent.agent_name || ''
     const cleanName = rawName.replace(/\s*\[[^\]]+\]$/, '')
     setConfig({
@@ -683,7 +683,7 @@ export default function App() {
     setAnalyzeResult(null)
     setPendingChanges(null)
     setSectionsRevealed(true)
-    setView('editor')
+    setView(targetView)
   }, [])
 
   const handleNewPrompt = useCallback(async () => {
