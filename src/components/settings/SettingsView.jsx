@@ -32,47 +32,30 @@ function SectionCard({ accentColor = 'primary', icon, title, subtitle, badge, ch
 function ModelSelector({ value, onChange, apiKey, endpoint, label }) {
   const [isOpen, setIsOpen] = useState(false)
   const [models, setModels] = useState([
-    'gpt-4o-mini',
-    'gpt-4o',
-    'gpt-4-turbo',
-    'gpt-3.5-turbo',
-    'claude-3-5-sonnet-20241022',
-    'claude-3-5-haiku-20241022',
-    'gemini-2.0-flash',
-    'gemini-1.5-pro'
+    'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+    'openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-mini', 'openai/gpt-4.1',
+    'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022',
+    'gemini-2.0-flash', 'gemini-1.5-pro',
+    'meta-llama/llama-3.3-70b-instruct', 'mistral-small-latest',
   ])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
   useEffect(() => {
     let active = true
-    if (!apiKey) return
-
+    if (!apiKey || !endpoint) return
     const fetchModels = async () => {
       setLoading(true)
-      setError('')
       try {
         const list = await fetchOpenAIModels(apiKey, endpoint)
-        if (active && list && list.length > 0) {
-          setModels(list)
-        }
-      } catch (err) {
-        console.error('Erro ao buscar modelos:', err)
-      } finally {
-        if (active) setLoading(false)
-      }
+        if (active && list?.length > 0) setModels(list)
+      } catch {}
+      finally { if (active) setLoading(false) }
     }
-
     const timer = setTimeout(fetchModels, 800)
-    return () => {
-      active = false
-      clearTimeout(timer)
-    }
+    return () => { active = false; clearTimeout(timer) }
   }, [apiKey, endpoint])
 
-  const filtered = models.filter(m => 
-    !value || m.toLowerCase().includes(value.toLowerCase())
-  )
+  const filtered = models.filter(m => !value || m.toLowerCase().includes(value.toLowerCase()))
 
   return (
     <div className="space-y-1.5 relative">
@@ -81,51 +64,30 @@ function ModelSelector({ value, onChange, apiKey, endpoint, label }) {
         <input
           type="text"
           value={value}
-          onChange={e => {
-            onChange(e.target.value)
-            setIsOpen(true)
-          }}
+          onChange={e => { onChange(e.target.value); setIsOpen(true) }}
           onFocus={() => setIsOpen(true)}
           placeholder="Ex: gpt-4o-mini"
           className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-xs font-mono text-on-surface focus:border-primary focus:ring-1 focus:ring-primary/50 focus:outline-none transition-all bg-surface"
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
-          {loading && (
-            <span className="material-symbols-outlined animate-spin text-on-surface-variant/40" style={{ fontSize: 13 }}>
-              progress_activity
-            </span>
-          )}
-          <span className="material-symbols-outlined text-on-surface-variant/40" style={{ fontSize: 16 }}>
-            arrow_drop_down
-          </span>
+          {loading && <span className="material-symbols-outlined animate-spin text-on-surface-variant/40" style={{ fontSize: 13 }}>progress_activity</span>}
+          <span className="material-symbols-outlined text-on-surface-variant/40" style={{ fontSize: 16 }}>arrow_drop_down</span>
         </div>
       </div>
-
-      {error && <p className="text-[9px] font-mono text-error mt-0.5">{error}</p>}
-
       {isOpen && (
         <>
           <div className="fixed inset-0 z-[90]" onClick={() => setIsOpen(false)} />
           <div className="absolute right-0 left-0 mt-1 max-h-60 overflow-y-auto rounded-lg border border-outline-variant bg-surface-container-high p-1 z-[99] shadow-2xl divide-y divide-outline-variant/30">
-            {filtered.length === 0 ? (
-              <div className="p-3 text-[10px] font-mono text-on-surface-variant/40 text-center">Nenhum modelo encontrado</div>
-            ) : (
-              filtered.map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => {
-                    onChange(m)
-                    setIsOpen(false)
-                  }}
-                  className={`w-full text-left px-3 py-2 hover:bg-primary/15 hover:text-primary transition-colors text-[11px] font-mono block truncate ${
-                    value === m ? 'text-primary font-bold bg-primary/10' : 'text-on-surface-variant'
-                  }`}
-                >
+            {filtered.length === 0
+              ? <div className="p-3 text-[10px] font-mono text-on-surface-variant/40 text-center">Nenhum modelo encontrado</div>
+              : filtered.map(m => (
+                <button key={m} type="button"
+                  onClick={() => { onChange(m); setIsOpen(false) }}
+                  className={`w-full text-left px-3 py-2 hover:bg-primary/15 hover:text-primary transition-colors text-[11px] font-mono block truncate ${value === m ? 'text-primary font-bold bg-primary/10' : 'text-on-surface-variant'}`}>
                   {m}
                 </button>
               ))
-            )}
+            }
           </div>
         </>
       )}
@@ -133,19 +95,160 @@ function ModelSelector({ value, onChange, apiKey, endpoint, label }) {
   )
 }
 
+// Retorna o endpoint a usar baseado na chave — zero configuração necessária
+function getEffectiveEndpoint(detected, customEndpoint) {
+  if (detected?.endpoint) return detected.endpoint          // OpenRouter, Groq, Mistral, Together
+  if (detected?.provider === 'compat') return customEndpoint || 'https://api.openai.com/v1'
+  return ''  // Claude e Gemini não usam endpoint aqui
+}
+
+function AIKeyBlock({ title, subtitle, badge, accentColor,
+  apiKey, setApiKey, showKey, setShowKey,
+  model, setModel,
+  customEndpoint, setCustomEndpoint,
+  testing, setTesting, testResult, setTestResult,
+  defaultModel, fallbackKey,
+}) {
+  const detected = detectProviderFromKey(apiKey)
+  const isCompat = detected?.provider === 'compat'
+  const isGeneric = detected?.name === 'API Compatível'
+  const needsCustomEndpoint = isGeneric  // só para APIs desconhecidas
+
+  // Quando a chave muda e o provedor tem endpoint fixo, mostra modelo padrão
+  useEffect(() => {
+    if (detected?.model && !model) setModel(detected.model)
+  }, [detected?.name])
+
+  const effectiveEndpoint = getEffectiveEndpoint(detected, customEndpoint)
+
+  const handleTest = async () => {
+    if (!apiKey.trim()) return
+    setTesting(true)
+    setTestResult(null)
+    const result = await testAIConnection({
+      provider: detected?.provider || 'compat',
+      apiKey: apiKey.trim(),
+      endpoint: effectiveEndpoint,
+      model: model.trim() || (isCompat ? defaultModel || 'gpt-4o-mini' : ''),
+    })
+    setTestResult(result)
+    setTesting(false)
+  }
+
+  return (
+    <SectionCard accentColor={accentColor} icon="auto_awesome" title={title} subtitle={subtitle} badge={badge}>
+      <div className="space-y-5">
+        {/* Chave */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="label-caps text-[10px] opacity-60">CHAVE DE API</p>
+            {detected && (
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined" style={{ fontSize: 13, color: `var(--color-${detected.color})` }}>{detected.icon}</span>
+                <span className="text-[10px] font-mono font-semibold" style={{ color: `var(--color-${detected.color})` }}>
+                  {detected.name} detectado
+                </span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center rounded-lg border border-outline-variant overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/50 transition-all"
+                 style={{ background: 'var(--color-surface)' }}>
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={apiKey}
+                onChange={e => { setApiKey(e.target.value); setTestResult(null) }}
+                placeholder="Cole sua chave aqui: sk-..."
+                className="flex-1 bg-transparent px-3 py-3 text-sm font-mono text-on-surface focus:outline-none placeholder:text-on-surface-variant/25"
+              />
+              <button type="button" onClick={() => setShowKey(v => !v)}
+                className="px-3 py-3 border-l border-outline-variant text-on-surface-variant/50 hover:text-on-surface transition-colors flex-shrink-0">
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{showKey ? 'visibility_off' : 'visibility'}</span>
+              </button>
+            </div>
+            <button onClick={handleTest} disabled={!apiKey.trim() || testing}
+              className="flex items-center gap-1.5 px-3 py-3 rounded-lg border border-outline-variant text-[11px] font-mono text-on-surface-variant hover:border-primary hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              style={{ background: 'var(--color-surface)' }}>
+              {testing ? 'Testando...' : 'Testar Conexão'}
+            </button>
+          </div>
+        </div>
+
+        {/* Endpoint auto-detectado — apenas informativo */}
+        {apiKey && effectiveEndpoint && !needsCustomEndpoint && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-outline-variant/50"
+               style={{ background: 'var(--color-surface)' }}>
+            <span className="material-symbols-outlined text-on-surface-variant/40" style={{ fontSize: 14 }}>link</span>
+            <span className="text-[10px] font-mono text-on-surface-variant/50 truncate">{effectiveEndpoint}</span>
+            <span className="ml-auto text-[9px] font-mono text-on-surface-variant/30 flex-shrink-0">auto</span>
+          </div>
+        )}
+
+        {/* Endpoint customizado — só para provedores desconhecidos */}
+        {needsCustomEndpoint && (
+          <div>
+            <p className="label-caps text-[10px] opacity-60 mb-2">ENDPOINT DA API</p>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {COMPAT_ENDPOINTS.map(ep => (
+                <button key={ep.id} type="button"
+                  onClick={() => { setCustomEndpoint(ep.url); setModel(ep.model); setTestResult(null) }}
+                  className="text-[10px] font-mono px-2.5 py-1 rounded border transition-all"
+                  style={{
+                    borderColor: customEndpoint === ep.url ? 'var(--color-primary)' : 'var(--color-outline-variant)',
+                    background: customEndpoint === ep.url ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)' : 'var(--color-surface)',
+                    color: customEndpoint === ep.url ? 'var(--color-primary)' : 'var(--color-on-surface-variant)',
+                  }}>
+                  {ep.label}
+                </button>
+              ))}
+            </div>
+            <input type="text" value={customEndpoint}
+              onChange={e => { setCustomEndpoint(e.target.value); setTestResult(null) }}
+              placeholder="https://api.openai.com/v1"
+              className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
+              style={{ background: 'var(--color-surface)' }} />
+          </div>
+        )}
+
+        {/* Modelo — só para provedores compat */}
+        {isCompat && (
+          <ModelSelector
+            label="MODELO"
+            value={model}
+            onChange={v => { setModel(v); setTestResult(null) }}
+            apiKey={apiKey || fallbackKey}
+            endpoint={effectiveEndpoint}
+          />
+        )}
+
+        {/* Resultado do teste */}
+        {testResult && (
+          <div className={`flex items-start gap-2 px-3 py-2.5 rounded-lg border text-[11px] font-mono leading-relaxed ${
+            testResult.success ? 'border-secondary/30 text-secondary' : 'border-error/30 text-error'
+          }`}
+          style={{ background: testResult.success ? 'rgba(74,222,128,0.06)' : 'rgba(248,113,113,0.06)' }}>
+            <span className="material-symbols-outlined flex-shrink-0 mt-0.5" style={{ fontSize: 15 }}>
+              {testResult.success ? 'check_circle' : 'error'}
+            </span>
+            <span>{testResult.success ? 'Conexão bem-sucedida!' : testResult.error}</span>
+          </div>
+        )}
+      </div>
+    </SectionCard>
+  )
+}
+
 export default function SettingsView({ aiConfig, onSaveAIConfig }) {
-  // Config Principal
   const [apiKey, setApiKey] = useState(aiConfig?.apiKey || '')
-  const [endpoint, setEndpoint] = useState(aiConfig?.endpoint || '')
   const [model, setModel] = useState(aiConfig?.model || '')
+  const [customEndpoint, setCustomEndpoint] = useState(aiConfig?.endpoint || '')
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
 
-  // Config Lapidador/Otimizador
   const [refinerApiKey, setRefinerApiKey] = useState(aiConfig?.refinerApiKey || '')
-  const [refinerEndpoint, setRefinerEndpoint] = useState(aiConfig?.refinerEndpoint || '')
   const [refinerModel, setRefinerModel] = useState(aiConfig?.refinerModel || '')
+  const [customRefinerEndpoint, setCustomRefinerEndpoint] = useState(aiConfig?.refinerEndpoint || '')
   const [showRefinerKey, setShowRefinerKey] = useState(false)
   const [testingRefiner, setTestingRefiner] = useState(false)
   const [testRefinerResult, setTestRefinerResult] = useState(null)
@@ -153,73 +256,27 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
   const [saved, setSaved] = useState(false)
 
   const detected = detectProviderFromKey(apiKey)
-  const isCompat = detected?.provider === 'compat'
-
   const detectedRefiner = detectProviderFromKey(refinerApiKey)
-  const isRefinerCompat = detectedRefiner?.provider === 'compat'
 
-  // Quando a chave muda para um provedor com endpoint fixo (OpenRouter, Groq, etc.),
-  // sempre sobrescreve o endpoint — evita endpoint errado de configuração anterior
-  useEffect(() => {
-    if (detected?.endpoint) {
-      setEndpoint(detected.endpoint)
-      if (!model) setModel(detected.model || '')
-    }
-  }, [detected?.name])
-
-  useEffect(() => {
-    if (detectedRefiner?.endpoint) {
-      setRefinerEndpoint(detectedRefiner.endpoint)
-      if (!refinerModel) setRefinerModel(detectedRefiner.model || 'gpt-4o')
-    }
-  }, [detectedRefiner?.name])
+  const effectiveEndpoint = getEffectiveEndpoint(detected, customEndpoint)
+  const effectiveRefinerEndpoint = getEffectiveEndpoint(detectedRefiner, customRefinerEndpoint)
 
   const currentConfig = {
     provider: detected?.provider || 'compat',
     apiKey: apiKey.trim(),
-    endpoint: endpoint.trim() || (isCompat ? 'https://api.openai.com/v1' : ''),
-    model: model.trim() || (isCompat ? 'gpt-4o-mini' : ''),
-    
-    // Lapidador
+    endpoint: effectiveEndpoint,
+    model: model.trim() || (detected?.model || 'gpt-4o-mini'),
     refinerApiKey: refinerApiKey.trim(),
-    refinerEndpoint: refinerEndpoint.trim() || (isRefinerCompat ? 'https://api.openai.com/v1' : ''),
-    refinerModel: refinerModel.trim() || (isRefinerCompat ? 'gpt-4o' : '')
+    refinerEndpoint: effectiveRefinerEndpoint,
+    refinerModel: refinerModel.trim() || (detectedRefiner?.model || 'gpt-4o-mini'),
   }
 
   const isDirty = apiKey !== (aiConfig?.apiKey || '')
-    || endpoint !== (aiConfig?.endpoint || '')
     || model !== (aiConfig?.model || '')
+    || customEndpoint !== (aiConfig?.endpoint || '')
     || refinerApiKey !== (aiConfig?.refinerApiKey || '')
-    || refinerEndpoint !== (aiConfig?.refinerEndpoint || '')
     || refinerModel !== (aiConfig?.refinerModel || '')
-
-  const handleTest = async () => {
-    if (!apiKey.trim()) return
-    setTesting(true)
-    setTestResult(null)
-    const result = await testAIConnection({
-      provider: currentConfig.provider,
-      apiKey: currentConfig.apiKey,
-      endpoint: currentConfig.endpoint,
-      model: currentConfig.model
-    })
-    setTestResult(result)
-    setTesting(false)
-  }
-
-  const handleTestRefiner = async () => {
-    if (!refinerApiKey.trim()) return
-    setTestingRefiner(true)
-    setTestRefinerResult(null)
-    const result = await testAIConnection({
-      provider: detectedRefiner?.provider || 'compat',
-      apiKey: currentConfig.refinerApiKey,
-      endpoint: currentConfig.refinerEndpoint,
-      model: currentConfig.refinerModel
-    })
-    setTestRefinerResult(result)
-    setTestingRefiner(false)
-  }
+    || customRefinerEndpoint !== (aiConfig?.refinerEndpoint || '')
 
   const handleSave = () => {
     saveAIConfig(currentConfig)
@@ -228,20 +285,6 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
     setTestResult(null)
     setTestRefinerResult(null)
     setTimeout(() => setSaved(false), 3000)
-  }
-
-  const applyEndpoint = (ep) => {
-    setEndpoint(ep.url)
-    setModel(ep.model)
-    setTestResult(null)
-    setSaved(false)
-  }
-
-  const applyRefinerEndpoint = (ep) => {
-    setRefinerEndpoint(ep.url)
-    setRefinerModel(ep.model)
-    setTestRefinerResult(null)
-    setSaved(false)
   }
 
   return (
@@ -262,177 +305,34 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
           )}
         </div>
 
-        {/* ── IA Engine Principal (Simulação / Bot) ── */}
-        <SectionCard accentColor="secondary" icon="auto_awesome" title="IA Engine Principal" subtitle="Configure a chave usada no simulador de conversas do WhatsApp" badge="PRINCIPAL">
-          <div className="space-y-5">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="label-caps text-[10px] opacity-60">CHAVE DE API PRINCIPAL</p>
-                {detected && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined" style={{ fontSize: 13, color: `var(--color-${detected.color})` }}>{detected.icon}</span>
-                    <span className="text-[10px] font-mono font-semibold" style={{ color: `var(--color-${detected.color})` }}>
-                      {detected.name} detectado
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 flex items-center rounded-lg border border-outline-variant overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/50 transition-all"
-                     style={{ background: 'var(--color-surface)' }}>
-                  <input
-                    type={showKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={e => { setApiKey(e.target.value); setTestResult(null); setSaved(false) }}
-                    placeholder="Cole sua chave aqui: sk-..."
-                    className="flex-1 bg-transparent px-3 py-3 text-sm font-mono text-on-surface focus:outline-none placeholder:text-on-surface-variant/25"
-                  />
-                  <button type="button" onClick={() => setShowKey(v => !v)}
-                    className="px-3 py-3 border-l border-outline-variant text-on-surface-variant/50 hover:text-on-surface transition-colors flex-shrink-0">
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{showKey ? 'visibility_off' : 'visibility'}</span>
-                  </button>
-                </div>
-                <button onClick={handleTest} disabled={!apiKey.trim() || testing}
-                  className="flex items-center gap-1.5 px-3 py-3 rounded-lg border border-outline-variant text-[11px] font-mono text-on-surface-variant hover:border-primary hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-                  style={{ background: 'var(--color-surface)' }}>
-                  {testing ? 'Testando...' : 'Testar Conexão'}
-                </button>
-              </div>
-            </div>
+        <AIKeyBlock
+          title="IA Engine Principal"
+          subtitle="Chave usada para gerar e auditar prompts, e no simulador de conversas"
+          badge="PRINCIPAL"
+          accentColor="secondary"
+          apiKey={apiKey} setApiKey={v => { setApiKey(v); setSaved(false) }}
+          showKey={showKey} setShowKey={setShowKey}
+          model={model} setModel={v => { setModel(v); setSaved(false) }}
+          customEndpoint={customEndpoint} setCustomEndpoint={v => { setCustomEndpoint(v); setSaved(false) }}
+          testing={testing} setTesting={setTesting}
+          testResult={testResult} setTestResult={setTestResult}
+          defaultModel="gpt-4o-mini"
+        />
 
-            {isCompat && (
-              <div className="space-y-4">
-                <div>
-                  <p className="label-caps text-[10px] opacity-60 mb-2">ENDPOINT CUSTOMIZADO (OPCIONAL)</p>
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {COMPAT_ENDPOINTS.map(ep => (
-                      <button key={ep.id} type="button" onClick={() => applyEndpoint(ep)}
-                        className="text-[10px] font-mono px-2.5 py-1 rounded border transition-all"
-                        style={{
-                          borderColor: endpoint === ep.url ? 'var(--color-primary)' : 'var(--color-outline-variant)',
-                          background: endpoint === ep.url ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)' : 'var(--color-surface)',
-                          color: endpoint === ep.url ? 'var(--color-primary)' : 'var(--color-on-surface-variant)',
-                        }}>
-                        {ep.label}
-                      </button>
-                    ))}
-                  </div>
-                  <input type="text" value={endpoint}
-                    onChange={e => { setEndpoint(e.target.value); setTestResult(null); setSaved(false) }}
-                    placeholder="https://api.openai.com/v1"
-                    className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
-                    style={{ background: 'var(--color-surface)' }} />
-                </div>
-
-                <ModelSelector
-                  label="MODELO PRINCIPAL"
-                  value={model}
-                  onChange={v => { setModel(v); setSaved(false) }}
-                  apiKey={apiKey}
-                  endpoint={endpoint}
-                />
-              </div>
-            )}
-
-            {testResult && (
-              <div className={`flex items-start gap-2 px-3 py-2.5 rounded-lg border text-[11px] font-mono leading-relaxed ${
-                testResult.success ? 'border-secondary/30 text-secondary' : 'border-error/30 text-error'
-              }`}
-              style={{ background: testResult.success ? 'rgba(74,222,128,0.06)' : 'rgba(248,113,113,0.06)' }}>
-                <span className="material-symbols-outlined flex-shrink-0 mt-0.5" style={{ fontSize: 15 }}>
-                  {testResult.success ? 'check_circle' : 'error'}
-                </span>
-                <span>{testResult.success ? 'Conexão principal bem-sucedida!' : testResult.error}</span>
-              </div>
-            )}
-          </div>
-        </SectionCard>
-
-        {/* ── IA de Lapidação & Maturação ── */}
-        <SectionCard accentColor="primary" icon="auto_awesome" title="IA de Lapidação & Maturação" subtitle="Configure a chave dedicada a reprocessar e corrigir o prompt a partir de feedbacks" badge="LAPIDADOR">
-          <div className="space-y-5">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <p className="label-caps text-[10px] opacity-60">CHAVE DE API DE LAPIDAÇÃO</p>
-                {detectedRefiner && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="material-symbols-outlined" style={{ fontSize: 13, color: `var(--color-${detectedRefiner.color})` }}>{detectedRefiner.icon}</span>
-                    <span className="text-[10px] font-mono font-semibold" style={{ color: `var(--color-${detectedRefiner.color})` }}>
-                      {detectedRefiner.name} detectado
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex-1 flex items-center rounded-lg border border-outline-variant overflow-hidden focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/50 transition-all"
-                     style={{ background: 'var(--color-surface)' }}>
-                  <input
-                    type={showRefinerKey ? 'text' : 'password'}
-                    value={refinerApiKey}
-                    onChange={e => { setRefinerApiKey(e.target.value); setTestRefinerResult(null); setSaved(false) }}
-                    placeholder="Deixe em branco para usar a chave principal, ou informe uma dedicada"
-                    className="flex-1 bg-transparent px-3 py-3 text-sm font-mono text-on-surface focus:outline-none placeholder:text-on-surface-variant/25"
-                  />
-                  <button type="button" onClick={() => setShowRefinerKey(v => !v)}
-                    className="px-3 py-3 border-l border-outline-variant text-on-surface-variant/50 hover:text-on-surface transition-colors flex-shrink-0">
-                    <span className="material-symbols-outlined" style={{ fontSize: 18 }}>{showRefinerKey ? 'visibility_off' : 'visibility'}</span>
-                  </button>
-                </div>
-                <button onClick={handleTestRefiner} disabled={!refinerApiKey.trim() || testingRefiner}
-                  className="flex items-center gap-1.5 px-3 py-3 rounded-lg border border-outline-variant text-[11px] font-mono text-on-surface-variant hover:border-primary hover:text-primary transition-all disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-                  style={{ background: 'var(--color-surface)' }}>
-                  {testingRefiner ? 'Testando...' : 'Testar Conexão'}
-                </button>
-              </div>
-            </div>
-
-            {isRefinerCompat && (
-              <div className="space-y-4">
-                <div>
-                  <p className="label-caps text-[10px] opacity-60 mb-2">ENDPOINT DE LAPIDAÇÃO</p>
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {COMPAT_ENDPOINTS.map(ep => (
-                      <button key={ep.id} type="button" onClick={() => applyRefinerEndpoint(ep)}
-                        className="text-[10px] font-mono px-2.5 py-1 rounded border transition-all"
-                        style={{
-                          borderColor: refinerEndpoint === ep.url ? 'var(--color-primary)' : 'var(--color-outline-variant)',
-                          background: refinerEndpoint === ep.url ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)' : 'var(--color-surface)',
-                          color: refinerEndpoint === ep.url ? 'var(--color-primary)' : 'var(--color-on-surface-variant)',
-                        }}>
-                        {ep.label}
-                      </button>
-                    ))}
-                  </div>
-                  <input type="text" value={refinerEndpoint}
-                    onChange={e => { setRefinerEndpoint(e.target.value); setTestRefinerResult(null); setSaved(false) }}
-                    placeholder="https://api.openai.com/v1"
-                    className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary"
-                    style={{ background: 'var(--color-surface)' }} />
-                </div>
-
-                <ModelSelector
-                  label="MODELO DE LAPIDAÇÃO"
-                  value={refinerModel}
-                  onChange={v => { setRefinerModel(v); setSaved(false) }}
-                  apiKey={refinerApiKey || apiKey}
-                  endpoint={refinerEndpoint || endpoint}
-                />
-              </div>
-            )}
-
-            {testRefinerResult && (
-              <div className={`flex items-start gap-2 px-3 py-2.5 rounded-lg border text-[11px] font-mono leading-relaxed ${
-                testRefinerResult.success ? 'border-secondary/30 text-secondary' : 'border-error/30 text-error'
-              }`}
-              style={{ background: testRefinerResult.success ? 'rgba(74,222,128,0.06)' : 'rgba(248,113,113,0.06)' }}>
-                <span className="material-symbols-outlined flex-shrink-0 mt-0.5" style={{ fontSize: 15 }}>
-                  {testRefinerResult.success ? 'check_circle' : 'error'}
-                </span>
-                <span>{testRefinerResult.success ? 'Conexão de lapidação bem-sucedida!' : testRefinerResult.error}</span>
-              </div>
-            )}
-          </div>
-        </SectionCard>
+        <AIKeyBlock
+          title="IA de Lapidação & Maturação"
+          subtitle="Chave dedicada a reprocessar e corrigir o prompt a partir de feedbacks (opcional — usa a principal se vazio)"
+          badge="LAPIDADOR"
+          accentColor="primary"
+          apiKey={refinerApiKey} setApiKey={v => { setRefinerApiKey(v); setSaved(false) }}
+          showKey={showRefinerKey} setShowKey={setShowRefinerKey}
+          model={refinerModel} setModel={v => { setRefinerModel(v); setSaved(false) }}
+          customEndpoint={customRefinerEndpoint} setCustomEndpoint={v => { setCustomRefinerEndpoint(v); setSaved(false) }}
+          testing={testingRefiner} setTesting={setTestingRefiner}
+          testResult={testRefinerResult} setTestResult={setTestRefinerResult}
+          defaultModel="gpt-4o"
+          fallbackKey={apiKey}
+        />
 
         {/* ── Banco de Dados ── */}
         <SectionCard accentColor="tertiary" icon="database" title="Banco de Dados" subtitle="Persistência automática de prompts gerados">
@@ -451,7 +351,6 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
           </div>
         </SectionCard>
 
-        {/* Rodapé geral para status de alteração */}
         <div className="flex items-center justify-between pt-4 border-t border-outline-variant/60">
           <div>
             {saved && (
