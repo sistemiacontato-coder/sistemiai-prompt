@@ -95,9 +95,28 @@ REGRAS:
 
 function extractJson(text) {
   const cleaned = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()
-  const match = cleaned.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error('A IA não retornou um JSON válido.')
-  return JSON.parse(match[0])
+
+  const candidates = cleaned.match(/\{[\s\S]*\}/)
+  if (!candidates) {
+    const preview = cleaned.slice(0, 120).replace(/\n/g, ' ')
+    throw new Error(`A IA não retornou JSON válido. Resposta recebida: "${preview || '(vazia)'}" — Tente reauditar.`)
+  }
+
+  try {
+    return JSON.parse(candidates[0])
+  } catch {
+    // Tenta reparar JSON truncado: fecha arrays e objetos abertos
+    let partial = candidates[0]
+    const openBraces  = (partial.match(/\{/g) || []).length - (partial.match(/\}/g) || []).length
+    const openBrackets = (partial.match(/\[/g) || []).length - (partial.match(/\]/g) || []).length
+    if (openBrackets > 0) partial += ']'.repeat(openBrackets)
+    if (openBraces > 0)   partial += '}'.repeat(openBraces)
+    try {
+      return JSON.parse(partial)
+    } catch {
+      throw new Error('A resposta da IA foi cortada ou mal formatada. Tente reauditar com um modelo de maior contexto.')
+    }
+  }
 }
 
 export async function auditPrompt(generatedPrompt, config, aiConfig) {
@@ -106,7 +125,8 @@ export async function auditPrompt(generatedPrompt, config, aiConfig) {
   if (!generatedPrompt?.trim()) throw new Error('Gere o prompt antes de auditar.')
 
   const prompt = buildAuditPrompt(generatedPrompt, config)
-  const text = await callAI(prompt, cfg)
+  // Auditoria pode precisar de mais tokens — passa maxTokens no config
+  const text = await callAI(prompt, { ...cfg, maxTokens: 4096 })
   const parsed = extractJson(text)
 
   return {

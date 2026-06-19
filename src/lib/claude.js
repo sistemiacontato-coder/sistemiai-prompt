@@ -153,8 +153,15 @@ async function callGemini(apiKey, prompt) {
   return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
 }
 
-async function callClaude(apiKey, prompt) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Tempo limite atingido (${ms / 1000}s) — ${label}`)), ms)
+    promise.then(v => { clearTimeout(timer); resolve(v) }, e => { clearTimeout(timer); reject(e) })
+  })
+}
+
+async function callClaude(apiKey, prompt, maxTokens = 2048) {
+  const fetchPromise = fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -164,9 +171,13 @@ async function callClaude(apiKey, prompt) {
     },
     body: JSON.stringify({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     }),
+  })
+  const res = await withTimeout(fetchPromise, 90000, 'Claude API').catch(e => {
+    if (e.message.includes('Tempo limite')) throw e
+    throw new Error(`Falha de conexão com Claude API: ${e.message}`)
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -176,13 +187,13 @@ async function callClaude(apiKey, prompt) {
   return data.content?.[0]?.text || ''
 }
 
-async function callOpenAICompat(apiKey, prompt, endpoint, model) {
+async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 2048) {
   const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
   const url = `${base}/chat/completions`
   const isNewModel = model && (
-    model.toLowerCase().includes('o1') || 
-    model.toLowerCase().includes('o3') || 
-    model.toLowerCase().includes('gpt-5') || 
+    model.toLowerCase().includes('o1') ||
+    model.toLowerCase().includes('o3') ||
+    model.toLowerCase().includes('gpt-5') ||
     model.toLowerCase().startsWith('o-')
   )
 
@@ -192,19 +203,23 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model) {
   }
 
   if (isNewModel) {
-    body.max_completion_tokens = 2048
+    body.max_completion_tokens = maxTokens
   } else {
-    body.max_tokens = 2048
+    body.max_tokens = maxTokens
     body.temperature = 0.2
   }
 
-  const res = await fetch(url, {
+  const fetchPromise = fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
+  })
+  const res = await withTimeout(fetchPromise, 90000, `${model || 'API'} em ${base}`).catch(e => {
+    if (e.message.includes('Tempo limite')) throw e
+    throw new Error(`Falha de conexão com a API (${base}): ${e.message}`)
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -217,9 +232,10 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model) {
 export async function callAI(prompt, config) {
   const cfg = config || loadAIConfig()
   if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Config IA.')
-  if (cfg.provider === 'claude')  return callClaude(cfg.apiKey, prompt)
+  const maxTokens = cfg.maxTokens || 2048
+  if (cfg.provider === 'claude')  return callClaude(cfg.apiKey, prompt, maxTokens)
   if (cfg.provider === 'gemini')  return callGemini(cfg.apiKey, prompt)
-  return callOpenAICompat(cfg.apiKey, prompt, cfg.endpoint, cfg.model)
+  return callOpenAICompat(cfg.apiKey, prompt, cfg.endpoint, cfg.model, maxTokens)
 }
 
 export async function analyzeAgentObjective({ agentName, domain, aiConfig: cfg }) {

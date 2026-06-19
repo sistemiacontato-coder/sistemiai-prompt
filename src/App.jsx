@@ -11,7 +11,7 @@ import ValidatorPanel from './components/output/ValidatorPanel'
 import HistoryPanel from './components/history/HistoryPanel'
 import { buildPrompt, getDefaultConfig, normalizeCondition } from './engine/promptBuilder'
 import { validateConfig, hasCriticalErrors } from './engine/ruleValidator'
-import { deployAgent, fetchAgentHistory, deleteAgent, isSupabaseConfigured } from './lib/supabase'
+import { deployAgent, updateAgent, renameAgent, fetchAgentHistory, deleteAgent, isSupabaseConfigured } from './lib/supabase'
 import { analyzeAgentObjective, generateExitMessage, loadAIConfig, saveAIConfig, detectProviderFromKey } from './lib/claude'
 import { reviewPromptChanges, refinePromptChanges } from './lib/promptReviewer'
 import { auditPrompt } from './lib/promptAuditor'
@@ -214,9 +214,13 @@ function CustomDialogModal({ isOpen, type, message, placeholder, defaultValue, r
 export default function App() {
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('pm-theme')
-    return saved ? saved === 'dark' : true
+    return saved ? saved === 'dark' : false
   })
-  const [view, setView] = useState('editor')
+  const [view, setView] = useState(() => {
+    const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase()
+    const hashMap = { biblioteca: 'library', simulador: 'simulator', config: 'settings' }
+    return hashMap[hash] || 'editor'
+  })
   const [config, setConfig] = useState(getDefaultConfig)
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [showSaveModal, setShowSaveModal] = useState(false)
@@ -248,6 +252,7 @@ export default function App() {
   const [auditResult, setAuditResult] = useState(null)
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null) // 'ok' | 'error' | null
+  const [loadedAgentId, setLoadedAgentId] = useState(null)
   const [pendingFixIssueIdx, setPendingFixIssueIdx] = useState(null)
   const [analyzeOptions, setAnalyzeOptions] = useState({
     includeNomeCliente: true,
@@ -298,6 +303,24 @@ export default function App() {
   }, [isDark])
 
   const handleToggleTheme = useCallback(() => setIsDark(prev => !prev), [])
+
+  const VIEW_HASH = { editor: '', library: 'biblioteca', simulator: 'simulador', settings: 'config' }
+
+  useEffect(() => {
+    const hash = VIEW_HASH[view] ? `#/${VIEW_HASH[view]}` : '#/'
+    if (window.location.hash !== hash) window.location.hash = hash
+  }, [view])
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase()
+      const hashMap = { biblioteca: 'library', simulador: 'simulator', config: 'settings' }
+      const next = hashMap[hash] || 'editor'
+      setView(prev => (prev !== next ? next : prev))
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   const handleSaveAIConfig = useCallback((cfg) => {
     saveAIConfig(cfg)
@@ -412,7 +435,7 @@ export default function App() {
       const result = await auditPrompt(generatedPrompt, config, aiConfig)
       setAuditResult(result)
     } catch (err) {
-      setAuditResult({ issues: [], overallScore: null, summary: `Erro: ${err.message}` })
+      setAuditResult({ issues: [], overallScore: null, summary: err.message, isError: true })
     } finally {
       setIsAuditing(false)
     }
@@ -625,6 +648,17 @@ export default function App() {
     }
   }, [showDialog])
 
+  const handleRenameAgent = useCallback(async (id, newName) => {
+    const trimmed = newName.trim()
+    if (!trimmed) return
+    try {
+      const data = await renameAgent(id, trimmed)
+      setAgents(prev => prev.map(a => a.id === id ? { ...a, agent_name: data.agent_name } : a))
+    } catch (e) {
+      console.error('Erro ao renomear:', e)
+    }
+  }, [])
+
   const handleLoadAgent = useCallback((agent) => {
     const rawName = agent.agent_name || ''
     const cleanName = rawName.replace(/\s*\[[^\]]+\]$/, '')
@@ -636,7 +670,11 @@ export default function App() {
       exitDestinations: agent.exit_destinations || getDefaultConfig().exitDestinations,
       maxAttempts: agent.max_attempts || 3,
     })
-    if (agent.generated_prompt) setGeneratedPrompt(agent.generated_prompt)
+    setGeneratedPrompt(agent.generated_prompt || '')
+    setLoadedAgentId(agent.id || null)
+    setAuditResult(null)
+    setAnalyzeResult(null)
+    setPendingChanges(null)
     setSectionsRevealed(true)
     setView('editor')
   }, [])
@@ -647,15 +685,42 @@ export default function App() {
       setConfig(getDefaultConfig())
       setGeneratedPrompt('')
       setValidationResults([])
+      setAuditResult(null)
+      setAnalyzeResult(null)
+      setPendingChanges(null)
       setSectionsRevealed(false)
+      setLoadedAgentId(null)
       setView('editor')
     }
   }, [showDialog])
 
   const handleSaveToDatabase = useCallback(async () => {
     if (!generatedPrompt || isSaving) return
-    setShowSaveModal(true)
-  }, [generatedPrompt, isSaving])
+    if (loadedAgentId) {
+      // Atualiza o agente já carregado — sem modal
+      setIsSaving(true)
+      setSaveStatus(null)
+      try {
+        const updated = saveSnapshot({ config, prompt: generatedPrompt, description: `Atualizado — ${new Date().toLocaleDateString('pt-BR')}` })
+        setHistory(updated)
+        if (isSupabaseConfigured) {
+          const data = await updateAgent(loadedAgentId, { config, generatedPrompt })
+          setAgents(prev => prev.map(a => a.id === data.id ? data : a))
+        }
+        setSaveStatus('ok')
+        setTimeout(() => setSaveStatus(null), 4000)
+      } catch (err) {
+        console.error('Erro ao salvar:', err)
+        setSaveStatus('error')
+        await showDialog({ type: 'alert', message: `Erro ao salvar: ${err.message}` })
+        setTimeout(() => setSaveStatus(null), 6000)
+      } finally {
+        setIsSaving(false)
+      }
+    } else {
+      setShowSaveModal(true)
+    }
+  }, [generatedPrompt, isSaving, loadedAgentId, config, isSupabaseConfigured, showDialog])
 
   const handleConfirmSave = useCallback(async (desc) => {
     const finalDesc = desc.trim() || `Versão salva — ${new Date().toLocaleDateString('pt-BR')}`
@@ -666,19 +731,11 @@ export default function App() {
       const updated = saveSnapshot({ config, prompt: generatedPrompt, description: finalDesc })
       setHistory(updated)
 
-      // 2. Salva no Supabase (Histórico Principal)
+      // 2. Cria novo agente no Supabase
       if (isSupabaseConfigured) {
-        const configWithVersion = {
-          ...config,
-          agentName: `${config.agentName} [${finalDesc}]`
-        }
-        const data = await deployAgent({ config: configWithVersion, generatedPrompt })
-        setAgents(prev => {
-          if (prev.some(a => a.id === data.id)) {
-            return prev.map(a => a.id === data.id ? data : a)
-          }
-          return [data, ...prev]
-        })
+        const data = await deployAgent({ config, generatedPrompt })
+        setLoadedAgentId(data.id)
+        setAgents(prev => [data, ...prev])
       }
 
       setSaveStatus('ok')
@@ -969,9 +1026,9 @@ export default function App() {
                               }}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-                                {isSaving ? 'progress_activity' : saveStatus === 'ok' ? 'check_circle' : saveStatus === 'error' ? 'error' : 'cloud_upload'}
+                                {isSaving ? 'progress_activity' : saveStatus === 'ok' ? 'check_circle' : saveStatus === 'error' ? 'error' : loadedAgentId ? 'save' : 'cloud_upload'}
                               </span>
-                              {isSaving ? 'Salvando...' : saveStatus === 'ok' ? 'Salvo com sucesso!' : saveStatus === 'error' ? 'Erro ao salvar' : 'Salvar no Banco'}
+                              {isSaving ? 'Salvando...' : saveStatus === 'ok' ? 'Salvo!' : saveStatus === 'error' ? 'Erro ao salvar' : loadedAgentId ? 'Atualizar' : 'Salvar no Banco'}
                             </button>
                             {!isSupabaseConfigured && (
                               <p className="text-[9px] font-mono text-on-surface-variant/30 text-center">
@@ -1068,6 +1125,7 @@ export default function App() {
               isLoading={isLoadingAgents}
               onLoad={handleLoadAgent}
               onDelete={handleDeleteAgent}
+              onRename={handleRenameAgent}
               onRefresh={loadAgents}
             />
           )}
