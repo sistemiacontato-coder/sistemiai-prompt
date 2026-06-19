@@ -158,21 +158,21 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
   const detectedRefiner = detectProviderFromKey(refinerApiKey)
   const isRefinerCompat = detectedRefiner?.provider === 'compat'
 
-  // Preenchimento de endpoint automático da principal
+  // Quando a chave muda para um provedor com endpoint fixo (OpenRouter, Groq, etc.),
+  // sempre sobrescreve o endpoint — evita endpoint errado de configuração anterior
   useEffect(() => {
-    if (detected?.endpoint && !endpoint) {
+    if (detected?.endpoint) {
       setEndpoint(detected.endpoint)
-      setModel(detected.model || '')
+      if (!model) setModel(detected.model || '')
     }
-  }, [detected?.provider])
+  }, [detected?.name])
 
-  // Preenchimento de endpoint automático do lapidador
   useEffect(() => {
-    if (detectedRefiner?.endpoint && !refinerEndpoint) {
+    if (detectedRefiner?.endpoint) {
       setRefinerEndpoint(detectedRefiner.endpoint)
-      setRefinerModel(detectedRefiner.model || 'gpt-4o')
+      if (!refinerModel) setRefinerModel(detectedRefiner.model || 'gpt-4o')
     }
-  }, [detectedRefiner?.provider])
+  }, [detectedRefiner?.name])
 
   const currentConfig = {
     provider: detected?.provider || 'compat',
