@@ -3,6 +3,7 @@ import { runTestSuite, runTestCase, refineConfigWithFeedback } from '../../lib/p
 import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
 import { loadHistory, saveSnapshot } from '../../lib/promptHistory'
+import { diffLines } from '../../lib/promptDiff'
 
 function ModelSelector({ value, onChange, apiKey, endpoint }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -363,6 +364,51 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [ratings, setRatings] = useState({}) // { messageIndex: { rating, feedback } }
   const [isRefiningManual, setIsRefiningManual] = useState(false)
   const [manualRefineResult, setManualRefineResult] = useState(null)
+  const [modalTab, setModalTab] = useState('summary') // 'summary' | 'diff'
+
+  const oldPrompt = activePromptText
+
+  const nextConfig = useMemo(() => {
+    const res = manualRefineResult || autoRefineResult
+    if (!res) return null
+    
+    let variables = [...config.variables]
+    let exitDestinations = [...config.exitDestinations]
+
+    if (res.update_variables) {
+      res.update_variables.forEach(uv => {
+        variables = variables.map(v => 
+          v.name === uv.name ? { ...v, description: uv.description } : v
+        )
+      })
+    }
+
+    if (res.update_exits) {
+      res.update_exits.forEach(ue => {
+        exitDestinations = exitDestinations.map(e => 
+          e.key === ue.key ? { ...e, description: ue.description, exitMessage: ue.exitMessage || e.exitMessage } : e
+        )
+      })
+    }
+
+    return {
+      ...config,
+      agentPersona: res.agentPersona || config.agentPersona,
+      domain: res.domain || config.domain,
+      variables,
+      exitDestinations
+    }
+  }, [manualRefineResult, autoRefineResult, config])
+
+  const nextPromptText = useMemo(() => {
+    if (!nextConfig) return ''
+    return buildPrompt(nextConfig)
+  }, [nextConfig])
+
+  const promptDiffResult = useMemo(() => {
+    if (!oldPrompt || !nextPromptText) return []
+    return diffLines(oldPrompt, nextPromptText)
+  }, [oldPrompt, nextPromptText])
 
   // Estado atualizado do Bot (valores acumulados na conversa)
   const [botState, setBotState] = useState({
@@ -683,6 +729,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setManualRefineResult(null)
     setAutoRefineResult(null)
     setSuiteResults(null)
+    setPromptSource('current') // Sempre muda a origem do prompt de volta para o rascunho atual com as novas alterações aplicadas!
     handleResetManual()
   }
 
@@ -1350,7 +1397,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
             {(() => {
               const res = manualRefineResult || autoRefineResult
               return (
-                <div className="p-6 rounded-lg border border-secondary/30 bg-surface shadow-2xl flex flex-col space-y-4 max-h-[85vh]">
+                <div className="p-6 rounded-lg border border-secondary/30 bg-surface shadow-2xl flex flex-col space-y-4 max-h-[90vh]">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-secondary/15 flex items-center justify-center">
                       <span className="material-symbols-outlined text-secondary" style={{ fontSize: 20 }}>auto_awesome</span>
@@ -1361,48 +1408,104 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                     </div>
                   </div>
 
-                  <div className="space-y-3 bg-surface-container rounded-lg p-4 text-xs font-mono border border-outline-variant/60 max-y-60 overflow-y-auto">
-                    <div>
-                      <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Motivo do Ajuste:</span>
-                      <p className="text-[11px] text-on-surface leading-relaxed italic">"{res.summary}"</p>
-                    </div>
-
-                    {res.agentPersona && (
-                      <div className="pt-2 border-t border-outline-variant/30">
-                        <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Persona Modificada:</span>
-                        <p className="text-[10px] text-on-surface-variant max-h-20 overflow-y-auto whitespace-pre-wrap">{res.agentPersona}</p>
-                      </div>
-                    )}
-
-                    {res.domain && (
-                      <div className="pt-2 border-t border-outline-variant/30">
-                        <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Objetivo Modificado:</span>
-                        <p className="text-[10px] text-on-surface-variant">{res.domain}</p>
-                      </div>
-                    )}
-
-                    {res.update_variables && res.update_variables.length > 0 && (
-                      <div className="pt-2 border-t border-outline-variant/30">
-                        <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Campos Ajustados:</span>
-                        <ul className="list-disc list-inside space-y-1 text-[10px] text-on-surface-variant">
-                          {res.update_variables.map((v, i) => (
-                            <li key={i}>Variável `{v.name}`: "{v.description}"</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {res.update_exits && res.update_exits.length > 0 && (
-                      <div className="pt-2 border-t border-outline-variant/30">
-                        <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Saídas Ajustadas:</span>
-                        <ul className="list-disc list-inside space-y-1 text-[10px] text-on-surface-variant">
-                          {res.update_exits.map((e, i) => (
-                            <li key={i}>Saída `{e.key}`: "{e.description}"</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                  {/* Abas do Modal */}
+                  <div className="flex border-b border-outline-variant/60">
+                    <button
+                      onClick={() => setModalTab('summary')}
+                      className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase tracking-wider border-b-2 transition-all ${
+                        modalTab === 'summary'
+                          ? 'border-secondary text-secondary'
+                          : 'border-transparent text-on-surface-variant/40 hover:text-on-surface-variant/70'
+                      }`}
+                    >
+                      Resumo de Alterações
+                    </button>
+                    <button
+                      onClick={() => setModalTab('diff')}
+                      className={`flex-1 py-2 text-[10px] font-mono font-bold uppercase tracking-wider border-b-2 transition-all ${
+                        modalTab === 'diff'
+                          ? 'border-secondary text-secondary'
+                          : 'border-transparent text-on-surface-variant/40 hover:text-on-surface-variant/70'
+                      }`}
+                    >
+                      Visualizar Diff Completo ({promptDiffResult.filter(d => d.type !== 'equal').length} alterações)
+                    </button>
                   </div>
+
+                  {modalTab === 'summary' ? (
+                    <div className="space-y-3 bg-surface-container rounded-lg p-4 text-xs font-mono border border-outline-variant/60 max-h-[50vh] overflow-y-auto">
+                      <div>
+                        <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Motivo do Ajuste:</span>
+                        <p className="text-[11px] text-on-surface leading-relaxed italic">"{res.summary}"</p>
+                      </div>
+
+                      {res.agentPersona && (
+                        <div className="pt-2 border-t border-outline-variant/30">
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Persona Modificada:</span>
+                          <p className="text-[10px] text-on-surface-variant max-h-20 overflow-y-auto whitespace-pre-wrap">{res.agentPersona}</p>
+                        </div>
+                      )}
+
+                      {res.domain && (
+                        <div className="pt-2 border-t border-outline-variant/30">
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Objetivo Modificado:</span>
+                          <p className="text-[10px] text-on-surface-variant">{res.domain}</p>
+                        </div>
+                      )}
+
+                      {res.update_variables && res.update_variables.length > 0 && (
+                        <div className="pt-2 border-t border-outline-variant/30">
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Campos Ajustados:</span>
+                          <ul className="list-disc list-inside space-y-1 text-[10px] text-on-surface-variant">
+                            {res.update_variables.map((v, i) => (
+                              <li key={i}>Variável `{v.name}`: "{v.description}"</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {res.update_exits && res.update_exits.length > 0 && (
+                        <div className="pt-2 border-t border-outline-variant/30">
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Saídas Ajustadas:</span>
+                          <ul className="list-disc list-inside space-y-1 text-[10px] text-on-surface-variant">
+                            {res.update_exits.map((e, i) => (
+                              <li key={i}>Saída `{e.key}`: "{e.description}"</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto max-h-[50vh] border border-outline-variant/60 rounded bg-surface-container-lowest p-3 font-mono text-[10px] leading-relaxed select-none">
+                      {promptDiffResult.length === 0 ? (
+                        <div className="text-center py-8 text-on-surface-variant/40">
+                          Sem alterações textuais geradas no prompt compilado.
+                        </div>
+                      ) : (
+                        promptDiffResult.map((line, idx) => {
+                          const isAdd = line.type === 'added'
+                          const isRem = line.type === 'removed'
+                          return (
+                            <div
+                              key={idx}
+                              className={`flex px-2 py-0.5 rounded-sm my-0.5 ${
+                                isAdd 
+                                  ? 'bg-secondary/15 text-secondary border-l-2 border-secondary font-medium' 
+                                  : isRem 
+                                    ? 'bg-error/15 text-error border-l-2 border-error line-through' 
+                                    : 'text-on-surface-variant/70'
+                              }`}
+                            >
+                              <span className="w-4 flex-shrink-0 opacity-40 select-none font-bold">
+                                {isAdd ? '+' : isRem ? '-' : ' '}
+                              </span>
+                              <span className="whitespace-pre-wrap flex-1">{line.content || ' '}</span>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex gap-3 pt-2">
                     <button
