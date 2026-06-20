@@ -255,7 +255,6 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState(null) // 'ok' | 'error' | null
   const [loadedAgentId, setLoadedAgentId] = useState(null)
   const [mensagemInicial, setMensagemInicial] = useState({
-    tipo: 'fixa',
     textoFixo: '',
     instrucoesIndividuais: '',
     preInstrucaoIA: '',
