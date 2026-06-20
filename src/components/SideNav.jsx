@@ -1,6 +1,6 @@
 const NAV_ITEMS = [
   { id: 'editor',    icon: 'dashboard',     label: 'EDITOR' },
-  { id: 'editor-v2', icon: 'experiment',    label: 'EDITOR V2', badge: 'NOVO' },
+  { id: 'editor-v2', icon: 'dashboard',    label: 'EDITOR V2', badge: 'NOVO' },
   { id: 'simulator', icon: 'science',       label: 'SIMULADOR' },
   { id: 'library',   icon: 'history',       label: 'HISTÓRICO' },
   { id: 'settings',  icon: 'manufacturing', label: 'CONFIG IA' },
