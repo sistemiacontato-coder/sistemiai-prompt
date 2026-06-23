@@ -105,6 +105,7 @@ function getEffectiveEndpoint(detected, customEndpoint) {
 function AIKeyBlock({ title, subtitle, badge, accentColor,
   apiKey, setApiKey, showKey, setShowKey,
   model, setModel,
+  temperature, setTemperature,
   customEndpoint, setCustomEndpoint,
   testing, setTesting, testResult, setTestResult,
   defaultModel, fallbackKey,
@@ -222,6 +223,36 @@ function AIKeyBlock({ title, subtitle, badge, accentColor,
           />
         )}
 
+        {/* Temperatura — só para provedores compat e quando setTemperature foi fornecido */}
+        {isCompat && setTemperature && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 uppercase">Temperatura</label>
+              <span className="text-[11px] font-mono font-bold text-primary tabular-nums">{(temperature ?? 0.2).toFixed(1)}</span>
+            </div>
+            <input
+              type="range" min="0" max="1" step="0.1"
+              value={temperature ?? 0.2}
+              onChange={e => { setTemperature(parseFloat(e.target.value)); setTestResult(null) }}
+              className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-primary"
+              style={{ background: `linear-gradient(to right, var(--color-primary) ${(temperature ?? 0.2) * 100}%, var(--color-outline-variant) ${(temperature ?? 0.2) * 100}%)` }}
+            />
+            <div className="flex justify-between mt-1.5">
+              {[
+                { val: 0.1, label: 'Analítico' },
+                { val: 0.4, label: 'Equilibrado' },
+                { val: 0.8, label: 'Criativo' },
+              ].map(p => (
+                <button key={p.val} type="button"
+                  onClick={() => { setTemperature(p.val); setTestResult(null) }}
+                  className={`text-[9px] font-mono px-2 py-0.5 rounded transition-all ${Math.abs((temperature ?? 0.2) - p.val) < 0.05 ? 'text-primary font-bold' : 'text-on-surface-variant/40 hover:text-on-surface-variant'}`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Resultado do teste */}
         {testResult && (
           <div className={`flex items-start gap-2 px-3 py-2.5 rounded-lg border text-[11px] font-mono leading-relaxed ${
@@ -242,6 +273,7 @@ function AIKeyBlock({ title, subtitle, badge, accentColor,
 export default function SettingsView({ aiConfig, onSaveAIConfig }) {
   const [apiKey, setApiKey] = useState(aiConfig?.apiKey || '')
   const [model, setModel] = useState(aiConfig?.model || '')
+  const [temperature, setTemperature] = useState(typeof aiConfig?.temperature === 'number' ? aiConfig.temperature : 0.2)
   const [customEndpoint, setCustomEndpoint] = useState(aiConfig?.endpoint || '')
   const [showKey, setShowKey] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -267,6 +299,7 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
     apiKey: apiKey.trim(),
     endpoint: effectiveEndpoint,
     model: model.trim() || (detected?.model || 'gpt-4o-mini'),
+    temperature,
     refinerApiKey: refinerApiKey.trim(),
     refinerEndpoint: effectiveRefinerEndpoint,
     refinerModel: refinerModel.trim() || (detectedRefiner?.model || 'gpt-4o-mini'),
@@ -274,6 +307,7 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
 
   const isDirty = apiKey !== (aiConfig?.apiKey || '')
     || model !== (aiConfig?.model || '')
+    || temperature !== (typeof aiConfig?.temperature === 'number' ? aiConfig.temperature : 0.2)
     || effectiveEndpoint !== (aiConfig?.endpoint || '')
     || refinerApiKey !== (aiConfig?.refinerApiKey || '')
     || refinerModel !== (aiConfig?.refinerModel || '')
@@ -314,6 +348,7 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
           apiKey={apiKey} setApiKey={v => { setApiKey(v); setSaved(false) }}
           showKey={showKey} setShowKey={setShowKey}
           model={model} setModel={v => { setModel(v); setSaved(false) }}
+          temperature={temperature} setTemperature={v => { setTemperature(v); setSaved(false) }}
           customEndpoint={customEndpoint} setCustomEndpoint={v => { setCustomEndpoint(v); setSaved(false) }}
           testing={testing} setTesting={setTesting}
           testResult={testResult} setTestResult={setTestResult}

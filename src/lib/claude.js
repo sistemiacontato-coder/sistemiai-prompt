@@ -187,7 +187,7 @@ async function callClaude(apiKey, prompt, maxTokens = 2048) {
   return data.content?.[0]?.text || ''
 }
 
-async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 2048) {
+async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 2048, temperature = 0.2) {
   const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
   const url = `${base}/chat/completions`
   // Apenas modelos da série "o" (reasoning) usam max_completion_tokens sem temperature
@@ -202,7 +202,7 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 204
     body.max_completion_tokens = maxTokens
   } else {
     body.max_tokens = maxTokens
-    body.temperature = 0.2
+    body.temperature = temperature
   }
 
   const fetchPromise = fetch(url, {
@@ -249,7 +249,8 @@ export async function callAI(prompt, config) {
   let model = cfg.model || detected?.model || 'gpt-4o-mini'
   if (detected?.name === 'OpenAI' && model.startsWith('openai/')) model = model.slice(7)
 
-  return callOpenAICompat(cfg.apiKey, prompt, endpoint, model, maxTokens)
+  const temperature = typeof cfg.temperature === 'number' ? cfg.temperature : 0.2
+  return callOpenAICompat(cfg.apiKey, prompt, endpoint, model, maxTokens, temperature)
 }
 
 export async function analyzeAgentObjective({ agentName, domain, aiConfig: cfg }) {
