@@ -31,7 +31,7 @@ const SETTINGS_DEFAULT = {
   communicationRules: true,
 }
 
-function AgentSelectorBar({ agents, loadedAgentId, currentName, view, onLoad, onNew, onSave, isSaving, saveStatus, isDirty, isSupabaseConfigured, generatedPrompt }) {
+function AgentSelectorBar({ agents, loadedAgentId, currentName, view, onLoad, onNew, onSave, onSaveAs, isSaving, saveStatus, isDirty, isSupabaseConfigured, generatedPrompt }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -89,26 +89,42 @@ function AgentSelectorBar({ agents, loadedAgentId, currentName, view, onLoad, on
         )}
       </div>
 
-      {/* Botão Salvar */}
+      {/* Botões de salvar */}
       {generatedPrompt && (
-        <button
-          onClick={onSave}
-          disabled={isSaving || !isSupabaseConfigured}
-          title={isSupabaseConfigured ? (loadedAgentId ? 'Atualizar' : 'Salvar') : 'Banco offline'}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-          style={
-            isSaving ? { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
-            : saveStatus === 'ok' ? { borderColor: 'rgba(74,222,128,0.6)', color: '#4ade80', background: 'rgba(74,222,128,0.07)' }
-            : saveStatus === 'error' ? { borderColor: 'rgba(248,113,113,0.6)', color: '#f87171' }
-            : isDirty ? { borderColor: 'rgba(251,146,60,0.7)', color: '#fb923c', background: 'rgba(251,146,60,0.10)', boxShadow: '0 0 8px rgba(251,146,60,0.25)' }
-            : { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
-          }
-        >
-          <span className={`material-symbols-outlined ${isSaving ? 'animate-spin' : ''}`} style={{ fontSize: 14 }}>
-            {isSaving ? 'progress_activity' : saveStatus === 'ok' ? 'check_circle' : saveStatus === 'error' ? 'error' : loadedAgentId ? 'save' : 'cloud_upload'}
-          </span>
-          {isSaving ? 'Salvando...' : saveStatus === 'ok' ? 'Salvo!' : saveStatus === 'error' ? 'Erro' : loadedAgentId ? 'Atualizar' : 'Salvar'}
-        </button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Salvar como — sempre cria nova entrada */}
+          {loadedAgentId && isSupabaseConfigured && (
+            <button
+              onClick={onSaveAs}
+              disabled={isSaving}
+              title="Salvar como nova versão"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              style={{ borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>save_as</span>
+              Salvar como
+            </button>
+          )}
+          {/* Atualizar / Salvar */}
+          <button
+            onClick={onSave}
+            disabled={isSaving || !isSupabaseConfigured}
+            title={isSupabaseConfigured ? (loadedAgentId ? 'Atualizar' : 'Salvar') : 'Banco offline'}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            style={
+              isSaving ? { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
+              : saveStatus === 'ok' ? { borderColor: 'rgba(74,222,128,0.6)', color: '#4ade80', background: 'rgba(74,222,128,0.07)' }
+              : saveStatus === 'error' ? { borderColor: 'rgba(248,113,113,0.6)', color: '#f87171' }
+              : isDirty ? { borderColor: 'rgba(251,146,60,0.7)', color: '#fb923c', background: 'rgba(251,146,60,0.10)', boxShadow: '0 0 8px rgba(251,146,60,0.25)' }
+              : { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
+            }
+          >
+            <span className={`material-symbols-outlined ${isSaving ? 'animate-spin' : ''}`} style={{ fontSize: 14 }}>
+              {isSaving ? 'progress_activity' : saveStatus === 'ok' ? 'check_circle' : saveStatus === 'error' ? 'error' : loadedAgentId ? 'save' : 'cloud_upload'}
+            </span>
+            {isSaving ? 'Salvando...' : saveStatus === 'ok' ? 'Salvo!' : saveStatus === 'error' ? 'Erro' : loadedAgentId ? 'Atualizar' : 'Salvar'}
+          </button>
+        </div>
       )}
     </div>
   )
@@ -913,7 +929,29 @@ export default function App() {
           {(view === 'editor' || view === 'editor-v2') && (
             <div className="h-full grid grid-cols-12 overflow-hidden">
               {/* Painel Central — Editor */}
-              <div className="col-span-8 h-full overflow-y-auto p-6 border-r border-outline-variant">
+              <div className="col-span-8 h-full flex flex-col border-r border-outline-variant">
+                {/* Barra fixa: seletor de agente + salvar */}
+                <div className="flex-shrink-0 px-6 py-3 border-b border-outline-variant" style={{ background: 'var(--color-background)' }}>
+                  <div className="max-w-3xl mx-auto">
+                    <AgentSelectorBar
+                      agents={agents}
+                      loadedAgentId={loadedAgentId}
+                      currentName={config.agentName}
+                      view={view}
+                      onLoad={handleLoadAgent}
+                      onNew={handleNewPrompt}
+                      onSave={handleSaveToDatabase}
+                      onSaveAs={() => setShowSaveModal(true)}
+                      isSaving={isSaving}
+                      saveStatus={saveStatus}
+                      isDirty={isDirty}
+                      isSupabaseConfigured={isSupabaseConfigured}
+                      generatedPrompt={generatedPrompt}
+                    />
+                  </div>
+                </div>
+                {/* Conteúdo rolável */}
+                <div className="flex-1 overflow-y-auto p-6">
                 <div className="max-w-3xl mx-auto space-y-4 pb-24">
 
                   {hasAttemptedGenerate && criticalCount > 0 && (
@@ -927,22 +965,6 @@ export default function App() {
                       </p>
                     </div>
                   )}
-
-                  {/* Barra superior: seletor de agente + botão salvar */}
-                  <AgentSelectorBar
-                    agents={agents}
-                    loadedAgentId={loadedAgentId}
-                    currentName={config.agentName}
-                    view={view}
-                    onLoad={handleLoadAgent}
-                    onNew={handleNewPrompt}
-                    onSave={handleSaveToDatabase}
-                    isSaving={isSaving}
-                    saveStatus={saveStatus}
-                    isDirty={isDirty}
-                    isSupabaseConfigured={isSupabaseConfigured}
-                    generatedPrompt={generatedPrompt}
-                  />
 
                   <AgentConfigPanel config={config} setConfig={setConfig} />
                   <ToneRulesPanel config={config} setConfig={setConfig} />
@@ -1212,7 +1234,8 @@ export default function App() {
                     onHistoryChange={setHistory}
                   />
                 </div>
-              </div>
+                </div>{/* fim overflow-y-auto */}
+              </div>{/* fim col-span-8 flex-col */}
 
               {/* Painel Direito — Validator + State Machine */}
               <aside className="col-span-4 h-full bg-surface-container-low flex flex-col overflow-hidden">
