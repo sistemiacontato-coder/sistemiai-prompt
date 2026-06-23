@@ -228,10 +228,10 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 204
   const data = await res.json()
   const choice = data.choices?.[0]
   const text = choice?.message?.content
-  if (text == null) {
+  if (!text) {
     const refusal = choice?.message?.refusal
-    const reason = refusal || `modelo "${model || 'desconhecido'}" não retornou conteúdo — verifique o nome do modelo em Config IA`
-    throw new Error(reason)
+    const raw = JSON.stringify(data).slice(0, 200).replace(/\n/g, ' ')
+    throw new Error(refusal || `Modelo "${model || '?'}" retornou resposta vazia. Troque o modelo para "gpt-4o-mini" em Config IA. Resposta bruta: ${raw}`)
   }
   return text
 }
