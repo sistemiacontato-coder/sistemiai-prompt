@@ -881,16 +881,6 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
             )}
           </div>
 
-          <div>
-            <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1">PROVEDOR DETECTADO</label>
-            <div className="flex items-center gap-2 px-3 py-2 rounded border border-outline-variant text-[11px] font-mono bg-surface">
-              <span className="material-symbols-outlined text-secondary" style={{ fontSize: 16 }}>
-                {targetModelConfig?.provider === 'gemini' ? 'stars' : targetModelConfig?.provider === 'claude' ? 'psychology' : 'hub'}
-              </span>
-              <span>{targetModelConfig?.apiKey ? (targetModelConfig.provider === 'gemini' ? 'Google Gemini' : targetModelConfig.provider === 'claude' ? 'Anthropic Claude' : 'OpenAI / OpenRouter / Groq') : 'Nenhuma chave configurada'}</span>
-            </div>
-          </div>
-
           <ModelSelector
             value={model}
             onChange={handleModelChange}
