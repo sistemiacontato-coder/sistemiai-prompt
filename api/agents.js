@@ -31,7 +31,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       const body = req.body
-      const allowed = ['agent_name', 'agent_persona', 'domain', 'variables', 'exit_destinations', 'max_attempts', 'generated_prompt']
+      const allowed = ['agent_name', 'agent_persona', 'domain', 'variables', 'exit_destinations', 'max_attempts', 'generated_prompt', 'logs']
       const record = {}
       for (const key of allowed) {
         if (key in body) record[key] = body[key]

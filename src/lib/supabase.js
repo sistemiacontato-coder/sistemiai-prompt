@@ -13,8 +13,12 @@ const supabaseDirect = (SUPABASE_URL && SUPABASE_KEY)
 // Em produção o proxy sempre está disponível; em dev depende das vars
 export const isSupabaseConfigured = IS_PROD || Boolean(SUPABASE_URL && SUPABASE_KEY)
 
+export function makeLogEntry(action) {
+  return { at: new Date().toISOString(), action }
+}
+
 // ── Salva um agente ──────────────────────────────────────────────────────────
-export async function deployAgent({ config, generatedPrompt }) {
+export async function deployAgent({ config, generatedPrompt, logs = [] }) {
   const record = {
     agent_name:        config.agentName,
     agent_persona:     config.agentPersona,
@@ -23,6 +27,7 @@ export async function deployAgent({ config, generatedPrompt }) {
     exit_destinations: config.exitDestinations,
     max_attempts:      config.maxAttempts,
     generated_prompt:  generatedPrompt,
+    logs:              [...logs, makeLogEntry('Agente criado')],
     created_at:        new Date().toISOString(),
   }
 
@@ -76,7 +81,7 @@ export async function renameAgent(id, name) {
 }
 
 // ── Atualiza um agente existente ─────────────────────────────────────────────
-export async function updateAgent(id, { config, generatedPrompt }) {
+export async function updateAgent(id, { config, generatedPrompt, logs = [], logAction = 'Salvo manualmente' }) {
   const record = {
     agent_name:        config.agentName,
     agent_persona:     config.agentPersona,
@@ -85,6 +90,7 @@ export async function updateAgent(id, { config, generatedPrompt }) {
     exit_destinations: config.exitDestinations,
     max_attempts:      config.maxAttempts,
     generated_prompt:  generatedPrompt,
+    logs:              [...logs, makeLogEntry(logAction)],
   }
 
   if (IS_PROD) {
@@ -147,6 +153,9 @@ export async function deleteAgent(id) {
 
 // SQL para setup inicial (exibido ao usuário se necessário)
 export const SETUP_SQL = `
+-- Adicionar coluna de logs (rodar se a tabela já existir):
+ALTER TABLE prompt_bc_agents ADD COLUMN IF NOT EXISTS logs JSONB DEFAULT '[]'::jsonb;
+
 CREATE TABLE IF NOT EXISTS prompt_bc_agents (
   id                UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
   agent_name        TEXT        NOT NULL,

@@ -13,7 +13,7 @@ import ValidatorPanel from './components/output/ValidatorPanel'
 import HistoryPanel from './components/history/HistoryPanel'
 import { buildPrompt, getDefaultConfig, normalizeCondition } from './engine/promptBuilder'
 import { validateConfig, hasCriticalErrors } from './engine/ruleValidator'
-import { deployAgent, updateAgent, renameAgent, fetchAgentHistory, deleteAgent, isSupabaseConfigured } from './lib/supabase'
+import { deployAgent, updateAgent, renameAgent, fetchAgentHistory, deleteAgent, isSupabaseConfigured, makeLogEntry } from './lib/supabase'
 import { analyzeAgentObjective, generateExitMessage, loadAIConfig, saveAIConfig, detectProviderFromKey } from './lib/claude'
 import { reviewPromptChanges, refinePromptChanges } from './lib/promptReviewer'
 import { auditPrompt } from './lib/promptAuditor'
@@ -746,7 +746,8 @@ export default function App() {
       setSaveStatus(null)
       try {
         if (isSupabaseConfigured) {
-          const data = await updateAgent(loadedAgentId, { config, generatedPrompt })
+          const currentLogs = agents.find(a => a.id === loadedAgentId)?.logs || []
+          const data = await updateAgent(loadedAgentId, { config, generatedPrompt, logs: currentLogs, logAction: 'Salvo manualmente' })
           setAgents(prev => prev.map(a => a.id === data.id ? data : a))
         }
         setIsDirty(false)
@@ -763,10 +764,9 @@ export default function App() {
     } else {
       setShowSaveModal(true)
     }
-  }, [generatedPrompt, isSaving, loadedAgentId, config, isSupabaseConfigured, showDialog])
+  }, [generatedPrompt, isSaving, loadedAgentId, config, agents, isSupabaseConfigured, showDialog])
 
   const handleConfirmSave = useCallback(async (desc) => {
-    const finalDesc = desc.trim() || `Versão salva — ${new Date().toLocaleDateString('pt-BR')}`
     setIsSaving(true)
     setSaveStatus(null)
     try {
@@ -1162,6 +1162,8 @@ export default function App() {
               aiConfig={aiConfig}
               showDialog={showDialog}
               agents={agents}
+              loadedAgentId={loadedAgentId}
+              onAgentUpdated={(data) => setAgents(prev => prev.map(a => a.id === data.id ? data : a))}
             />
           )}
 

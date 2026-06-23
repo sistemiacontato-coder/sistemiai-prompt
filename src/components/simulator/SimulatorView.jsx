@@ -4,7 +4,7 @@ import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
 import { loadHistory, saveSnapshot } from '../../lib/promptHistory'
 import { diffLines } from '../../lib/promptDiff'
-import { deployAgent, isSupabaseConfigured } from '../../lib/supabase'
+import { deployAgent, updateAgent, isSupabaseConfigured, makeLogEntry } from '../../lib/supabase'
 
 
 function ModelSelector({ value, onChange, apiKey, endpoint }) {
@@ -124,7 +124,7 @@ const DEFAULT_PRESETS = [
   { id: 'precise', name: 'Preciso (Temp 0.1)', model: '', temperature: 0.1, isDefault: false }
 ]
 
-export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig, showDialog, agents = [] }) {
+export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig, showDialog, agents = [], loadedAgentId, onAgentUpdated }) {
   const [promptSource, setPromptSource] = useState('current')
 
   // historyList construído a partir dos agentes do Supabase (sem duplicatas, sem localStorage)
@@ -716,11 +716,14 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
           setHistoryList(loadHistory())
 
           if (isSupabaseConfigured) {
-            const configWithVersion = {
-              ...nextConfig,
-              agentName: `${nextConfig.agentName || 'Agente'} [${desc}]`
+            if (loadedAgentId) {
+              const currentLogs = agents.find(a => a.id === loadedAgentId)?.logs || []
+              const logAction = isAuto ? 'Ajuste automático (simulador)' : 'Ajuste manual (simulador)'
+              const data = await updateAgent(loadedAgentId, { config: nextConfig, generatedPrompt: nextPrompt, logs: currentLogs, logAction })
+              onAgentUpdated?.(data)
+            } else {
+              await deployAgent({ config: nextConfig, generatedPrompt: nextPrompt, logs: [makeLogEntry(isAuto ? 'Ajuste automático (simulador)' : 'Ajuste manual (simulador)')] })
             }
-            await deployAgent({ config: configWithVersion, generatedPrompt: nextPrompt })
           }
         } catch (err) {
           console.error('Erro ao salvar snapshot automático do simulador:', err)

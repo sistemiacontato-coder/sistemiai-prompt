@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 function formatDate(isoString) {
   if (!isoString) return '—'
@@ -8,8 +9,49 @@ function formatDate(isoString) {
   })
 }
 
+function LogsModal({ agent, onClose }) {
+  const logs = Array.isArray(agent.logs) ? [...agent.logs].reverse() : []
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md bg-surface-container border border-outline-variant rounded-xl shadow-2xl flex flex-col max-h-[80vh]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
+          <div>
+            <p className="text-sm font-semibold text-on-surface">{agent.agent_name}</p>
+            <p className="text-[11px] font-mono text-on-surface-variant/50 mt-0.5">Histórico de alterações</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded text-on-surface-variant hover:text-on-surface transition-colors">
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-5 py-4">
+          {logs.length === 0 ? (
+            <p className="text-[12px] font-mono text-on-surface-variant/50 text-center py-8">Nenhum registro ainda.</p>
+          ) : (
+            <div className="space-y-2">
+              {logs.map((entry, i) => (
+                <div key={i} className="flex items-start gap-3 py-2 border-b border-outline-variant/40 last:border-0">
+                  <span className="material-symbols-outlined text-primary/60 text-[16px] mt-0.5 flex-shrink-0">history</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[12px] text-on-surface font-medium">{entry.action}</p>
+                    <p className="text-[10px] font-mono text-on-surface-variant/50 mt-0.5">{formatDate(entry.at)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
+
 function AgentCard({ agent, onLoad, onDelete, onRename }) {
   const [expanded, setExpanded] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
   const [copied, setCopied] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [renameValue, setRenameValue] = useState(agent.agent_name || '')
@@ -142,6 +184,13 @@ function AgentCard({ agent, onLoad, onDelete, onRename }) {
               </button>
             )}
             <button
+              onClick={() => setShowLogs(true)}
+              className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
+              title="Histórico de alterações"
+            >
+              <span className="material-symbols-outlined text-[18px]">history</span>
+            </button>
+            <button
               onClick={() => onLoad(agent, 'editor')}
               className="px-2 py-1 rounded text-[10px] font-mono font-bold text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-all"
               title="Abrir no Editor"
@@ -164,6 +213,7 @@ function AgentCard({ agent, onLoad, onDelete, onRename }) {
             </button>
           </div>
         )}
+        {showLogs && <LogsModal agent={agent} onClose={() => setShowLogs(false)} />}
       </div>
 
       {expanded && agent.generated_prompt && (
