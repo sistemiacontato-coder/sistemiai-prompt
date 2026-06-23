@@ -233,14 +233,14 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 204
   if (!text) {
     const refusal = choice?.message?.refusal
     const raw = JSON.stringify(data).slice(0, 200).replace(/\n/g, ' ')
-    throw new Error(refusal || `Modelo "${model || '?'}" retornou resposta vazia. Troque o modelo para "gpt-4o-mini" em Config IA. Resposta bruta: ${raw}`)
+    throw new Error(refusal || `Modelo "${model || '?'}" retornou resposta vazia. Troque o modelo para "gpt-4o-mini" em Configurações. Resposta bruta: ${raw}`)
   }
   return text
 }
 
 export async function callAI(prompt, config) {
   const cfg = config || loadAIConfig()
-  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Config IA.')
+  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
 
   // Sempre derivar endpoint/provedor da chave — ignora config salva desatualizada
   const detected = detectProviderFromKey(cfg.apiKey)
@@ -261,7 +261,7 @@ export async function callAI(prompt, config) {
 
 export async function analyzeAgentObjective({ agentName, domain, aiConfig: cfg }) {
   const config = cfg || loadAIConfig()
-  if (!config?.apiKey) throw new Error('Nenhuma chave de IA configurada. Clique em "Config IA" na barra lateral.')
+  if (!config?.apiKey) throw new Error('Nenhuma chave de IA configurada. Clique em "Configurações" na barra lateral.')
 
   const prompt = buildAnalysisPrompt(agentName, domain)
   let text = await callAI(prompt, config)
@@ -275,7 +275,7 @@ export async function analyzeAgentObjective({ agentName, domain, aiConfig: cfg }
 
 export async function generateExitMessage({ exit, agentName, agentPersona, domain, aiConfig }) {
   const cfg = aiConfig || loadAIConfig()
-  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Config IA.')
+  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
 
   const prompt = `Você é especialista em UX de chatbots para WhatsApp.
 

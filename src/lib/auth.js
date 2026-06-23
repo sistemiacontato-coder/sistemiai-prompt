@@ -1,28 +1,25 @@
-const TOKEN_KEY = 'pm-auth'
+// Auth via cookie HttpOnly — token nunca fica exposto no localStorage ou JavaScript
 
 export async function login(username, password) {
   const res = await fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
     body: JSON.stringify({ username, password }),
   })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Erro ao fazer login.')
-  localStorage.setItem(TOKEN_KEY, data.token)
-  return data.token
+  // Cookie HttpOnly é setado pelo servidor — não acessível via JS
 }
 
-export function logout() {
-  localStorage.removeItem(TOKEN_KEY)
+export async function logout() {
+  await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' })
 }
 
-export function isAuthenticated() {
-  const token = localStorage.getItem(TOKEN_KEY)
-  if (!token) return false
+export async function checkSession() {
   try {
-    const [payload] = token.split('.')
-    const { exp } = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
-    return exp > Date.now()
+    const res = await fetch('/api/me', { credentials: 'same-origin' })
+    return res.ok
   } catch {
     return false
   }

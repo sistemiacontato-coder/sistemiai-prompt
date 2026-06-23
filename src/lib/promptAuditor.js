@@ -121,7 +121,7 @@ function extractJson(text) {
 
 export async function auditPrompt(generatedPrompt, config, aiConfig) {
   const cfg = aiConfig || loadAIConfig()
-  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Config IA.')
+  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
   if (!generatedPrompt?.trim()) throw new Error('Gere o prompt antes de auditar.')
 
   const prompt = buildAuditPrompt(generatedPrompt, config)

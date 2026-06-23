@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { verifyToken } from '../me.js'
 
 function getClient() {
   const url = process.env.SUPABASE_URL
@@ -8,11 +9,12 @@ function getClient() {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'DELETE, PATCH, OPTIONS')
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type')
-
+  res.setHeader('X-Content-Type-Options', 'nosniff')
   if (req.method === 'OPTIONS') return res.status(200).end()
+
+  if (!verifyToken(req.headers.cookie)) {
+    return res.status(401).json({ error: 'Não autenticado.' })
+  }
 
   const { id } = req.query
   const supabase = getClient()
@@ -23,10 +25,10 @@ export default async function handler(req, res) {
         .from('prompt_bc_agents')
         .delete()
         .eq('id', id)
-      if (error) return res.status(500).json({ error: error.message })
+      if (error) return res.status(500).json({ error: 'Erro ao excluir.' })
       return res.status(200).json({ success: true })
-    } catch (e) {
-      return res.status(500).json({ error: e.message })
+    } catch {
+      return res.status(500).json({ error: 'Erro interno.' })
     }
   }
 
@@ -45,10 +47,10 @@ export default async function handler(req, res) {
         .eq('id', id)
         .select()
         .single()
-      if (error) return res.status(500).json({ error: error.message })
+      if (error) return res.status(500).json({ error: 'Erro ao atualizar.' })
       return res.status(200).json(data)
-    } catch (e) {
-      return res.status(500).json({ error: e.message })
+    } catch {
+      return res.status(500).json({ error: 'Erro interno.' })
     }
   }
 

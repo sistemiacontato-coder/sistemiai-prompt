@@ -260,45 +260,33 @@ async function callChatAPI(messages, config) {
 
   if (!apiKey) throw new Error('Nenhuma chave de IA configurada para teste.')
 
+  const fetchWithTimeout = (url, opts, ms = 90000) => {
+    const ctrl = new AbortController()
+    const id = setTimeout(() => ctrl.abort(), ms)
+    return fetch(url, { ...opts, signal: ctrl.signal })
+      .then(r => { clearTimeout(id); return r })
+      .catch(e => { clearTimeout(id); throw e.name === 'AbortError' ? new Error('Tempo limite excedido (90s). Tente um modelo mais rápido.') : e })
+  }
+
   if (provider === 'gemini') {
-    // Formata o histórico no formato Gemini generateContent
-    // O Gemini 2.0 suporta o formato de conversação em mensagens
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
-    
-    // Mapeamento de papéis para o Gemini (user/model)
-    const contents = messages.map(m => {
-      let role = 'user'
-      if (m.role === 'assistant') role = 'model'
-      // O system_instruction vai fora dos contents no Gemini
-      return {
-        role,
-        parts: [{ text: m.content }]
-      }
-    }).filter(m => messages[0].role === 'system' ? messages.indexOf(m) > 0 : true)
+    const geminiModel = (model || 'gemini-2.0-flash').replace(/^gemini\//, '')
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content
+    const contents = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
 
     const body = {
       contents,
       generationConfig: {
         temperature: temperature != null ? temperature : 0.1,
         maxOutputTokens: 2048,
-        responseMimeType: "application/json" // Força o Gemini a respeitar o JSON
-      }
+      },
     }
+    if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] }
 
-    if (systemInstruction) {
-      body.systemInstruction = {
-        parts: [{ text: systemInstruction }]
-      }
-    }
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-
+    const res = await fetchWithTimeout(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.error?.message || `Gemini API error ${res.status}`)
@@ -308,11 +296,10 @@ async function callChatAPI(messages, config) {
   }
 
   if (provider === 'claude') {
-    // Anthropic API
     const systemMessage = messages.find(m => m.role === 'system')?.content
     const chatMessages = messages.filter(m => m.role !== 'system')
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -336,58 +323,53 @@ async function callChatAPI(messages, config) {
     return data.content?.[0]?.text || ''
   }
 
-  // Padrão: OpenAI ou compatíveis
+  // Padrão: OpenAI ou compatíveis (OpenRouter, Groq, Mistral…)
   const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
   const url = `${base}/chat/completions`
 
-  // OpenRouter é proxy — sempre usa max_tokens/temperature independente do modelo
   const isOpenRouter = base.includes('openrouter.ai')
-  // Só na OpenAI direta: reasoning models (o1/o3/o4/gpt-5+) usam max_completion_tokens
   const isNewModel = !isOpenRouter && model && (
     /^(o1|o3|o4|o-)/i.test(model.trim()) ||
     model.toLowerCase().includes('gpt-5')
   )
 
-  // OpenRouter exige prefixo de provedor (ex: "openai/gpt-4o-mini")
-  // Se o modelo não tem "/" e é OpenAI, adicionamos o prefixo automaticamente
+  // OpenRouter: prefixo "openai/" obrigatório para modelos GPT sem prefixo
   let resolvedModel = model || 'gpt-4o-mini'
   if (isOpenRouter && !resolvedModel.includes('/') && /^(gpt-|o1-|o3-|o4-)/.test(resolvedModel)) {
     resolvedModel = `openai/${resolvedModel}`
   }
 
-  const body = {
-    model: resolvedModel,
-    messages,
-  }
+  const body = { model: resolvedModel, messages }
 
-  // response_format json_object não é suportado por todos os modelos — só para compat/não-reasoning
-  if (!isNewModel) {
-    body.response_format = { type: 'json_object' }
+  if (isNewModel) {
+    body.max_completion_tokens = Math.max(2048, 16384)
+  } else {
     body.max_tokens = 2048
     body.temperature = temperature != null ? temperature : 0.1
-  } else {
-    body.max_completion_tokens = Math.max(2048, 16384)
+    // Não enviamos response_format: nem todos os modelos/provedores suportam json_object
+    // O system prompt já instrui a IA a retornar JSON; extractJson trata a resposta
   }
 
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
+      ...(isOpenRouter && { 'HTTP-Referer': 'https://sistemiai.com.br', 'X-Title': 'SistemIA Prompt' }),
     },
     body: JSON.stringify(body),
   })
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error?.message || `API error ${res.status}`)
+    throw new Error(err.error?.message || `API error ${res.status} — modelo: ${resolvedModel}, endpoint: ${base}`)
   }
   const data = await res.json()
   const choice = data.choices?.[0]
   const text = choice?.message?.content
   if (!text) {
     const refusal = choice?.message?.refusal
-    throw new Error(refusal || `Modelo "${model || '?'}" retornou resposta vazia no simulador.`)
+    throw new Error(refusal || `Modelo "${resolvedModel}" retornou resposta vazia. Tente gpt-4o-mini ou llama-3.3-70b-versatile.`)
   }
   return text
 }

@@ -78,7 +78,7 @@ export default function MensagemInicialPanel({ config, mensagemInicial, setMensa
   }
 
   const handleGerarPreInstrucao = async () => {
-    if (!aiConfig?.apiKey) { setGenError('Configure a chave de IA em Config IA.'); return }
+    if (!aiConfig?.apiKey) { setGenError('Configure a chave de IA em Configurações.'); return }
     setIsGenerating(true)
     setGenError('')
     try {

@@ -3,7 +3,7 @@ const NAV_ITEMS = [
   { id: 'editor-v2', icon: 'dashboard',    label: 'EDITOR V2', badge: 'NOVO' },
   { id: 'simulator', icon: 'science',       label: 'SIMULADOR' },
   { id: 'library',   icon: 'history',       label: 'HISTÓRICO' },
-  { id: 'settings',  icon: 'manufacturing', label: 'CONFIG IA' },
+  { id: 'settings',  icon: 'manufacturing', label: 'CONFIGURAÇÕES' },
 ]
 
 export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollapsed, onToggle }) {

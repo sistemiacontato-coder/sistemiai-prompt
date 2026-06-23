@@ -80,7 +80,7 @@ function normalizeResult(parsed) {
 
 export async function reviewPromptChanges(instruction, config, aiConfig) {
   const cfg = aiConfig || loadAIConfig()
-  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Config IA.')
+  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
 
   const prompt = buildReviewPrompt(config, instruction)
   const text = await callAI(prompt, cfg)
@@ -101,7 +101,7 @@ export async function reviewPromptChanges(instruction, config, aiConfig) {
 
 export async function refinePromptChanges(correction, pendingChanges, config, aiConfig) {
   const cfg = aiConfig || loadAIConfig()
-  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Config IA.')
+  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
 
   const existing = {
     agentName: config.agentName,

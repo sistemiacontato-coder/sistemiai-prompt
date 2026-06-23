@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { isAuthenticated, logout as authLogout } from './lib/auth'
+import { checkSession, logout as authLogout } from './lib/auth'
 import LoginView from './components/LoginView'
 import TopNav from './components/TopNav'
 import SideNav from './components/SideNav'
@@ -215,7 +215,11 @@ function CustomDialogModal({ isOpen, type, message, placeholder, defaultValue, r
 }
 
 export default function App() {
-  const [authed, setAuthed] = useState(() => isAuthenticated())
+  const [authed, setAuthed] = useState(null) // null = verificando
+
+  useEffect(() => {
+    checkSession().then(ok => setAuthed(ok))
+  }, [])
 
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('pm-theme')
@@ -731,7 +735,7 @@ export default function App() {
       const ok = await showDialog({ type: 'confirm', message: 'Há edições não salvas. Sair mesmo assim?' })
       if (!ok) return
     }
-    authLogout()
+    await authLogout()
     setAuthed(false)
   }, [isDirty, generatedPrompt, loadedAgentId, showDialog])
 
@@ -788,6 +792,14 @@ export default function App() {
 
   const criticalCount = validationResults.filter(r => r.type === 'critical').length
   const canGenerate = criticalCount === 0
+
+  if (authed === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <span className="material-symbols-outlined animate-spin text-primary text-[32px]">progress_activity</span>
+      </div>
+    )
+  }
 
   if (!authed) {
     return <LoginView onLogin={() => setAuthed(true)} />

@@ -482,7 +482,7 @@ export default function PromptPreview({
             <span className="material-symbols-outlined text-secondary" style={{ fontSize: 15 }}>rate_review</span>
             <span className="label-caps text-[10px] text-secondary">REVISAR COM IA</span>
             {!aiConfig?.apiKey && (
-              <span className="ml-auto text-[10px] font-mono text-on-surface-variant/40">Configure uma IA em Config IA</span>
+              <span className="ml-auto text-[10px] font-mono text-on-surface-variant/40">Configure uma IA em Configurações</span>
             )}
           </div>
 
