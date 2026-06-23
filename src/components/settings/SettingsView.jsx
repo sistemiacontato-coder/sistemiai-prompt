@@ -114,9 +114,10 @@ function AIKeyBlock({ title, subtitle, badge, accentColor,
   const isGeneric = detected?.name === 'API Compatível'
   const needsCustomEndpoint = isGeneric  // só para APIs desconhecidas
 
-  // Quando a chave muda e o provedor tem endpoint fixo, mostra modelo padrão
+  // Quando o provedor muda: preenche modelo se vazio, ou corrige formato OpenRouter → OpenAI
   useEffect(() => {
-    if (detected?.model && !model) setModel(detected.model)
+    if (!detected?.model) return
+    if (!model || model.includes('/')) setModel(detected.model)
   }, [detected?.name])
 
   const effectiveEndpoint = getEffectiveEndpoint(detected, customEndpoint)

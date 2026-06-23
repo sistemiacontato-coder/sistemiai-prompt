@@ -17,7 +17,7 @@ export function detectProviderFromKey(key) {
   if (k.startsWith('AIza') || k.startsWith('AQ.')) return { provider: 'gemini', name: 'Google Gemini',  icon: 'stars',      color: 'secondary' }
   if (k.startsWith('gsk_'))               return { provider: 'compat',  name: 'Groq',             icon: 'bolt',       color: 'tertiary', endpoint: COMPAT_ENDPOINTS[2].url, model: COMPAT_ENDPOINTS[2].model }
   if (k.startsWith('sk-or-'))             return { provider: 'compat',  name: 'OpenRouter',       icon: 'hub',        color: 'secondary', endpoint: COMPAT_ENDPOINTS[1].url, model: COMPAT_ENDPOINTS[1].model }
-  if (k.startsWith('sk-'))               return { provider: 'compat',  name: 'OpenAI',           icon: 'smart_toy',  color: 'on-surface-variant' }
+  if (k.startsWith('sk-'))               return { provider: 'compat',  name: 'OpenAI',           icon: 'smart_toy',  color: 'on-surface-variant', endpoint: COMPAT_ENDPOINTS[0].url, model: COMPAT_ENDPOINTS[0].model }
   return                                         { provider: 'compat',  name: 'API Compatível',   icon: 'key',        color: 'on-surface-variant' }
 }
 
