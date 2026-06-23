@@ -190,8 +190,10 @@ async function callClaude(apiKey, prompt, maxTokens = 2048) {
 async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 2048, temperature = 0.2) {
   const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
   const url = `${base}/chat/completions`
-  // Modelos que exigem max_completion_tokens (sem temperature): série "o" e gpt-5+
-  const isNewModel = model && (
+  // OpenRouter é proxy — sempre usa max_tokens e aceita temperature para qualquer modelo
+  const isOpenRouter = base.includes('openrouter.ai')
+  // Só na OpenAI direta: modelos reasoning (o1/o3/o4/gpt-5+) usam max_completion_tokens sem temperature
+  const isNewModel = !isOpenRouter && model && (
     /^(o1|o3|o4|o-)/i.test(model.trim()) ||
     model.toLowerCase().includes('gpt-5')
   )
@@ -202,7 +204,7 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 204
   }
 
   if (isNewModel) {
-    // Modelos reasoning consomem tokens internamente — mínimo 16k para não esgotarem o budget antes de responder
+    // Reasoning models consomem tokens internamente — mínimo 16k para não esgotar antes de responder
     body.max_completion_tokens = Math.max(maxTokens, 16384)
   } else {
     body.max_tokens = maxTokens
