@@ -66,21 +66,20 @@ function FieldSection({ icon, title, subtitle, accentColor = 'primary', children
 }
 
 async function gerarTextoFixo(config, aiConfig) {
-  const temNome = (config.variables || []).some(v => ['nome_cliente', 'nome'].includes(v.name?.toLowerCase()))
   const prompt = `Você é especialista em BotConversa. Gere a "Mensagem para o Contato" para o agente abaixo.
-Esta é a primeira mensagem enviada ao usuário quando a conversa começa — visível ao usuário.
+Esta é a PRIMEIRA mensagem enviada ao usuário — o sistema ainda NÃO tem nenhum dado do contato.
 
 AGENTE: ${config.agentName || 'Assistente Virtual'}
 ${config.agentPersona ? `PERSONA: ${config.agentPersona}` : ''}
 OBJETIVO: ${config.domain || '(não informado)'}
 
 REGRAS:
-- Saudação cordial e acolhedora
-${temNome ? '- Use {primeiro-nome} para personalizar (o BotConversa injeta automaticamente)' : ''}
+- Saudação genérica e acolhedora (não use nome, e-mail, telefone ou qualquer variável de contato)
+- PROIBIDO usar {primeiro-nome}, {nome-completo}, {email}, {telefone} ou qualquer variável entre chaves
 - Apresente brevemente o que o agente pode fazer
-- Convide o usuário a iniciar
+- Convide o usuário a iniciar a conversa
 - Máximo 2 frases curtas e naturais
-- Não use asteriscos, markdown ou formatação especial
+- Não use travessão, asteriscos, markdown ou formatação especial
 - Retorne APENAS o texto da mensagem, sem aspas, sem explicações`
 
   return callAI(prompt, aiConfig)
@@ -157,16 +156,7 @@ export default function MensagemInicialPanel({ config, mensagemInicial, setMensa
           subtitle="Texto fixo enviado ao usuário no início. Deixe vazio se a I.A. vai gerar a primeira mensagem."
           accentColor="secondary"
         >
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="flex flex-wrap gap-1">
-              {BC_VARS.slice(0, 4).map(v => (
-                <button key={v.tag} type="button"
-                  onClick={() => set('textoFixo', (textoFixo ? textoFixo + ' ' : '') + v.tag)}
-                  className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-outline-variant/60 text-on-surface-variant/60 hover:text-secondary hover:border-secondary/50 transition-all">
-                  {v.tag}
-                </button>
-              ))}
-            </div>
+          <div className="flex items-center justify-end mb-1.5">
             <button type="button" onClick={handleGerarTextoFixo}
               disabled={!isGeneratingTexto && !aiConfig?.apiKey}
               className={`flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-mono font-semibold transition-all flex-shrink-0 ml-2
@@ -185,7 +175,7 @@ export default function MensagemInicialPanel({ config, mensagemInicial, setMensa
           <textarea
             value={textoFixo}
             onChange={e => set('textoFixo', e.target.value)}
-            placeholder="Ex: Olá, {primeiro-nome}! Seja bem-vindo. Como posso ajudar?"
+            placeholder="Ex: Olá! Seja bem-vindo. Como posso te ajudar hoje?"
             rows={3}
             className="w-full rounded border border-outline-variant px-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:border-secondary resize-none"
             style={{ background: 'var(--color-surface-container)' }}

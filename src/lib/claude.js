@@ -238,6 +238,10 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 204
   return text
 }
 
+function cleanAIText(text) {
+  return text.replace(/\s*—\s*/g, ', ').replace(/\s*–\s*/g, ' - ')
+}
+
 export async function callAI(prompt, config) {
   const cfg = config || loadAIConfig()
   if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
@@ -248,15 +252,17 @@ export async function callAI(prompt, config) {
   const endpoint  = detected?.endpoint || cfg.endpoint || 'https://api.openai.com/v1'
   const maxTokens = cfg.maxTokens || 2048
 
-  if (provider === 'claude')  return callClaude(cfg.apiKey, prompt, maxTokens)
-  if (provider === 'gemini')  return callGemini(cfg.apiKey, prompt)
+  let text
+  if (provider === 'claude')  text = await callClaude(cfg.apiKey, prompt, maxTokens)
+  else if (provider === 'gemini') text = await callGemini(cfg.apiKey, prompt)
+  else {
+    let model = cfg.model || detected?.model || 'gpt-4o-mini'
+    if (detected?.name === 'OpenAI' && model.startsWith('openai/')) model = model.slice(7)
+    const temperature = typeof cfg.temperature === 'number' ? cfg.temperature : 0.2
+    text = await callOpenAICompat(cfg.apiKey, prompt, endpoint, model, maxTokens, temperature)
+  }
 
-  // Corrige modelo salvo no formato OpenRouter (openai/modelo) para OpenAI direto
-  let model = cfg.model || detected?.model || 'gpt-4o-mini'
-  if (detected?.name === 'OpenAI' && model.startsWith('openai/')) model = model.slice(7)
-
-  const temperature = typeof cfg.temperature === 'number' ? cfg.temperature : 0.2
-  return callOpenAICompat(cfg.apiKey, prompt, endpoint, model, maxTokens, temperature)
+  return cleanAIText(text)
 }
 
 export async function analyzeAgentObjective({ agentName, domain, aiConfig: cfg }) {
