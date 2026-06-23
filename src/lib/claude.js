@@ -202,7 +202,8 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 204
   }
 
   if (isNewModel) {
-    body.max_completion_tokens = maxTokens
+    // Modelos reasoning consomem tokens internamente — mínimo 16k para não esgotarem o budget antes de responder
+    body.max_completion_tokens = Math.max(maxTokens, 16384)
   } else {
     body.max_tokens = maxTokens
     body.temperature = temperature
