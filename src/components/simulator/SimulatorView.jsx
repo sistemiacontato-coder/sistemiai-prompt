@@ -212,12 +212,11 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     }
   }, [config?.testModel])
 
-  // Migrar presets antigos que tinham modelo hardcoded — limpa para usar o de Configurações
+  // Limpa qualquer modelo salvo nos presets — o simulador sempre usa o modelo de Configurações
   useEffect(() => {
-    const needsMigration = presets.some(p => p.model && /^(gpt-|gemini-|claude-)/.test(p.model))
-    if (needsMigration) {
-      const migrated = presets.map(p => ({ ...p, model: '' }))
-      setPresets(migrated)
+    const hasStoredModel = presets.some(p => p.model)
+    if (hasStoredModel) {
+      setPresets(prev => prev.map(p => ({ ...p, model: '' })))
       setModel('')
     }
   }, [])

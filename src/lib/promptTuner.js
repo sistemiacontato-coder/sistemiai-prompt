@@ -365,7 +365,8 @@ async function callChatAPI(messages, config) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error?.message || `API error ${res.status} — modelo: ${resolvedModel}, endpoint: ${base}`)
+    const apiMsg = err.error?.message || `HTTP ${res.status}`
+    throw new Error(`${apiMsg} [modelo: "${resolvedModel}" → ${base}]`)
   }
   const data = await res.json()
   const choice = data.choices?.[0]
