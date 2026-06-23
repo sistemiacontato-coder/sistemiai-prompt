@@ -81,6 +81,24 @@ function highlightChangedWords(oldStr, newStr) {
   return newWords.map((word, i) => ({ word, isBold: i >= start && i <= endNew }))
 }
 
+// Agrupa itens consecutivos removed+added da mesma categoria em pares "modified"
+function buildPairs(items) {
+  const result = []
+  let i = 0
+  while (i < items.length) {
+    const cur = items[i]
+    const nxt = items[i + 1]
+    if (cur.type === 'removed' && nxt && nxt.type === 'added' && nxt.category === cur.category) {
+      result.push({ kind: 'modified', removed: cur, added: nxt })
+      i += 2
+    } else {
+      result.push({ kind: cur.type, item: cur })
+      i++
+    }
+  }
+  return result
+}
+
 // Linha de item no painel de diff — cores via variáveis CSS (funciona em modo claro e escuro)
 function DiffItem({ type, category, title, detail, wordHighlight }) {
   const isAdd = type === 'added'
@@ -137,6 +155,16 @@ function DiffItem({ type, category, title, detail, wordHighlight }) {
           </p>
         )}
       </div>
+    </div>
+  )
+}
+
+// Par de modificação: mostra o antes (vermelho) + depois (verde) juntos
+function DiffPairItem({ removed, added }) {
+  return (
+    <div className="border-b border-outline-variant/10 last:border-0">
+      <DiffItem {...removed} />
+      <DiffItem {...added} />
     </div>
   )
 }
@@ -234,17 +262,16 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
 
   if (items.length === 0) return null
 
-  const addedCount  = items.filter(i => i.type === 'added').length
-  const removedCount = items.filter(i => i.type === 'removed').length
-
-  const visible = filter === 'added'   ? items.filter(i => i.type === 'added') :
-                  filter === 'removed' ? items.filter(i => i.type === 'removed') :
-                  items
+  const pairs = buildPairs(items)
+  const modifiedCount = pairs.filter(p => p.kind === 'modified').length
+  const pureAddedCount   = pairs.filter(p => p.kind === 'added').length
+  const pureRemovedCount = pairs.filter(p => p.kind === 'removed').length
 
   const filterBtns = [
-    { key: 'all',     label: 'Tudo',       count: items.length, activeColor: '#a3a3a3', activeBg: 'rgba(163,163,163,0.12)', activeBorder: 'rgba(163,163,163,0.25)' },
-    { key: 'added',   label: 'Adicionado', count: addedCount,   activeColor: '#4ade80', activeBg: 'rgba(74,222,128,0.15)',  activeBorder: 'rgba(74,222,128,0.35)' },
-    { key: 'removed', label: 'Removido',   count: removedCount, activeColor: '#f87171', activeBg: 'rgba(248,113,113,0.15)', activeBorder: 'rgba(248,113,113,0.35)' },
+    { key: 'all',      label: 'Tudo',      count: items.length,   activeColor: '#a3a3a3', activeBg: 'rgba(163,163,163,0.12)', activeBorder: 'rgba(163,163,163,0.25)' },
+    { key: 'modified', label: 'Alterado',  count: modifiedCount,  activeColor: '#fb923c', activeBg: 'rgba(251,146,60,0.15)',  activeBorder: 'rgba(251,146,60,0.35)' },
+    { key: 'added',    label: 'Adicionado',count: pureAddedCount,   activeColor: '#4ade80', activeBg: 'rgba(74,222,128,0.15)',  activeBorder: 'rgba(74,222,128,0.35)' },
+    { key: 'removed',  label: 'Removido',  count: pureRemovedCount, activeColor: '#f87171', activeBg: 'rgba(248,113,113,0.15)', activeBorder: 'rgba(248,113,113,0.35)' },
   ].filter(f => f.count > 0 || f.key === 'all')
 
   return (
@@ -279,16 +306,23 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
 
       {/* Itens */}
       <div className="max-h-[260px] overflow-y-auto" style={{ background: 'var(--color-surface)' }}>
-        {visible.length === 0 ? (
-          <p className="text-[10px] font-mono text-on-surface-variant/30 px-4 py-3">
-            Nenhuma mudança nesta categoria.
-          </p>
-        ) : (
-          visible.map(item => (
-            <DiffItem key={item._key} type={item.type} category={item.category}
-                      title={item.title} detail={item.detail} wordHighlight={item.wordHighlight} />
-          ))
-        )}
+        {(() => {
+          if (filter === 'all') {
+            return items.length === 0
+              ? <p className="text-[10px] font-mono text-on-surface-variant/30 px-4 py-3">Nenhuma mudança.</p>
+              : items.map(item => <DiffItem key={item._key} {...item} />)
+          }
+          if (filter === 'modified') {
+            const modPairs = pairs.filter(p => p.kind === 'modified')
+            return modPairs.length === 0
+              ? <p className="text-[10px] font-mono text-on-surface-variant/30 px-4 py-3">Nenhuma alteração pareada.</p>
+              : modPairs.map((p, i) => <DiffPairItem key={i} removed={p.removed} added={p.added} />)
+          }
+          const filtered = pairs.filter(p => p.kind === filter).map(p => p.item)
+          return filtered.length === 0
+            ? <p className="text-[10px] font-mono text-on-surface-variant/30 px-4 py-3">Nenhuma mudança nesta categoria.</p>
+            : filtered.map(item => <DiffItem key={item._key} {...item} />)
+        })()}
       </div>
 
       {/* Campo de réplica */}
