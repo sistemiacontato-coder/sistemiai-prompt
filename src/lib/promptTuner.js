@@ -171,12 +171,27 @@ export async function refineConfigWithFeedback(config, testSuiteResults, aiConfi
     return {
       scenario: r.testCaseName,
       reason: r.failureReason,
-      stepsLog: r.stepResults.map(s => ({
-        input: s.clientMessage,
-        output: s.parsedResponse ? `Status: ${s.parsedResponse.status}, Msg: ${s.parsedResponse.message}, Vars: ${JSON.stringify(s.parsedResponse.variables)}` : s.rawResponse,
-        passed: s.passed,
-        error: s.error
-      }))
+      stepsLog: r.stepResults.map(s => {
+        const entry = {
+          pergunta_do_usuario: s.clientMessage,
+          passed: s.passed,
+        }
+        // Separar feedback humano da resposta errada da IA
+        if (s.error) {
+          const feedbackMatch = s.error.match(/Crítica:\s*"(.+)"/)
+          const ratingMatch  = s.error.match(/Nota do usuário:\s*(\d)/)
+          if (feedbackMatch?.[1] && feedbackMatch[1] !== 'sem comentário') {
+            entry.instrucao_do_usuario = feedbackMatch[1]
+          }
+          if (ratingMatch) entry.nota = Number(ratingMatch[1])
+        }
+        // Incluir o que a IA respondeu de errado apenas como contexto, separado
+        const rawOutput = s.parsedResponse
+          ? `Status: ${s.parsedResponse.status}, Msg: ${s.parsedResponse.message}`
+          : s.rawResponse
+        if (rawOutput) entry.resposta_errada_da_ia = rawOutput
+        return entry
+      })
     }
   })
 
@@ -191,13 +206,18 @@ export async function refineConfigWithFeedback(config, testSuiteResults, aiConfi
   }
 
   const prompt = `Você é um Engenheiro de Prompt especialista na otimização de agentes de WhatsApp para o BotConversa.
-Sua missão é corrigir os campos de configuração do agente com base nos erros identificados.
+Sua missão é corrigir os campos de configuração do agente com base no feedback do testador.
 
 CONFIGURAÇÃO ATUAL DO AGENTE:
 ${JSON.stringify(existingConfig, null, 2)}
 
-RESULTADOS DOS TESTES QUE FALHARAM:
+FALHAS IDENTIFICADAS:
 ${JSON.stringify(failures, null, 2)}
+
+HIERARQUIA DE PRIORIDADE para gerar a correção:
+1. Se há "instrucao_do_usuario": use EXATAMENTE o que o usuário pediu. Não adicione nada além disso.
+2. Se não há "instrucao_do_usuario": use "pergunta_do_usuario" para inferir o que o agente deveria ter respondido.
+3. "resposta_errada_da_ia": use APENAS para entender o tipo de erro (ex: pediu dados desnecessários, respondeu fora do escopo). NUNCA copie termos ou conceitos dela para a correção — ela pode ter inventado coisas que não existem no prompt original.
 
 Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar):
 
@@ -213,13 +233,10 @@ Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar)
   "summary": "Uma frase direta explicando o que foi corrigido"
 }
 
-REGRAS OBRIGATÓRIAS:
-- Baseie a correção APENAS na pergunta do usuário (input), nunca na resposta errada da IA.
-- A resposta errada mostra O QUE não fazer, mas não deve contaminar a correção com conceitos que ela inventou.
-- Exemplo: se o usuário perguntou "Até que horas vocês ficam abertos?" e a IA perguntou sobre filial, a correção correta é "Responda perguntas de horário diretamente com o horário padrão." — NÃO mencione "filial" na correção porque o usuário nunca perguntou sobre filial.
-- Cada correção deve ser UMA FRASE curta e direta. Sem exemplos, sem exceções, sem parênteses explicativos.
-- agentPersona/domain: inclua o texto COMPLETO com a correção inserida no lugar certo, não apenas o trecho corrigido.
-- update_variables: só se precisar ajustar descrição de variável existente.
+REGRAS:
+- Cada correção: UMA frase curta e direta. Sem exemplos, sem exceções, sem parênteses.
+- agentPersona/domain: texto COMPLETO com a correção inserida, não apenas o trecho novo.
+- update_variables: só para ajustar descrição de variável já existente.
 - update_exits: descrição DEVE iniciar com "Interrompa a IA quando o cliente".
 - summary: máximo 1 frase.`
 
