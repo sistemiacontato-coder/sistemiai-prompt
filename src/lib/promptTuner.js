@@ -256,106 +256,31 @@ function extractJson(text) {
 
 // Executa requisição de chat completions direta de acordo com o provedor
 async function callChatAPI(messages, config) {
-  const { provider, apiKey, endpoint, temperature } = config
+  const { apiKey, endpoint, temperature } = config
 
-  if (!apiKey) throw new Error('Nenhuma chave de IA configurada para teste. Vá em Configurações.')
+  if (!apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
 
   const model = (config.model || '').trim()
-  if (!model) throw new Error('Nenhum modelo de IA definido. Configure o modelo em Configurações.')
+  if (!model) throw new Error('Nenhum modelo definido. Configure o modelo em Configurações.')
+
+  if (!endpoint) throw new Error('Endpoint não configurado. Vá em Configurações.')
+
+  const base = endpoint.replace(/\/$/, '')
+  const url = `${base}/chat/completions`
 
   const fetchWithTimeout = (url, opts, ms = 90000) => {
     const ctrl = new AbortController()
     const id = setTimeout(() => ctrl.abort(), ms)
     return fetch(url, { ...opts, signal: ctrl.signal })
       .then(r => { clearTimeout(id); return r })
-      .catch(e => { clearTimeout(id); throw e.name === 'AbortError' ? new Error('Tempo limite excedido (90s). Tente um modelo mais rápido.') : e })
+      .catch(e => { clearTimeout(id); throw e.name === 'AbortError' ? new Error('Tempo limite excedido (90s).') : e })
   }
 
-  if (provider === 'gemini') {
-    const geminiModel = model.replace(/^gemini\//, '')
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`
-
-    const systemInstruction = messages.find(m => m.role === 'system')?.content
-    const contents = messages
-      .filter(m => m.role !== 'system')
-      .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
-
-    const body = {
-      contents,
-      generationConfig: {
-        temperature: temperature != null ? temperature : 0.1,
-        maxOutputTokens: 2048,
-      },
-    }
-    if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] }
-
-    const res = await fetchWithTimeout(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error?.message || `Gemini API error ${res.status}`)
-    }
-    const data = await res.json()
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-  }
-
-  if (provider === 'claude') {
-    const systemMessage = messages.find(m => m.role === 'system')?.content
-    const chatMessages = messages.filter(m => m.role !== 'system')
-
-    const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 2048,
-        temperature: temperature != null ? temperature : 0.1,
-        system: systemMessage,
-        messages: chatMessages,
-      }),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error?.message || `Claude API error ${res.status}`)
-    }
-    const data = await res.json()
-    return data.content?.[0]?.text || ''
-  }
-
-  // Padrão: OpenAI ou compatíveis (OpenRouter, Groq, Mistral…)
-  const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
-  const url = `${base}/chat/completions`
-
-  const isOpenRouter = base.includes('openrouter.ai')
-  const isOpenAIDirect = base.includes('api.openai.com')
-  // Reasoning models (sem temperature/max_tokens) só na OpenAI direta
-  const isNewModel = isOpenAIDirect && (
-    /^(o1|o3|o4|o-)/i.test(model.trim()) ||
-    model.toLowerCase().includes('gpt-5')
-  )
-
-  // OpenRouter exige prefixo provider/modelo — adiciona automaticamente se ausente
-  let resolvedModel = model
-  if (isOpenRouter && !resolvedModel.includes('/')) {
-    if (/^(gpt-|o1-|o3-|o4-)/.test(resolvedModel))  resolvedModel = `openai/${resolvedModel}`
-    else if (/^gemini-/.test(resolvedModel))           resolvedModel = `google/${resolvedModel}`
-    else if (/^claude-/.test(resolvedModel))           resolvedModel = `anthropic/${resolvedModel}`
-    // llama, mixtral, deepseek, etc. o OpenRouter aceita sem prefixo
-  }
-
-  const body = { model: resolvedModel, messages }
-
-  if (isNewModel) {
-    body.max_completion_tokens = Math.max(2048, 16384)
-  } else {
-    body.max_tokens = 2048
-    body.temperature = temperature != null ? temperature : 0.1
-    // Não enviamos response_format: nem todos os modelos/provedores suportam json_object
-    // O system prompt já instrui a IA a retornar JSON; extractJson trata a resposta
+  const body = {
+    model,
+    messages,
+    max_tokens: 2048,
+    temperature: temperature != null ? temperature : 0.1,
   }
 
   const res = await fetchWithTimeout(url, {
@@ -363,22 +288,16 @@ async function callChatAPI(messages, config) {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
-      ...(isOpenRouter && { 'HTTP-Referer': 'https://sistemiai.com.br', 'X-Title': 'SistemIA Prompt' }),
     },
     body: JSON.stringify(body),
   })
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    const apiMsg = err.error?.message || `HTTP ${res.status}`
-    throw new Error(`${apiMsg} [modelo: "${resolvedModel}" → ${base}]`)
+    throw new Error(err.error?.message || `HTTP ${res.status} [${base}]`)
   }
   const data = await res.json()
-  const choice = data.choices?.[0]
-  const text = choice?.message?.content
-  if (!text) {
-    const refusal = choice?.message?.refusal
-    throw new Error(refusal || `Modelo "${resolvedModel}" retornou resposta vazia. Tente gpt-4o-mini ou llama-3.3-70b-versatile.`)
-  }
+  const text = data.choices?.[0]?.message?.content
+  if (!text) throw new Error(`Modelo "${model}" retornou resposta vazia.`)
   return text
 }

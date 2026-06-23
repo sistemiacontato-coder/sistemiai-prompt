@@ -1608,63 +1608,15 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
 // Helper para chamar chat completion direta (chat manual)
 async function runChatDirect(messages, config) {
-  const { provider, apiKey, endpoint, temperature } = config
+  const { apiKey, endpoint, temperature } = config
   const model = (config.model || '').trim()
 
   if (!apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
-  if (!model) throw new Error('Nenhum modelo de IA definido. Configure o modelo em Configurações.')
+  if (!model) throw new Error('Nenhum modelo definido. Configure o modelo em Configurações.')
+  if (!endpoint) throw new Error('Endpoint não configurado. Vá em Configurações.')
 
-  if (provider === 'gemini') {
-    const geminiModel = model.replace(/^gemini\//, '')
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`
-    const systemInstruction = messages.find(m => m.role === 'system')?.content
-    const contents = messages
-      .filter(m => m.role !== 'system')
-      .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
-
-    const body = { contents, generationConfig: { temperature: temperature ?? 0.1, maxOutputTokens: 2048 } }
-    if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] }
-
-    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || `Gemini error ${res.status}`) }
-    return (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text || ''
-  }
-
-  if (provider === 'claude') {
-    const systemMessage = messages.find(m => m.role === 'system')?.content
-    const chatMessages = messages.filter(m => m.role !== 'system')
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model, max_tokens: 2048, temperature: temperature ?? 0.1, system: systemMessage, messages: chatMessages }),
-    })
-    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || `Claude error ${res.status}`) }
-    return (await res.json()).content?.[0]?.text || ''
-  }
-
-  const base = (endpoint || '').replace(/\/$/, '')
-  if (!base) throw new Error('Endpoint não configurado. Vá em Configurações.')
+  const base = endpoint.replace(/\/$/, '')
   const url = `${base}/chat/completions`
-
-  const isOpenRouter = base.includes('openrouter.ai')
-  const isOpenAIDirect = base.includes('api.openai.com')
-  const isNewModel = isOpenAIDirect && /^(o1|o3|o4|o-)/i.test(model)
-
-  let resolvedModel = model
-  if (isOpenRouter && !resolvedModel.includes('/')) {
-    if (/^(gpt-|o1-|o3-|o4-)/.test(resolvedModel)) resolvedModel = `openai/${resolvedModel}`
-    else if (/^gemini-/.test(resolvedModel)) resolvedModel = `google/${resolvedModel}`
-    else if (/^claude-/.test(resolvedModel)) resolvedModel = `anthropic/${resolvedModel}`
-  }
-
-  const body = { model: resolvedModel, messages }
-  if (isNewModel) {
-    body.max_completion_tokens = 2048
-  } else {
-    body.max_tokens = 2048
-    body.temperature = temperature ?? 0.1
-    // Sem response_format — não suportado por Groq, Mistral, OpenRouter custom
-  }
 
   const res = await fetch(url, {
     method: 'POST',
@@ -1672,15 +1624,14 @@ async function runChatDirect(messages, config) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ model, messages, max_tokens: 2048, temperature: temperature ?? 0.1 }),
   })
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error?.message || `API error ${res.status}`)
+    throw new Error(err.error?.message || `HTTP ${res.status} [${base}]`)
   }
-  const data = await res.json()
-  return data.choices?.[0]?.message?.content || ''
+  return (await res.json()).choices?.[0]?.message?.content || ''
 }
 
 // Helper para extrair JSON
