@@ -1,4 +1,4 @@
-import { callAI } from './claude'
+import { callAI, detectProviderFromKey } from './claude'
 import { buildPrompt } from '../engine/promptBuilder'
 
 /**
@@ -340,24 +340,26 @@ async function callChatAPI(messages, config) {
   const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
   const url = `${base}/chat/completions`
 
-  const isNewModel = model && (
-    model.toLowerCase().includes('o1') || 
-    model.toLowerCase().includes('o3') || 
-    model.toLowerCase().includes('gpt-5') || 
-    model.toLowerCase().startsWith('o-')
+  // OpenRouter é proxy — sempre usa max_tokens/temperature independente do modelo
+  const isOpenRouter = base.includes('openrouter.ai')
+  // Só na OpenAI direta: reasoning models (o1/o3/o4/gpt-5+) usam max_completion_tokens
+  const isNewModel = !isOpenRouter && model && (
+    /^(o1|o3|o4|o-)/i.test(model.trim()) ||
+    model.toLowerCase().includes('gpt-5')
   )
 
   const body = {
     model: model || 'gpt-4o-mini',
     messages,
-    response_format: { type: "json_object" } // Força o JSON
   }
 
-  if (isNewModel) {
-    body.max_completion_tokens = 2048
-  } else {
+  // response_format json_object não é suportado por todos os modelos — só para compat/não-reasoning
+  if (!isNewModel) {
+    body.response_format = { type: 'json_object' }
     body.max_tokens = 2048
     body.temperature = temperature != null ? temperature : 0.1
+  } else {
+    body.max_completion_tokens = Math.max(2048, 16384)
   }
 
   const res = await fetch(url, {
@@ -374,5 +376,11 @@ async function callChatAPI(messages, config) {
     throw new Error(err.error?.message || `API error ${res.status}`)
   }
   const data = await res.json()
-  return data.choices?.[0]?.message?.content || ''
+  const choice = data.choices?.[0]
+  const text = choice?.message?.content
+  if (!text) {
+    const refusal = choice?.message?.refusal
+    throw new Error(refusal || `Modelo "${model || '?'}" retornou resposta vazia no simulador.`)
+  }
+  return text
 }
