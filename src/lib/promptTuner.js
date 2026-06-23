@@ -276,11 +276,13 @@ async function callChatAPI(messages, config) {
       .catch(e => { clearTimeout(id); throw e.name === 'AbortError' ? new Error('Tempo limite excedido (90s).') : e })
   }
 
-  const body = {
-    model,
-    messages,
-    max_tokens: 2048,
-    temperature: temperature != null ? temperature : 0.1,
+  const isReasoning = /^(o1|o3|o4|o-|gpt-5)/i.test(model)
+  const body = { model, messages }
+  if (isReasoning) {
+    body.max_completion_tokens = 2048
+  } else {
+    body.max_tokens = 2048
+    body.temperature = temperature != null ? temperature : 0.1
   }
 
   const res = await fetchWithTimeout(url, {

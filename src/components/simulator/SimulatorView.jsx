@@ -1624,7 +1624,11 @@ async function runChatDirect(messages, config) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages, max_tokens: 2048, temperature: temperature ?? 0.1 }),
+    body: JSON.stringify(
+      /^(o1|o3|o4|o-|gpt-5)/i.test(model)
+        ? { model, messages, max_completion_tokens: 2048 }
+        : { model, messages, max_tokens: 2048, temperature: temperature ?? 0.1 }
+    ),
   })
 
   if (!res.ok) {
