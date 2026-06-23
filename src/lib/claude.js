@@ -233,7 +233,7 @@ export async function callAI(prompt, config) {
   const cfg = config || loadAIConfig()
   if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Config IA.')
 
-  // Sempre derivar endpoint da chave — ignora o que está salvo se houver detecção
+  // Sempre derivar endpoint/provedor da chave — ignora config salva desatualizada
   const detected = detectProviderFromKey(cfg.apiKey)
   const provider  = detected?.provider || cfg.provider || 'compat'
   const endpoint  = detected?.endpoint || cfg.endpoint || 'https://api.openai.com/v1'
@@ -241,7 +241,12 @@ export async function callAI(prompt, config) {
 
   if (provider === 'claude')  return callClaude(cfg.apiKey, prompt, maxTokens)
   if (provider === 'gemini')  return callGemini(cfg.apiKey, prompt)
-  return callOpenAICompat(cfg.apiKey, prompt, endpoint, cfg.model, maxTokens)
+
+  // Corrige modelo salvo no formato OpenRouter (openai/modelo) para OpenAI direto
+  let model = cfg.model || detected?.model || 'gpt-4o-mini'
+  if (detected?.name === 'OpenAI' && model.startsWith('openai/')) model = model.slice(7)
+
+  return callOpenAICompat(cfg.apiKey, prompt, endpoint, model, maxTokens)
 }
 
 export async function analyzeAgentObjective({ agentName, domain, aiConfig: cfg }) {
