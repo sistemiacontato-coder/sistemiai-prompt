@@ -212,15 +212,6 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     }
   }, [config?.testModel])
 
-  // Limpa qualquer modelo salvo nos presets — o simulador sempre usa o modelo de Configurações
-  useEffect(() => {
-    const hasStoredModel = presets.some(p => p.model)
-    if (hasStoredModel) {
-      setPresets(prev => prev.map(p => ({ ...p, model: '' })))
-      setModel('')
-    }
-  }, [])
-
   // Persistir presets no LocalStorage
   useEffect(() => {
     localStorage.setItem('pm-test-presets', JSON.stringify(presets))
