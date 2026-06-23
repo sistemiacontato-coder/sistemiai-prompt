@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { getSession, onAuthStateChange, signOut as authSignOut } from './lib/supabaseAuth'
+import { isAuthenticated, logout as authLogout } from './lib/auth'
 import LoginView from './components/LoginView'
 import TopNav from './components/TopNav'
 import SideNav from './components/SideNav'
@@ -215,23 +215,7 @@ function CustomDialogModal({ isOpen, type, message, placeholder, defaultValue, r
 }
 
 export default function App() {
-  const [session, setSession] = useState(undefined) // undefined = carregando
-  const [authLoading, setAuthLoading] = useState(true)
-
-  useEffect(() => {
-    let sub = null
-    getSession().then(s => {
-      setSession(s)
-      setAuthLoading(false)
-    })
-    onAuthStateChange(s => {
-      setSession(s)
-      setAuthLoading(false)
-    }).then(subscription => {
-      sub = subscription
-    })
-    return () => { sub?.unsubscribe() }
-  }, [])
+  const [authed, setAuthed] = useState(() => isAuthenticated())
 
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('pm-theme')
@@ -747,12 +731,8 @@ export default function App() {
       const ok = await showDialog({ type: 'confirm', message: 'Há edições não salvas. Sair mesmo assim?' })
       if (!ok) return
     }
-    try {
-      await authSignOut()
-    } catch (e) {
-      console.error('Erro ao fazer logout:', e)
-    }
-    // onAuthStateChange vai setar session = null e mostrar LoginView automaticamente
+    authLogout()
+    setAuthed(false)
   }, [isDirty, generatedPrompt, loadedAgentId, showDialog])
 
   const handleSaveToDatabase = useCallback(async () => {
@@ -809,18 +789,8 @@ export default function App() {
   const criticalCount = validationResults.filter(r => r.type === 'critical').length
   const canGenerate = criticalCount === 0
 
-  // Tela de carregamento enquanto verifica sessão
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <span className="material-symbols-outlined animate-spin text-primary text-[32px]">progress_activity</span>
-      </div>
-    )
-  }
-
-  // Sem sessão → tela de login
-  if (!session) {
-    return <LoginView onLogin={() => {}} />
+  if (!authed) {
+    return <LoginView onLogin={() => setAuthed(true)} />
   }
 
   return (

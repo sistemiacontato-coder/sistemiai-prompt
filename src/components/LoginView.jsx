@@ -1,28 +1,19 @@
 import { useState } from 'react'
-import { signIn, signUp } from '../lib/supabaseAuth'
+import { login } from '../lib/auth'
 
 export default function LoginView({ onLogin }) {
-  const [mode, setMode] = useState('login') // 'login' | 'signup'
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [successMsg, setSuccessMsg] = useState(null)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
-    setSuccessMsg(null)
     setLoading(true)
     try {
-      if (mode === 'login') {
-        await signIn(email, password)
-        onLogin()
-      } else {
-        await signUp(email, password)
-        setSuccessMsg('Conta criada! Verifique seu e-mail para confirmar e depois faça login.')
-        setMode('login')
-      }
+      await login(username, password)
+      onLogin()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -49,35 +40,39 @@ export default function LoginView({ onLogin }) {
 
           <div className="px-6 py-5 border-b border-outline-variant"
                style={{ background: 'var(--color-surface-container-high)' }}>
-            <h2 className="text-sm font-semibold text-on-surface">
-              {mode === 'login' ? 'Entrar' : 'Criar conta'}
-            </h2>
+            <h2 className="text-sm font-semibold text-on-surface">Entrar</h2>
             <p className="text-[11px] font-mono text-on-surface-variant/50 mt-0.5">
-              {mode === 'login' ? 'Acesse seu espaço de trabalho' : 'Crie sua conta para começar'}
+              Acesse seu espaço de trabalho
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-4">
             <div>
-              <label className="label-caps text-[10px] text-on-surface-variant/60 mb-1.5 block">E-mail</label>
+              <label className="text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1.5 block uppercase tracking-widest">
+                Usuário
+              </label>
               <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                type="text"
+                value={username}
+                onChange={e => setUsername(e.target.value)}
                 required
                 autoFocus
-                placeholder="seu@email.com"
+                autoComplete="username"
+                placeholder="master"
                 className="w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 text-sm font-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-on-surface-variant/30"
               />
             </div>
 
             <div>
-              <label className="label-caps text-[10px] text-on-surface-variant/60 mb-1.5 block">Senha</label>
+              <label className="text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1.5 block uppercase tracking-widest">
+                Senha
+              </label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
                 placeholder="••••••••"
                 className="w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 text-sm font-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-on-surface-variant/30"
               />
@@ -86,28 +81,17 @@ export default function LoginView({ onLogin }) {
             {error && (
               <p className="text-[11px] font-mono text-error leading-snug">{error}</p>
             )}
-            {successMsg && (
-              <p className="text-[11px] font-mono text-secondary leading-snug">{successMsg}</p>
-            )}
 
             <button
               type="submit"
               disabled={loading}
               className="w-full py-2.5 rounded-lg bg-primary text-on-primary text-sm font-mono font-semibold transition-all hover:opacity-90 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {loading && <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>}
-              {loading ? 'Aguarde...' : mode === 'login' ? 'Entrar' : 'Criar conta'}
+              {loading && (
+                <span className="material-symbols-outlined animate-spin text-[16px]">progress_activity</span>
+              )}
+              {loading ? 'Entrando...' : 'Entrar'}
             </button>
-
-            <div className="text-center pt-1">
-              <button
-                type="button"
-                onClick={() => { setMode(m => m === 'login' ? 'signup' : 'login'); setError(null); setSuccessMsg(null) }}
-                className="text-[11px] font-mono text-on-surface-variant/50 hover:text-primary transition-colors"
-              >
-                {mode === 'login' ? 'Não tem conta? Criar agora' : 'Já tem conta? Entrar'}
-              </button>
-            </div>
           </form>
         </div>
       </div>
