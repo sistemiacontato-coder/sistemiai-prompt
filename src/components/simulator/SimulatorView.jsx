@@ -117,10 +117,11 @@ function ModelSelector({ value, onChange, apiKey, endpoint }) {
   )
 }
 
+// Modelo vazio = usa o modelo configurado em Configurações (sempre compatível com a chave)
 const DEFAULT_PRESETS = [
-  { id: 'creative', name: 'Criativo (Gemini Flash / Temp 1.0)', model: 'gemini-1.5-flash', temperature: 1.0, isDefault: false },
-  { id: 'balanced', name: 'Balanceado (GPT-4o Mini / Temp 0.5)', model: 'gpt-4o-mini', temperature: 0.5, isDefault: true },
-  { id: 'precise', name: 'Preciso (GPT-4o Mini / Temp 0.1)', model: 'gpt-4o-mini', temperature: 0.1, isDefault: false }
+  { id: 'creative', name: 'Criativo (Temp 1.0)', model: '', temperature: 1.0, isDefault: false },
+  { id: 'balanced', name: 'Balanceado (Temp 0.5)', model: '', temperature: 0.5, isDefault: true },
+  { id: 'precise', name: 'Preciso (Temp 0.1)', model: '', temperature: 0.1, isDefault: false }
 ]
 
 export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig, showDialog, agents = [] }) {
@@ -187,7 +188,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       } catch {}
     }
     const def = list.find(p => p.isDefault)
-    return def ? def.model : 'gpt-4o-mini'
+    // modelo vazio = usa o de Configurações em targetModelConfig
+    return def ? (def.model || '') : ''
   })
 
   const [temperature, setTemperature] = useState(() => {
@@ -209,6 +211,16 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       setModel(config.testModel)
     }
   }, [config?.testModel])
+
+  // Migrar presets antigos que tinham modelo hardcoded — limpa para usar o de Configurações
+  useEffect(() => {
+    const needsMigration = presets.some(p => p.model && /^(gpt-|gemini-|claude-)/.test(p.model))
+    if (needsMigration) {
+      const migrated = presets.map(p => ({ ...p, model: '' }))
+      setPresets(migrated)
+      setModel('')
+    }
+  }, [])
 
   // Persistir presets no LocalStorage
   useEffect(() => {
@@ -335,12 +347,15 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       return { provider: 'claude', apiKey: refinerKey, endpoint: null, model, temperature }
     }
 
-    // Caso geral: usa chave principal com seu provedor e endpoint nativos
+    // Modelo vazio ou incompatível → usa o modelo de Configurações (sempre válido para a chave)
+    const settingsModel = aiConfig?.model || mainDetected?.model || ''
+    const resolvedModel = model || settingsModel
+
     return {
       provider: mainProvider,
       apiKey: mainKey,
       endpoint: mainEndpoint,
-      model,
+      model: resolvedModel,
       temperature,
     }
   }, [aiConfig, model, temperature])
