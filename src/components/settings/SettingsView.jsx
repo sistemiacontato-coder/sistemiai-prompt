@@ -228,10 +228,10 @@ function AIKeyBlock({ title, subtitle, badge, accentColor,
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 uppercase">Temperatura</label>
-              <span className="text-[11px] font-mono font-bold text-primary tabular-nums">{(temperature ?? 0.2).toFixed(1)}</span>
+              <span className="text-[11px] font-mono font-bold text-primary tabular-nums">{(temperature ?? 0.2).toFixed(2)}</span>
             </div>
             <input
-              type="range" min="0" max="1" step="0.1"
+              type="range" min="0.01" max="1" step="0.01"
               value={temperature ?? 0.2}
               onChange={e => { setTemperature(parseFloat(e.target.value)); setTestResult(null) }}
               className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-primary"
