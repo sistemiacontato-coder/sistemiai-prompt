@@ -226,7 +226,14 @@ async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 204
     throw new Error(err.error?.message || `API error ${res.status}`)
   }
   const data = await res.json()
-  return data.choices?.[0]?.message?.content || ''
+  const choice = data.choices?.[0]
+  const text = choice?.message?.content
+  if (text == null) {
+    const refusal = choice?.message?.refusal
+    const reason = refusal || `modelo "${model || 'desconhecido'}" não retornou conteúdo — verifique o nome do modelo em Config IA`
+    throw new Error(reason)
+  }
+  return text
 }
 
 export async function callAI(prompt, config) {

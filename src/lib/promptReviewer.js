@@ -58,7 +58,10 @@ REGRAS OBRIGATÓRIAS:
 function extractJson(text) {
   const cleaned = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()
   const match = cleaned.match(/\{[\s\S]*\}/)
-  if (!match) throw new Error('A IA não retornou um JSON válido. Tente novamente.')
+  if (!match) {
+    const preview = cleaned.slice(0, 100).replace(/\n/g, ' ')
+    throw new Error(`A IA não retornou JSON válido. Resposta: "${preview || '(vazia)'}" — Tente novamente.`)
+  }
   return JSON.parse(match[0])
 }
 
