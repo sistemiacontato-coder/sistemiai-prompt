@@ -214,9 +214,10 @@ Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar)
 }
 
 REGRAS OBRIGATÓRIAS:
+- Baseie a correção APENAS na pergunta do usuário (input), nunca na resposta errada da IA.
+- A resposta errada mostra O QUE não fazer, mas não deve contaminar a correção com conceitos que ela inventou.
+- Exemplo: se o usuário perguntou "Até que horas vocês ficam abertos?" e a IA perguntou sobre filial, a correção correta é "Responda perguntas de horário diretamente com o horário padrão." — NÃO mencione "filial" na correção porque o usuário nunca perguntou sobre filial.
 - Cada correção deve ser UMA FRASE curta e direta. Sem exemplos, sem exceções, sem parênteses explicativos.
-- Errado: "NÃO pergunte qual filial para fornecer o horário, apenas informe o horário padrão. Só peça esclarecimento se a pergunta for realmente ambígua..."
-- Certo: "Informe o horário padrão sem pedir confirmação de filial."
 - agentPersona/domain: inclua o texto COMPLETO com a correção inserida no lugar certo, não apenas o trecho corrigido.
 - update_variables: só se precisar ajustar descrição de variável existente.
 - update_exits: descrição DEVE iniciar com "Interrompa a IA quando o cliente".
