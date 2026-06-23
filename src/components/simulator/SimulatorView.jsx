@@ -311,46 +311,39 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setConfig(prev => ({ ...prev, testModel: newModel }))
   }
 
-  // Detecção automática de provedor com base no modelo de IA selecionado
-  const detectedProvider = useMemo(() => {
-    return detectProviderFromModel(model)
-  }, [model])
-
+  // Provider vem da CHAVE, não do modelo — evita conflito entre modelo escolhido e chave configurada
   const targetModelConfig = useMemo(() => {
-    let apiKey = aiConfig?.apiKey
-    // Deriva endpoint da chave (igual ao callAI em claude.js) para garantir URL correta
-    const detectedFromKey = detectProviderFromKey(apiKey)
-    let endpoint = detectedFromKey?.endpoint || aiConfig?.endpoint
+    const mainKey = aiConfig?.apiKey
+    const refinerKey = aiConfig?.refinerApiKey
 
-    // Se o modelo for compatível/OpenAI mas a chave principal for Gemini, tenta usar a de lapidação
-    if (detectedProvider?.provider === 'compat') {
-      const mainIsGemini = apiKey?.startsWith('AIza') || apiKey?.startsWith('AQ.')
-      const refinerIsCompat = aiConfig?.refinerApiKey?.startsWith('sk-') || aiConfig?.refinerApiKey?.startsWith('gsk_')
-      if (mainIsGemini && refinerIsCompat) {
-        apiKey = aiConfig.refinerApiKey
-        const refDetected = detectProviderFromKey(apiKey)
-        endpoint = refDetected?.endpoint || aiConfig.refinerEndpoint
-      }
+    const mainDetected = detectProviderFromKey(mainKey)
+    const refinerDetected = detectProviderFromKey(refinerKey)
+
+    const mainProvider = mainDetected?.provider || 'compat'
+    const mainEndpoint = mainDetected?.endpoint || aiConfig?.endpoint
+
+    const modelIsGemini = /^gemini[-/]/.test(model || '')
+    const modelIsClaude = /^claude[-/]/.test(model || '')
+
+    // Se o modelo é Gemini mas a chave principal não é Gemini → tenta chave de lapidação
+    if (modelIsGemini && mainProvider !== 'gemini' && refinerDetected?.provider === 'gemini') {
+      return { provider: 'gemini', apiKey: refinerKey, endpoint: aiConfig?.refinerEndpoint, model, temperature }
     }
 
-    // Se o modelo for Gemini mas a chave principal for compatível, tenta usar a de lapidação
-    if (detectedProvider?.provider === 'gemini') {
-      const mainIsCompat = apiKey?.startsWith('sk-') || apiKey?.startsWith('gsk_')
-      const refinerIsGemini = aiConfig?.refinerApiKey?.startsWith('AIza') || aiConfig?.refinerApiKey?.startsWith('AQ.')
-      if (mainIsCompat && refinerIsGemini) {
-        apiKey = aiConfig.refinerApiKey
-        endpoint = aiConfig.refinerEndpoint
-      }
+    // Se o modelo é Claude mas a chave principal não é Claude → tenta chave de lapidação
+    if (modelIsClaude && mainProvider !== 'claude' && refinerDetected?.provider === 'claude') {
+      return { provider: 'claude', apiKey: refinerKey, endpoint: null, model, temperature }
     }
 
+    // Caso geral: usa chave principal com seu provedor e endpoint nativos
     return {
-      provider: detectedProvider?.provider || 'compat',
-      apiKey: apiKey,
-      endpoint: endpoint,
-      model: model,
-      temperature: temperature
+      provider: mainProvider,
+      apiKey: mainKey,
+      endpoint: mainEndpoint,
+      model,
+      temperature,
     }
-  }, [detectedProvider, aiConfig, model, temperature])
+  }, [aiConfig, model, temperature])
 
   // Chaves corretas para o ModelSelector buscar a lista oficial de modelos
   const selectorApiKey = useMemo(() => {
@@ -904,9 +897,9 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
             <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1">PROVEDOR DETECTADO</label>
             <div className="flex items-center gap-2 px-3 py-2 rounded border border-outline-variant text-[11px] font-mono bg-surface">
               <span className="material-symbols-outlined text-secondary" style={{ fontSize: 16 }}>
-                {detectedProvider?.icon || 'smart_toy'}
+                {targetModelConfig?.provider === 'gemini' ? 'stars' : targetModelConfig?.provider === 'claude' ? 'psychology' : 'hub'}
               </span>
-              <span>{detectedProvider?.name || 'Nenhuma chave configurada'}</span>
+              <span>{targetModelConfig?.apiKey ? (targetModelConfig.provider === 'gemini' ? 'Google Gemini' : targetModelConfig.provider === 'claude' ? 'Anthropic Claude' : 'OpenAI / OpenRouter / Groq') : 'Nenhuma chave configurada'}</span>
             </div>
           </div>
 

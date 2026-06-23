@@ -333,10 +333,13 @@ async function callChatAPI(messages, config) {
     model.toLowerCase().includes('gpt-5')
   )
 
-  // OpenRouter: prefixo "openai/" obrigatório para modelos GPT sem prefixo
+  // OpenRouter exige prefixo provider/modelo — adiciona automaticamente se ausente
   let resolvedModel = model || 'gpt-4o-mini'
-  if (isOpenRouter && !resolvedModel.includes('/') && /^(gpt-|o1-|o3-|o4-)/.test(resolvedModel)) {
-    resolvedModel = `openai/${resolvedModel}`
+  if (isOpenRouter && !resolvedModel.includes('/')) {
+    if (/^(gpt-|o1-|o3-|o4-)/.test(resolvedModel))  resolvedModel = `openai/${resolvedModel}`
+    else if (/^gemini-/.test(resolvedModel))           resolvedModel = `google/${resolvedModel}`
+    else if (/^claude-/.test(resolvedModel))           resolvedModel = `anthropic/${resolvedModel}`
+    // llama, mixtral, deepseek, etc. o OpenRouter aceita sem prefixo
   }
 
   const body = { model: resolvedModel, messages }
