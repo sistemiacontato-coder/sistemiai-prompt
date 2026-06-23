@@ -1,20 +1,23 @@
 import { isSupabaseConfigured } from '../lib/supabase'
 
-export default function TopNav({ isDark, onToggleTheme, onLogout }) {
+export default function TopNav({ isDark, onToggleTheme, onLogout, center }) {
   return (
-    <nav className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant flex justify-between items-center h-16 px-6">
+    <nav className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant flex items-center h-16 px-6 gap-4">
       {/* Logo */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-shrink-0">
         <div className="w-8 h-8 bg-primary-container rounded flex items-center justify-center">
           <span className="material-symbols-outlined text-on-primary-container text-[18px]">psychology</span>
         </div>
         <span className="text-primary font-bold text-lg tracking-tight">SistemIA Prompt</span>
       </div>
 
-      {/* Ações */}
-      <div className="flex items-center gap-3">
+      {/* Centro — seletor de agente quando no editor */}
+      <div className="flex-1 flex items-center justify-center px-4">
+        {center}
+      </div>
 
-        {/* Tema */}
+      {/* Ações */}
+      <div className="flex items-center gap-3 flex-shrink-0">
         <button
           onClick={onToggleTheme}
           title={isDark ? 'Modo claro' : 'Modo escuro'}
@@ -24,8 +27,6 @@ export default function TopNav({ isDark, onToggleTheme, onLogout }) {
             {isDark ? 'light_mode' : 'dark_mode'}
           </span>
         </button>
-
-        {/* Sair */}
         <button
           onClick={onLogout}
           title="Sair"
@@ -33,7 +34,6 @@ export default function TopNav({ isDark, onToggleTheme, onLogout }) {
         >
           <span className="material-symbols-outlined text-[20px]">logout</span>
         </button>
-
       </div>
     </nav>
   )

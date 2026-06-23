@@ -910,6 +910,23 @@ export default function App() {
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
         onLogout={handleLogout}
+        center={(view === 'editor' || view === 'editor-v2') ? (
+          <AgentSelectorBar
+            agents={agents}
+            loadedAgentId={loadedAgentId}
+            currentName={config.agentName}
+            view={view}
+            onLoad={handleLoadAgent}
+            onNew={handleNewPrompt}
+            onSave={handleSaveToDatabase}
+            onSaveAs={() => setShowSaveModal(true)}
+            isSaving={isSaving}
+            saveStatus={saveStatus}
+            isDirty={isDirty}
+            isSupabaseConfigured={isSupabaseConfigured}
+            generatedPrompt={generatedPrompt}
+          />
+        ) : null}
       />
 
       <div className="flex h-screen pt-16">
@@ -929,29 +946,7 @@ export default function App() {
           {(view === 'editor' || view === 'editor-v2') && (
             <div className="h-full grid grid-cols-12 overflow-hidden">
               {/* Painel Central — Editor */}
-              <div className="col-span-8 h-full flex flex-col border-r border-outline-variant">
-                {/* Barra fixa: seletor de agente + salvar */}
-                <div className="flex-shrink-0 px-6 py-3 border-b border-outline-variant" style={{ background: 'var(--color-background)' }}>
-                  <div className="max-w-3xl mx-auto">
-                    <AgentSelectorBar
-                      agents={agents}
-                      loadedAgentId={loadedAgentId}
-                      currentName={config.agentName}
-                      view={view}
-                      onLoad={handleLoadAgent}
-                      onNew={handleNewPrompt}
-                      onSave={handleSaveToDatabase}
-                      onSaveAs={() => setShowSaveModal(true)}
-                      isSaving={isSaving}
-                      saveStatus={saveStatus}
-                      isDirty={isDirty}
-                      isSupabaseConfigured={isSupabaseConfigured}
-                      generatedPrompt={generatedPrompt}
-                    />
-                  </div>
-                </div>
-                {/* Conteúdo rolável */}
-                <div className="flex-1 overflow-y-auto p-6">
+              <div className="col-span-8 h-full overflow-y-auto p-6 border-r border-outline-variant">
                 <div className="max-w-3xl mx-auto space-y-4 pb-24">
 
                   {hasAttemptedGenerate && criticalCount > 0 && (
@@ -1234,8 +1229,7 @@ export default function App() {
                     onHistoryChange={setHistory}
                   />
                 </div>
-                </div>{/* fim overflow-y-auto */}
-              </div>{/* fim col-span-8 flex-col */}
+              </div>
 
               {/* Painel Direito — Validator + State Machine + Campos */}
               <aside className="col-span-4 h-full bg-surface-container-low flex flex-col overflow-hidden">
