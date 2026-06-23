@@ -42,7 +42,7 @@ export default function handler(req, res) {
   const { username, password } = req.body || {}
 
   const expectedUser = process.env.AUTH_USERNAME || 'master'
-  const expectedPass = process.env.AUTH_PASSWORD || 'SistemIA@Prompt#2025'
+  const expectedPass = process.env.AUTH_PASSWORD || '123123@!'
 
   // Comparação em tempo constante para evitar timing attacks
   const userOk = username && crypto.timingSafeEqual(
