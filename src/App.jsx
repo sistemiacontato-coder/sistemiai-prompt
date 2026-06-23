@@ -1237,7 +1237,7 @@ export default function App() {
                 </div>{/* fim overflow-y-auto */}
               </div>{/* fim col-span-8 flex-col */}
 
-              {/* Painel Direito — Validator + State Machine */}
+              {/* Painel Direito — Validator + State Machine + Campos */}
               <aside className="col-span-4 h-full bg-surface-container-low flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto p-5 space-y-6">
                   <div className="bg-surface-container border border-outline-variant rounded p-4">
@@ -1246,6 +1246,66 @@ export default function App() {
                   <div className="bg-surface-container border border-outline-variant rounded p-4">
                     <StateMachineMap exitDestinations={config.exitDestinations} />
                   </div>
+                  {/* Campos personalizados capturados */}
+                  {config.variables?.filter(v => v.name?.trim()).length > 0 && (
+                    <div className="bg-surface-container border border-outline-variant rounded overflow-hidden">
+                      <div className="flex items-center gap-2 px-4 py-3 border-b border-outline-variant/50"
+                           style={{ background: 'var(--color-surface-container-high)' }}>
+                        <span className="material-symbols-outlined text-secondary/70 text-[16px]">database</span>
+                        <span className="text-[10px] font-mono font-semibold text-on-surface-variant/60 tracking-wider uppercase">
+                          Campos Capturados
+                        </span>
+                        <span className="ml-auto text-[9px] font-mono text-on-surface-variant/40 bg-outline-variant/20 px-1.5 py-0.5 rounded">
+                          {config.variables.filter(v => v.name?.trim()).length}
+                        </span>
+                      </div>
+                      <div className="divide-y divide-outline-variant/20">
+                        {config.variables.filter(v => v.name?.trim()).map(v => {
+                          const isEnum = v.type === 'enum'
+                          const opts = isEnum ? (v.options || '').split('\n').map(l => l.trim()).filter(Boolean) : []
+                          return (
+                            <div key={v.id} className="px-4 py-3 flex items-start gap-3">
+                              <div className="mt-0.5 flex-shrink-0 w-6 h-6 rounded flex items-center justify-center"
+                                   style={{ background: isEnum ? 'rgba(var(--color-tertiary)/0.12)' : 'rgba(var(--color-secondary)/0.12)' }}>
+                                <span className="material-symbols-outlined text-[13px]"
+                                      style={{ color: isEnum ? 'rgb(var(--color-tertiary))' : 'rgb(var(--color-secondary))' }}>
+                                  {isEnum ? 'list' : 'text_fields'}
+                                </span>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <code className="text-[11px] font-mono font-semibold text-primary">{v.name}</code>
+                                  <span className="text-[8px] font-mono uppercase tracking-wider px-1 py-0.5 rounded"
+                                        style={{
+                                          background: isEnum ? 'rgba(var(--color-tertiary)/0.12)' : 'rgba(var(--color-secondary)/0.12)',
+                                          color: isEnum ? 'rgb(var(--color-tertiary))' : 'rgb(var(--color-secondary))'
+                                        }}>
+                                    {isEnum ? 'enum' : 'texto'}
+                                  </span>
+                                </div>
+                                {isEnum && opts.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {opts.slice(0, 6).map((o, i) => (
+                                      <span key={i} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-outline-variant/30 text-on-surface-variant/70">
+                                        {o}
+                                      </span>
+                                    ))}
+                                    {opts.length > 6 && (
+                                      <span className="text-[9px] font-mono text-on-surface-variant/40">+{opts.length - 6}</span>
+                                    )}
+                                  </div>
+                                ) : v.description ? (
+                                  <p className="text-[10px] font-mono text-on-surface-variant/55 leading-snug line-clamp-2">
+                                    {v.description}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </aside>
             </div>
