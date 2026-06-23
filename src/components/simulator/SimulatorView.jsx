@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { runTestSuite, runTestCase, refineConfigWithFeedback } from '../../lib/promptTuner'
 import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
@@ -149,6 +150,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   }, [promptSource, historyList, generatedPrompt])
 
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
+  const [promptModalOpen, setPromptModalOpen] = useState(false)
+  const [promptCopied, setPromptCopied] = useState(false)
   const [presets, setPresets] = useState(() => {
     const saved = localStorage.getItem('pm-test-presets')
     if (saved) {
@@ -311,6 +314,9 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const handleModelChange = (newModel) => {
     setModel(newModel)
     setConfig(prev => ({ ...prev, testModel: newModel }))
+    if (activePresetId) {
+      setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, model: newModel } : p))
+    }
   }
 
   // Usa exatamente o que está configurado em Configurações — sem nenhum valor pré-definido
@@ -661,74 +667,80 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const handleApplyAdjustments = async (adjustments) => {
     if (!adjustments) return
 
-    setConfig(prev => {
-      let variables = [...prev.variables]
-      let exitDestinations = [...prev.exitDestinations]
+    const isAuto = Boolean(autoRefineResult)
+    const logAction = isAuto ? 'Ajuste automático (simulador)' : 'Ajuste manual (simulador)'
 
-      // Atualizar variáveis
-      if (adjustments.update_variables) {
-        adjustments.update_variables.forEach(uv => {
-          variables = variables.map(v => 
-            v.name === uv.name ? { ...v, description: uv.description } : v
-          )
-        })
-      }
+    // Agente alvo: o carregado no editor OU o selecionado no dropdown de teste
+    const targetId = loadedAgentId || (promptSource !== 'current' ? promptSource : null)
 
-      // Atualizar saídas
-      if (adjustments.update_exits) {
-        adjustments.update_exits.forEach(ue => {
-          exitDestinations = exitDestinations.map(e => 
-            e.key === ue.key ? { ...e, description: ue.description, exitMessage: ue.exitMessage || e.exitMessage } : e
-          )
-        })
-      }
-
-      const nextConfig = {
-        ...prev,
-        agentPersona: adjustments.agentPersona || prev.agentPersona,
-        domain: adjustments.domain || prev.domain,
-        variables,
-        exitDestinations
-      }
-
-      // Regenerar o prompt compilado e salvar snapshot no histórico
-      setTimeout(async () => {
-        const nextPrompt = buildPrompt(nextConfig)
-        setGeneratedPrompt(nextPrompt)
-
-        // Salva automaticamente no histórico indicando alteração via simulador
-        const isAuto = Boolean(autoRefineResult)
-        const desc = isAuto 
-          ? "Ajuste via Simulador - Correção de testes em lote" 
-          : "Ajuste via Simulador - Refinamento manual de chat"
-
-        try {
-          saveSnapshot({ config: nextConfig, prompt: nextPrompt, description: desc })
-          setHistoryList(loadHistory())
-
-          if (isSupabaseConfigured) {
-            if (loadedAgentId) {
-              const currentLogs = agents.find(a => a.id === loadedAgentId)?.logs || []
-              const logAction = isAuto ? 'Ajuste automático (simulador)' : 'Ajuste manual (simulador)'
-              const data = await updateAgent(loadedAgentId, { config: nextConfig, generatedPrompt: nextPrompt, logs: currentLogs, logAction })
-              onAgentUpdated?.(data)
-            } else {
-              await deployAgent({ config: nextConfig, generatedPrompt: nextPrompt, logs: [makeLogEntry(isAuto ? 'Ajuste automático (simulador)' : 'Ajuste manual (simulador)')] })
-            }
-          }
-        } catch (err) {
-          console.error('Erro ao salvar snapshot automático do simulador:', err)
+    // Config base: se testando agente da lista (não "current"), usa a config dele
+    let baseConfig = config
+    if (promptSource !== 'current') {
+      const testedAgent = agents.find(a => a.id?.toString() === promptSource?.toString())
+      if (testedAgent) {
+        baseConfig = {
+          agentName:        testedAgent.agent_name || '',
+          agentPersona:     testedAgent.agent_persona || '',
+          domain:           testedAgent.domain || '',
+          variables:        testedAgent.variables || [],
+          exitDestinations: testedAgent.exit_destinations || [],
+          maxAttempts:      testedAgent.max_attempts || 3,
         }
-      }, 50)
+      }
+    }
 
-      return nextConfig
-    })
+    let variables = [...(baseConfig.variables || [])]
+    let exitDestinations = [...(baseConfig.exitDestinations || [])]
 
-    await showDialog({ type: 'alert', message: 'Configurações e prompt atualizados com sucesso com base nas correções do Simulador!' })
+    if (adjustments.update_variables) {
+      adjustments.update_variables.forEach(uv => {
+        variables = variables.map(v => v.name === uv.name ? { ...v, description: uv.description } : v)
+      })
+    }
+    if (adjustments.update_exits) {
+      adjustments.update_exits.forEach(ue => {
+        exitDestinations = exitDestinations.map(e =>
+          e.key === ue.key ? { ...e, description: ue.description, exitMessage: ue.exitMessage || e.exitMessage } : e
+        )
+      })
+    }
+
+    const nextConfig = {
+      ...baseConfig,
+      agentPersona: adjustments.agentPersona || baseConfig.agentPersona || '',
+      domain:       adjustments.domain       || baseConfig.domain       || '',
+      variables,
+      exitDestinations,
+    }
+
+    const nextPrompt = buildPrompt(nextConfig)
+
+    // Aplica no editor
+    setConfig(nextConfig)
+    setGeneratedPrompt(nextPrompt)
+
+    // Salva snapshot local
+    try { saveSnapshot({ config: nextConfig, prompt: nextPrompt, description: logAction }) } catch (_) {}
+
+    // Salva no Supabase
+    let saveMsg = 'Prompt ajustado, mas nenhum agente identificado para salvar no banco.'
+    if (isSupabaseConfigured && targetId) {
+      try {
+        const currentLogs = agents.find(a => a.id === targetId)?.logs || []
+        const data = await updateAgent(targetId, { config: nextConfig, generatedPrompt: nextPrompt, logs: currentLogs, logAction })
+        onAgentUpdated?.(data)
+        saveMsg = 'Prompt ajustado e salvo! Pode continuar testando.'
+      } catch (err) {
+        console.error('Erro ao salvar ajuste no Supabase:', err)
+        saveMsg = `Falha ao salvar no banco: ${err.message}`
+      }
+    }
+
+    await showDialog({ type: 'alert', message: saveMsg })
     setManualRefineResult(null)
     setAutoRefineResult(null)
     setSuiteResults(null)
-    setPromptSource('current') // Sempre muda a origem do prompt de volta para o rascunho atual com as novas alterações aplicadas!
+    setPromptSource('current')
     handleResetManual()
   }
 
@@ -893,7 +905,13 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
               max="1"
               step="0.01"
               value={temperature}
-              onChange={e => setTemperature(parseFloat(e.target.value))}
+              onChange={e => {
+                const t = parseFloat(e.target.value)
+                setTemperature(t)
+                if (activePresetId) {
+                  setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, temperature: t } : p))
+                }
+              }}
               className="w-full accent-secondary"
             />
           </div>
@@ -919,7 +937,11 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
               onChange={e => setPromptSource(e.target.value)}
               className="w-full bg-surface border border-outline-variant rounded px-2 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
             >
-              <option value="current">Rascunho Atual do Editor</option>
+              <option value="current">
+                {loadedAgentId
+                  ? `${agents.find(a => a.id === loadedAgentId)?.agent_name || 'Agente atual'} (ativo)`
+                  : 'Rascunho Atual do Editor'}
+              </option>
               {historyList.map(h => (
                 <option key={h.id} value={h.id}>
                   {h.description}
@@ -932,12 +954,22 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
             <div className="rounded border border-outline-variant/40 bg-surface/80 p-2 space-y-1">
               <div className="flex justify-between items-center text-[9px] font-mono text-on-surface-variant/60">
                 <span className="uppercase">Visualizar Prompt</span>
-                <span>{activePromptText.length} chars</span>
+                <div className="flex items-center gap-2">
+                  <span>{activePromptText.length} chars</span>
+                  <button
+                    onClick={() => setPromptModalOpen(true)}
+                    title="Ver prompt completo"
+                    className="hover:text-primary transition-colors flex items-center"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>open_in_full</span>
+                  </button>
+                </div>
               </div>
               <textarea
                 readOnly
                 value={activePromptText}
-                className="w-full h-20 bg-transparent text-[10px] font-mono text-on-surface-variant/80 focus:outline-none resize-none border-0 p-0 scrollbar-thin"
+                className="w-full bg-transparent text-[10px] font-mono text-on-surface-variant/80 focus:outline-none resize-y border-0 p-0 scrollbar-thin"
+                style={{ minHeight: 80, maxHeight: 480 }}
               />
             </div>
           )}
@@ -1246,8 +1278,15 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                   <button
                     onClick={handleRefineManual}
                     disabled={isRefiningManual}
-                    className="px-4 py-1.5 text-[10px] font-mono font-bold bg-tertiary text-on-tertiary rounded shadow hover:opacity-90 active:scale-95 disabled:opacity-40 whitespace-nowrap"
+                    className={`px-4 py-1.5 text-[10px] font-mono font-bold rounded shadow whitespace-nowrap flex items-center gap-1.5 transition-all
+                      ${isRefiningManual
+                        ? 'bg-tertiary text-on-tertiary animate-pulse cursor-wait scale-[1.03] shadow-lg shadow-tertiary/40'
+                        : 'bg-tertiary text-on-tertiary hover:opacity-90 active:scale-95'
+                      }`}
                   >
+                    {isRefiningManual && (
+                      <span className="material-symbols-outlined animate-spin" style={{ fontSize: 12 }}>progress_activity</span>
+                    )}
                     {isRefiningManual ? 'Ajustando...' : 'REPROCESSAR PROMPT'}
                   </button>
                 </div>
@@ -1516,6 +1555,57 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
           </div>
         )}
       </main>
+
+      {/* Modal de prompt completo */}
+      {promptModalOpen && createPortal(
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => setPromptModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-3xl bg-surface-container border border-outline-variant rounded-xl shadow-2xl flex flex-col"
+            style={{ maxHeight: '90vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant flex-shrink-0">
+              <div>
+                <p className="text-sm font-semibold text-on-surface">Prompt Completo</p>
+                <p className="text-[10px] font-mono text-on-surface-variant/50 mt-0.5">
+                  {activePromptText.length.toLocaleString('pt-BR')} caracteres
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(activePromptText)
+                    setPromptCopied(true)
+                    setTimeout(() => setPromptCopied(false), 2000)
+                  }}
+                  title="Copiar prompt"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all ${promptCopied ? 'border-secondary/50 text-secondary' : 'border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary'}`}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: 14 }}>{promptCopied ? 'check' : 'content_copy'}</span>
+                  {promptCopied ? 'Copiado!' : 'Copiar'}
+                </button>
+                <button
+                  onClick={() => setPromptModalOpen(false)}
+                  className="p-1.5 rounded text-on-surface-variant hover:text-on-surface transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+            </div>
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5">
+              <pre className="text-[11px] font-mono text-on-surface/80 leading-relaxed whitespace-pre-wrap">
+                {activePromptText}
+              </pre>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* --- COLUNA DIREITA: INSPEÇÃO DE ESTADO E LOGS (3/12) --- */}
       <aside className="col-span-3 h-full border-l border-outline-variant flex flex-col overflow-y-auto p-4 space-y-5"

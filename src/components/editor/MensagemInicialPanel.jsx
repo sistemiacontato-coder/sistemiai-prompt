@@ -65,7 +65,29 @@ function FieldSection({ icon, title, subtitle, accentColor = 'primary', children
   )
 }
 
+async function gerarTextoFixo(config, aiConfig) {
+  const temNome = (config.variables || []).some(v => ['nome_cliente', 'nome'].includes(v.name?.toLowerCase()))
+  const prompt = `Você é especialista em BotConversa. Gere a "Mensagem para o Contato" para o agente abaixo.
+Esta é a primeira mensagem enviada ao usuário quando a conversa começa — visível ao usuário.
+
+AGENTE: ${config.agentName || 'Assistente Virtual'}
+${config.agentPersona ? `PERSONA: ${config.agentPersona}` : ''}
+OBJETIVO: ${config.domain || '(não informado)'}
+
+REGRAS:
+- Saudação cordial e acolhedora
+${temNome ? '- Use {primeiro-nome} para personalizar (o BotConversa injeta automaticamente)' : ''}
+- Apresente brevemente o que o agente pode fazer
+- Convide o usuário a iniciar
+- Máximo 2 frases curtas e naturais
+- Não use asteriscos, markdown ou formatação especial
+- Retorne APENAS o texto da mensagem, sem aspas, sem explicações`
+
+  return callAI(prompt, aiConfig)
+}
+
 export default function MensagemInicialPanel({ config, mensagemInicial, setMensagemInicial, aiConfig }) {
+  const [isGeneratingTexto, setIsGeneratingTexto] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [genError, setGenError] = useState('')
 
@@ -75,6 +97,20 @@ export default function MensagemInicialPanel({ config, mensagemInicial, setMensa
   const handleAutoInstrucoes = () => {
     const sugestao = autoInstrucoesFromVars(config.variables || [])
     set('instrucoesIndividuais', sugestao || '')
+  }
+
+  const handleGerarTextoFixo = async () => {
+    if (!aiConfig?.apiKey) { setGenError('Configure a chave de IA em Configurações.'); return }
+    setIsGeneratingTexto(true)
+    setGenError('')
+    try {
+      const texto = await gerarTextoFixo(config, aiConfig)
+      set('textoFixo', texto.trim())
+    } catch (e) {
+      setGenError(e.message)
+    } finally {
+      setIsGeneratingTexto(false)
+    }
   }
 
   const handleGerarPreInstrucao = async () => {
@@ -110,7 +146,6 @@ export default function MensagemInicialPanel({ config, mensagemInicial, setMensa
             Configure como o agente inicia a conversa no BotConversa
           </p>
         </div>
-        <span className="label-caps text-[9px] text-on-surface-variant/40 border border-outline-variant px-2 py-0.5 rounded">V2</span>
       </div>
 
       <div className="p-5 space-y-4">
@@ -122,10 +157,35 @@ export default function MensagemInicialPanel({ config, mensagemInicial, setMensa
           subtitle="Texto fixo enviado ao usuário no início. Deixe vazio se a I.A. vai gerar a primeira mensagem."
           accentColor="secondary"
         >
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex flex-wrap gap-1">
+              {BC_VARS.slice(0, 4).map(v => (
+                <button key={v.tag} type="button"
+                  onClick={() => set('textoFixo', (textoFixo ? textoFixo + ' ' : '') + v.tag)}
+                  className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-outline-variant/60 text-on-surface-variant/60 hover:text-secondary hover:border-secondary/50 transition-all">
+                  {v.tag}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={handleGerarTextoFixo}
+              disabled={!isGeneratingTexto && !aiConfig?.apiKey}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-mono font-semibold transition-all flex-shrink-0 ml-2
+                ${isGeneratingTexto
+                  ? 'animate-pulse scale-[1.02] cursor-wait'
+                  : 'hover:opacity-75 disabled:opacity-30 disabled:cursor-not-allowed'}`}
+              style={isGeneratingTexto
+                ? { border: '1px solid rgba(99,102,241,0.6)', color: '#fff', background: '#6366f1', boxShadow: '0 0 12px rgba(99,102,241,0.35)' }
+                : { color: 'rgb(var(--color-secondary))' }
+              }>
+              {isGeneratingTexto
+                ? <><span className="material-symbols-outlined animate-spin" style={{ fontSize: 12 }}>progress_activity</span> Gerando...</>
+                : <><span className="material-symbols-outlined" style={{ fontSize: 12 }}>auto_awesome</span> Gerar com I.A.</>}
+            </button>
+          </div>
           <textarea
             value={textoFixo}
             onChange={e => set('textoFixo', e.target.value)}
-            placeholder="Ex: Olá! Seja bem-vindo. Como posso ajudar?"
+            placeholder="Ex: Olá, {primeiro-nome}! Seja bem-vindo. Como posso ajudar?"
             rows={3}
             className="w-full rounded border border-outline-variant px-3 py-2 text-xs font-mono text-on-surface focus:outline-none focus:border-secondary resize-none"
             style={{ background: 'var(--color-surface-container)' }}
@@ -178,8 +238,15 @@ export default function MensagemInicialPanel({ config, mensagemInicial, setMensa
         >
           <div className="flex items-center justify-end mb-1.5">
             <button type="button" onClick={handleGerarPreInstrucao}
-              disabled={isGenerating || !aiConfig?.apiKey}
-              className="flex items-center gap-1 text-[9px] font-mono text-primary hover:opacity-75 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed">
+              disabled={!isGenerating && !aiConfig?.apiKey}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded text-[9px] font-mono font-semibold transition-all
+                ${isGenerating
+                  ? 'animate-pulse scale-[1.02] cursor-wait'
+                  : 'hover:opacity-75 disabled:opacity-30 disabled:cursor-not-allowed'}`}
+              style={isGenerating
+                ? { border: '1px solid rgba(99,102,241,0.6)', color: '#fff', background: '#6366f1', boxShadow: '0 0 12px rgba(99,102,241,0.35)' }
+                : { color: 'rgb(var(--color-primary))' }
+              }>
               {isGenerating
                 ? <><span className="material-symbols-outlined animate-spin" style={{ fontSize: 12 }}>progress_activity</span> Gerando...</>
                 : <><span className="material-symbols-outlined" style={{ fontSize: 12 }}>auto_awesome</span> Gerar com I.A.</>}

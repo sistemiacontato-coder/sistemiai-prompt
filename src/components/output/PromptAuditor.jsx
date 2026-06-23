@@ -305,9 +305,16 @@ function IssueRow({ issue, idx, onApplyFix, onDismiss }) {
                 </button>
                 <button
                   onClick={handleSend}
-                  disabled={!fixText.trim() || sending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110"
-                  style={{ border: `1.5px solid ${s.border}`, color: s.color, background: s.bg }}
+                  disabled={!fixText.trim() && !sending}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-mono font-semibold transition-all
+                    ${sending
+                      ? 'animate-pulse scale-[1.03] cursor-wait'
+                      : 'active:scale-95 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed'
+                    }`}
+                  style={sending
+                    ? { border: `1.5px solid ${s.color}`, color: '#fff', background: s.color, boxShadow: `0 0 14px ${s.border}` }
+                    : { border: `1.5px solid ${s.border}`, color: s.color, background: s.bg }
+                  }
                 >
                   {sending
                     ? <><span className="material-symbols-outlined animate-spin" style={{ fontSize: 13 }}>progress_activity</span>Enviando...</>
@@ -357,10 +364,28 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
 
   if (isAuditing) {
     return (
-      <div className="flex items-center gap-3 px-5 py-4 rounded-lg border border-outline-variant/50"
-           style={{ background: 'var(--color-surface-container-high)' }}>
-        <span className="material-symbols-outlined animate-spin text-on-surface-variant/50" style={{ fontSize: 18 }}>progress_activity</span>
-        <p className="text-[11px] font-mono text-on-surface-variant/50">Analisando o prompt em busca de problemas...</p>
+      <div
+        className="flex items-center gap-3 px-5 py-4 rounded-lg border animate-pulse"
+        style={{
+          borderColor: 'rgba(99,102,241,0.5)',
+          background: 'linear-gradient(90deg, rgba(99,102,241,0.08), rgba(139,92,246,0.08))',
+          boxShadow: '0 0 16px rgba(99,102,241,0.15)',
+        }}
+      >
+        <span
+          className="material-symbols-outlined animate-spin flex-shrink-0"
+          style={{ fontSize: 20, color: '#818cf8' }}
+        >
+          progress_activity
+        </span>
+        <div>
+          <p className="text-[12px] font-mono font-semibold" style={{ color: '#818cf8' }}>
+            Analisando o prompt...
+          </p>
+          <p className="text-[10px] font-mono" style={{ color: 'rgba(129,140,248,0.7)' }}>
+            Procurando problemas e oportunidades de melhoria
+          </p>
+        </div>
       </div>
     )
   }

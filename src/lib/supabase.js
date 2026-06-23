@@ -13,8 +13,10 @@ const supabaseDirect = (SUPABASE_URL && SUPABASE_KEY)
 // Em produção o proxy sempre está disponível; em dev depende das vars
 export const isSupabaseConfigured = IS_PROD || Boolean(SUPABASE_URL && SUPABASE_KEY)
 
-export function makeLogEntry(action) {
-  return { at: new Date().toISOString(), action }
+export function makeLogEntry(action, prompt = '') {
+  const entry = { at: new Date().toISOString(), action }
+  if (prompt) entry.prompt = prompt
+  return entry
 }
 
 // ── Salva um agente ──────────────────────────────────────────────────────────
@@ -27,7 +29,7 @@ export async function deployAgent({ config, generatedPrompt, logs = [] }) {
     exit_destinations: config.exitDestinations,
     max_attempts:      config.maxAttempts,
     generated_prompt:  generatedPrompt,
-    logs:              [...logs, makeLogEntry('Agente criado')],
+    logs:              [...logs, makeLogEntry('Agente criado', generatedPrompt)],
     created_at:        new Date().toISOString(),
   }
 
@@ -90,7 +92,7 @@ export async function updateAgent(id, { config, generatedPrompt, logs = [], logA
     exit_destinations: config.exitDestinations,
     max_attempts:      config.maxAttempts,
     generated_prompt:  generatedPrompt,
-    logs:              [...logs, makeLogEntry(logAction)],
+    logs:              [...logs, makeLogEntry(logAction, generatedPrompt)],
   }
 
   if (IS_PROD) {

@@ -1,23 +1,16 @@
-import { isSupabaseConfigured } from '../lib/supabase'
-
-export default function TopNav({ isDark, onToggleTheme, onLogout, center }) {
+export default function TopNav({ isDark, onToggleTheme, onLogout }) {
   return (
-    <nav className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant flex items-center h-16 px-6 gap-4">
+    <nav className="fixed top-0 w-full z-40 bg-surface border-b border-outline-variant flex items-center justify-between h-16 px-6">
       {/* Logo */}
-      <div className="flex items-center gap-3 flex-shrink-0">
+      <div className="flex items-center gap-3">
         <div className="w-8 h-8 bg-primary-container rounded flex items-center justify-center">
           <span className="material-symbols-outlined text-on-primary-container text-[18px]">psychology</span>
         </div>
         <span className="text-primary font-bold text-lg tracking-tight">SistemIA Prompt</span>
       </div>
 
-      {/* Centro — seletor de agente quando no editor */}
-      <div className="flex-1 flex items-center justify-center px-4">
-        {center}
-      </div>
-
       {/* Ações */}
-      <div className="flex items-center gap-3 flex-shrink-0">
+      <div className="flex items-center gap-3">
         <button
           onClick={onToggleTheme}
           title={isDark ? 'Modo claro' : 'Modo escuro'}

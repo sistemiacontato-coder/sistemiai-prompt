@@ -31,7 +31,7 @@ const SETTINGS_DEFAULT = {
   communicationRules: true,
 }
 
-function AgentSelectorBar({ agents, loadedAgentId, currentName, view, onLoad, onNew, onSave, onSaveAs, isSaving, saveStatus, isDirty, isSupabaseConfigured, generatedPrompt }) {
+function AgentSelectorBar({ agents, loadedAgentId, currentName, view, onLoad, onSave, onSaveAs, onSimulate, onNew, isSaving, saveStatus, isDirty, isSupabaseConfigured }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -46,87 +46,111 @@ function AgentSelectorBar({ agents, loadedAgentId, currentName, view, onLoad, on
     ? (agents.find(a => a.id === loadedAgentId)?.agent_name || currentName || 'Agente')
     : (currentName || 'Novo agente')
 
+  const saveLabel = isSaving ? 'Salvando...'
+    : saveStatus === 'ok' ? 'Salvo!'
+    : saveStatus === 'error' ? 'Erro'
+    : loadedAgentId ? 'Atualizar'
+    : 'Salvar novo prompt'
+
+  const saveIcon = isSaving ? 'progress_activity'
+    : saveStatus === 'ok' ? 'check_circle'
+    : saveStatus === 'error' ? 'error'
+    : loadedAgentId ? 'save' : 'cloud_upload'
+
+  const saveBtnStyle = isSaving
+    ? { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
+    : saveStatus === 'ok'
+    ? { borderColor: 'rgba(74,222,128,0.6)', color: '#4ade80', background: 'rgba(74,222,128,0.07)' }
+    : saveStatus === 'error'
+    ? { borderColor: 'rgba(248,113,113,0.6)', color: '#f87171' }
+    : isDirty
+    ? { borderColor: 'rgba(251,146,60,0.7)', color: '#fb923c', background: 'rgba(251,146,60,0.10)', boxShadow: '0 0 8px rgba(251,146,60,0.25)' }
+    : { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
+
   return (
-    <div className="flex items-center gap-3">
-      {/* Seletor de agente */}
+    <div className="flex items-center justify-between">
+      {/* Seletor — alinhado à esquerda */}
       <div className="relative" ref={ref}>
         <button
           onClick={() => setOpen(o => !o)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded border border-outline-variant bg-surface-container hover:border-primary/50 transition-colors text-left"
-          style={{ minWidth: 160, maxWidth: 260 }}
+          className="flex items-center gap-2 px-3 py-1.5 rounded border border-outline-variant bg-surface-container hover:border-primary/50 transition-colors"
+          style={{ minWidth: 150 }}
         >
           <span className="material-symbols-outlined text-primary/70 text-[15px] flex-shrink-0">smart_toy</span>
-          <span className="text-[11px] font-mono font-semibold text-on-surface truncate flex-1">{label}</span>
+          <span className="text-[11px] font-mono font-semibold text-on-surface">{label}</span>
           <span className="material-symbols-outlined text-on-surface-variant/50 text-[14px] flex-shrink-0">{open ? 'expand_less' : 'expand_more'}</span>
         </button>
 
         {open && (
           <div className="absolute top-full left-0 mt-1 w-72 bg-surface-container border border-outline-variant rounded-lg shadow-xl z-50 overflow-hidden">
+            {/* Novo agente */}
             <button
-              onClick={() => { onNew(); setOpen(false) }}
-              className="w-full flex items-center gap-2 px-3 py-2.5 text-[11px] font-mono text-secondary hover:bg-secondary/10 transition-colors border-b border-outline-variant"
+              onClick={() => { onNew?.(); setOpen(false) }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 text-left text-[11px] font-mono transition-colors hover:bg-secondary/10 text-secondary border-b border-outline-variant/40"
             >
-              <span className="material-symbols-outlined text-[15px]">add</span>
-              Novo agente
+              <span className="material-symbols-outlined text-[14px] flex-shrink-0">add_circle</span>
+              <span className="font-semibold">Novo agente</span>
             </button>
+            <div className="px-3 py-1.5 border-b border-outline-variant/30">
+              <p className="text-[9px] font-mono uppercase tracking-wider text-on-surface-variant/40">Agentes salvos</p>
+            </div>
             <div className="max-h-64 overflow-y-auto">
-              {agents.length === 0 && (
-                <p className="text-[11px] font-mono text-on-surface-variant/50 px-3 py-3">Nenhum agente salvo.</p>
-              )}
-              {agents.map(a => (
-                <button
-                  key={a.id}
-                  onClick={() => { onLoad(a, view); setOpen(false) }}
-                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-[11px] font-mono transition-colors hover:bg-primary/10 ${a.id === loadedAgentId ? 'text-primary bg-primary/5' : 'text-on-surface'}`}
-                >
-                  <span className="material-symbols-outlined text-[14px] text-on-surface-variant/50 flex-shrink-0">
-                    {a.id === loadedAgentId ? 'radio_button_checked' : 'radio_button_unchecked'}
-                  </span>
-                  <span className="truncate">{a.agent_name}</span>
-                </button>
-              ))}
+              {agents.length === 0
+                ? <p className="text-[11px] font-mono text-on-surface-variant/50 px-3 py-3">Nenhum agente salvo.</p>
+                : agents.map(a => (
+                  <button
+                    key={a.id}
+                    onClick={() => { onLoad(a, view); setOpen(false) }}
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-[11px] font-mono transition-colors hover:bg-primary/10 ${a.id === loadedAgentId ? 'text-primary bg-primary/5' : 'text-on-surface'}`}
+                  >
+                    <span className="material-symbols-outlined text-[14px] text-on-surface-variant/50 flex-shrink-0">
+                      {a.id === loadedAgentId ? 'radio_button_checked' : 'radio_button_unchecked'}
+                    </span>
+                    <span className="truncate">{a.agent_name}</span>
+                  </button>
+                ))
+              }
             </div>
           </div>
         )}
       </div>
 
-      {/* Botões de salvar — sempre visíveis quando Supabase configurado */}
-      {isSupabaseConfigured && (
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* Salvar como — sempre cria nova entrada */}
-          {loadedAgentId && isSupabaseConfigured && (
-            <button
-              onClick={onSaveAs}
-              disabled={isSaving}
-              title="Salvar como nova versão"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>save_as</span>
-              Salvar como
-            </button>
-          )}
-          {/* Atualizar / Salvar */}
+      {/* Botões — alinhados à direita */}
+      <div className="flex items-center gap-2">
+        {/* Botão Simular — só aparece quando há agente salvo carregado */}
+        {loadedAgentId && (
           <button
-            onClick={onSave}
-            disabled={isSaving || !isSupabaseConfigured}
-            title={isSupabaseConfigured ? (loadedAgentId ? 'Atualizar' : 'Salvar') : 'Banco offline'}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-            style={
-              isSaving ? { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
-              : saveStatus === 'ok' ? { borderColor: 'rgba(74,222,128,0.6)', color: '#4ade80', background: 'rgba(74,222,128,0.07)' }
-              : saveStatus === 'error' ? { borderColor: 'rgba(248,113,113,0.6)', color: '#f87171' }
-              : isDirty ? { borderColor: 'rgba(251,146,60,0.7)', color: '#fb923c', background: 'rgba(251,146,60,0.10)', boxShadow: '0 0 8px rgba(251,146,60,0.25)' }
-              : { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
-            }
+            onClick={onSimulate}
+            title="Abrir no Simulador"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95"
+            style={{ borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }}
           >
-            <span className={`material-symbols-outlined ${isSaving ? 'animate-spin' : ''}`} style={{ fontSize: 14 }}>
-              {isSaving ? 'progress_activity' : saveStatus === 'ok' ? 'check_circle' : saveStatus === 'error' ? 'error' : loadedAgentId ? 'save' : 'cloud_upload'}
-            </span>
-            {isSaving ? 'Salvando...' : saveStatus === 'ok' ? 'Salvo!' : saveStatus === 'error' ? 'Erro' : loadedAgentId ? 'Atualizar' : 'Salvar'}
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>play_circle</span>
+            Simular
           </button>
-        </div>
-      )}
+        )}
+
+        {isSupabaseConfigured && (
+          <>
+            {loadedAgentId && (
+              <button onClick={onSaveAs} disabled={isSaving}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40"
+                style={{ borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 14 }}>save_as</span>
+                Salvar como
+              </button>
+            )}
+            <button onClick={onSave} disabled={isSaving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40"
+              style={saveBtnStyle}
+            >
+              <span className={`material-symbols-outlined ${isSaving ? 'animate-spin' : ''}`} style={{ fontSize: 14 }}>{saveIcon}</span>
+              {saveLabel}
+            </button>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -369,6 +393,9 @@ export default function App() {
     preInstrucaoIA: '',
   })
   const [pendingFixIssueIdx, setPendingFixIssueIdx] = useState(null)
+  const [lastGeneratedAt, setLastGeneratedAt] = useState(null)
+  const [configChangedAt, setConfigChangedAt] = useState(null)
+  const isPromptStale = !!generatedPrompt && !!configChangedAt && !!lastGeneratedAt && configChangedAt > lastGeneratedAt
   const [dismissedIssueTitles, setDismissedIssueTitles] = useState([])
   const [analyzeOptions, setAnalyzeOptions] = useState({
     includeNomeCliente: true,
@@ -399,6 +426,8 @@ export default function App() {
   )
   const promptRef = useRef(null)
   const skipNextDirtyRef = useRef(false)
+  const skipNextMensagemDirtyRef = useRef(true)
+  const handleGenerateRef = useRef(null)
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => {
@@ -408,12 +437,19 @@ export default function App() {
     })
   }, [])
 
-  // Marca como "tem edições não salvas" quando o usuário edita após ter um agente salvo
-  // (ignora mudanças que vêm de carregar um agente)
+  // Marca dirty em qualquer edição (agente salvo ou novo)
   useEffect(() => {
     if (skipNextDirtyRef.current) { skipNextDirtyRef.current = false; return }
-    if (loadedAgentId) setIsDirty(true)
+    setIsDirty(true)
+    setConfigChangedAt(Date.now())
   }, [config])
+
+  // Marca dirty quando mensagemInicial muda (Instruções Individuais, Pré-mensagem, etc.)
+  useEffect(() => {
+    if (skipNextMensagemDirtyRef.current) { skipNextMensagemDirtyRef.current = false; return }
+    setIsDirty(true)
+    setConfigChangedAt(Date.now())
+  }, [mensagemInicial])
 
   useEffect(() => {
     const html = document.documentElement
@@ -468,10 +504,21 @@ export default function App() {
       const raw = await reviewPromptChanges(instruction, config, aiConfig)
       const changes = filterIdenticalChanges(raw, config)
       setPendingChanges({ ...changes, originalInstruction: instruction })
+    } catch (err) {
+      if (err.message === 'SEM_MUDANCAS' && isPromptStale) {
+        // Info já está na config mas o prompt está desatualizado — regenerar
+        setIsReviewing(false)
+        handleGenerateRef.current?.()
+        return
+      }
+      const msg = err.message === 'SEM_MUDANCAS'
+        ? 'A IA não identificou mudanças necessárias para esta instrução.'
+        : err.message
+      throw new Error(msg)
     } finally {
       setIsReviewing(false)
     }
-  }, [config, aiConfig, filterIdenticalChanges])
+  }, [config, aiConfig, filterIdenticalChanges, isPromptStale])
 
   const handleApplyChanges = useCallback(() => {
     if (!pendingChanges) return
@@ -522,6 +569,8 @@ export default function App() {
     })
 
     setPendingChanges(null)
+    setLastGeneratedAt(Date.now())
+    setConfigChangedAt(null)
 
     // Remove apenas o issue específico que foi corrigido; mantém o restante da auditoria visível
     setPendingFixIssueIdx(prev => {
@@ -737,8 +786,9 @@ export default function App() {
   }, [config])
 
   useEffect(() => {
-    if (view === 'library' || view === 'simulator') loadAgents()
-  }, [view])
+    if (!authed) return
+    if (view === 'library' || view === 'simulator' || view === 'editor' || view === 'editor-v2') loadAgents()
+  }, [view, authed])
 
   const loadAgents = useCallback(async () => {
     if (!isSupabaseConfigured) { setAgents([]); return }
@@ -764,12 +814,16 @@ export default function App() {
       try {
         const prompt = buildPrompt(config, settings)
         setGeneratedPrompt(prompt)
+        const now = Date.now()
+        setLastGeneratedAt(now)
+        setConfigChangedAt(null)
         setTimeout(() => promptRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
       } finally {
         setIsGenerating(false)
       }
     }, 400)
   }, [config, settings])
+  handleGenerateRef.current = handleGenerate
 
   const handleDeleteAgent = useCallback(async (id) => {
     const ok = await showDialog({ type: 'confirm', message: 'Deseja realmente excluir este agente? Esta ação é irreversível.' })
@@ -808,6 +862,10 @@ export default function App() {
     setGeneratedPrompt(agent.generated_prompt || '')
     setLoadedAgentId(agent.id || null)
     setIsDirty(false)
+    setLastGeneratedAt(Date.now())
+    setConfigChangedAt(null)
+    skipNextMensagemDirtyRef.current = true
+    setMensagemInicial({ textoFixo: '', instrucoesIndividuais: '', preInstrucaoIA: '' })
     setAuditResult(null)
     setAnalyzeResult(null)
     setPendingChanges(null)
@@ -816,8 +874,18 @@ export default function App() {
   }, [])
 
   const handleNewPrompt = useCallback(async () => {
-    const ok = await showDialog({ type: 'confirm', message: 'Criar novo prompt? O editor atual será limpo.' })
+    const agentName = loadedAgentId
+      ? (agents.find(a => a.id === loadedAgentId)?.agent_name || config.agentName || 'este agente')
+      : null
+    const message = agentName
+      ? `O editor será limpo para um novo prompt em branco.\n\nO agente "${agentName}" continua salvo na Biblioteca — apenas edições não salvas serão descartadas.`
+      : generatedPrompt
+        ? 'O rascunho atual (não salvo) será descartado. Essa ação não pode ser desfeita.'
+        : 'Iniciar um novo prompt em branco?'
+    const ok = await showDialog({ type: 'confirm', message })
     if (ok) {
+      skipNextDirtyRef.current = true
+      skipNextMensagemDirtyRef.current = true
       setConfig(getDefaultConfig())
       setGeneratedPrompt('')
       setValidationResults([])
@@ -826,9 +894,13 @@ export default function App() {
       setPendingChanges(null)
       setSectionsRevealed(false)
       setLoadedAgentId(null)
+      setIsDirty(false)
+      setLastGeneratedAt(null)
+      setConfigChangedAt(null)
+      setMensagemInicial({ textoFixo: '', instrucoesIndividuais: '', preInstrucaoIA: '' })
       setView('editor')
     }
-  }, [showDialog])
+  }, [showDialog, loadedAgentId, agents, config.agentName, generatedPrompt])
 
   const handleLogout = useCallback(async () => {
     if (isDirty || (generatedPrompt && !loadedAgentId)) {
@@ -911,23 +983,6 @@ export default function App() {
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
         onLogout={handleLogout}
-        center={(view === 'editor' || view === 'editor-v2') ? (
-          <AgentSelectorBar
-            agents={agents}
-            loadedAgentId={loadedAgentId}
-            currentName={config.agentName}
-            view={view}
-            onLoad={handleLoadAgent}
-            onNew={handleNewPrompt}
-            onSave={handleSaveToDatabase}
-            onSaveAs={() => setShowSaveModal(true)}
-            isSaving={isSaving}
-            saveStatus={saveStatus}
-            isDirty={isDirty}
-            isSupabaseConfigured={isSupabaseConfigured}
-            generatedPrompt={generatedPrompt}
-          />
-        ) : null}
       />
 
       <div className="flex h-screen pt-16">
@@ -947,7 +1002,26 @@ export default function App() {
           {(view === 'editor' || view === 'editor-v2') && (
             <div className="h-full grid grid-cols-12 overflow-hidden">
               {/* Painel Central — Editor */}
-              <div className="col-span-8 h-full overflow-y-auto p-6 border-r border-outline-variant">
+              <div className="col-span-8 h-full overflow-y-auto border-r border-outline-variant">
+                {/* Barra sticky: seletor de agente + botões de salvar */}
+                <div className="sticky top-0 z-20 px-6 py-3 border-b border-outline-variant bg-background backdrop-blur-sm">
+                  <AgentSelectorBar
+                    agents={agents}
+                    loadedAgentId={loadedAgentId}
+                    currentName={config.agentName}
+                    view={view}
+                    onLoad={handleLoadAgent}
+                    onSave={handleSaveToDatabase}
+                    onSaveAs={() => setShowSaveModal(true)}
+                    onSimulate={() => setView('simulator')}
+                    onNew={handleNewPrompt}
+                    isSaving={isSaving}
+                    saveStatus={saveStatus}
+                    isDirty={isDirty}
+                    isSupabaseConfigured={isSupabaseConfigured}
+                  />
+                </div>
+                <div className="p-6">
                 <div className="max-w-3xl mx-auto space-y-4 pb-24">
 
                   {hasAttemptedGenerate && criticalCount > 0 && (
@@ -1060,7 +1134,7 @@ export default function App() {
                               ? 'color-mix(in srgb, var(--color-secondary) 8%, transparent)'
                               : 'transparent',
                             color: canAnalyze ? 'var(--color-secondary)' : 'var(--color-on-surface-variant)',
-                            opacity: !hasAIKey || (!isAnalyzing && !config.domain.trim()) ? 0.45 : 1,
+                            opacity: 1,
                             boxShadow: canAnalyze
                               ? '0 4px 16px color-mix(in srgb, var(--color-secondary) 20%, transparent)'
                               : 'none',
@@ -1071,9 +1145,14 @@ export default function App() {
                               <span className="material-symbols-outlined animate-spin" style={{ fontSize: 18 }}>progress_activity</span>
                               <span className="text-[12px] font-mono font-semibold">Analisando objetivo...</span>
                             </>
-                          ) : (
+                          ) : canAnalyze ? (
                             <>
                               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>auto_awesome</span>
+                              <span className="text-[12px] font-mono font-semibold">ANALISAR E GERAR CAMPOS + SAÍDAS</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined" style={{ fontSize: 18 }}>do_not_disturb_on</span>
                               <span className="text-[12px] font-mono font-semibold">ANALISAR E GERAR CAMPOS + SAÍDAS</span>
                             </>
                           )}
@@ -1108,20 +1187,33 @@ export default function App() {
                             </span>
                           </div>
                         )}
-                        {!hasAIKey && (
-                          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-outline-variant/50"
-                               style={{ background: 'var(--color-surface-container-high)' }}>
-                            <span className="material-symbols-outlined text-on-surface-variant/40" style={{ fontSize: 16 }}>manufacturing</span>
-                            <p className="text-[10px] font-mono text-on-surface-variant/50">
-                              Configure uma IA em <span className="text-primary/70 font-semibold">Config IA</span> na barra lateral
-                            </p>
-                          </div>
-                        )}
-                        {hasAIKey && config.domain.trim().length <= 20 && (
-                          <p className="text-[10px] font-mono text-on-surface-variant/35 text-center">
-                            Descreva o objetivo com mais detalhes para habilitar a geração automática
-                          </p>
-                        )}
+                        {/* Requisitos para habilitar o botão */}
+                        {!canAnalyze && !isAnalyzing && (() => {
+                          const domainLen = config.domain.trim().length
+                          const MIN_CHARS = 21
+                          const reasons = []
+                          if (!hasAIKey) reasons.push({ icon: 'key', text: 'Chave de IA não configurada', detail: 'Acesse Config IA na barra lateral e insira sua chave de API.', color: 'error' })
+                          if (hasAIKey && domainLen < MIN_CHARS) reasons.push({ icon: 'edit_note', text: `Objetivo muito curto (${domainLen}/${MIN_CHARS} caracteres)`, detail: `Descreva o que o agente faz com mais detalhes. Faltam ${MIN_CHARS - domainLen} caractere${MIN_CHARS - domainLen !== 1 ? 's' : ''}.`, color: 'tertiary', progress: domainLen / MIN_CHARS })
+                          return (
+                            <div className="space-y-2">
+                              {reasons.map((r, i) => (
+                                <div key={i} className="flex items-start gap-3 px-3 py-3 rounded-lg border"
+                                     style={{ borderColor: `rgb(var(--color-${r.color}) / 0.35)`, background: `rgb(var(--color-${r.color}) / 0.07)` }}>
+                                  <span className="material-symbols-outlined flex-shrink-0 mt-0.5" style={{ fontSize: 16, color: `rgb(var(--color-${r.color}))` }}>{r.icon}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-mono font-semibold" style={{ color: `rgb(var(--color-${r.color}))` }}>{r.text}</p>
+                                    <p className="text-[10px] font-mono text-on-surface-variant/60 mt-0.5 leading-relaxed">{r.detail}</p>
+                                    {r.progress !== undefined && (
+                                      <div className="mt-2 h-1 rounded-full bg-outline-variant/40 overflow-hidden">
+                                        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(r.progress * 100, 100)}%`, background: `rgb(var(--color-${r.color}))` }} />
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()}
 
                         {/* Link para configurar manualmente sem usar IA */}
                         {!sectionsRevealed && (
@@ -1152,22 +1244,57 @@ export default function App() {
 
                       {/* Botão de Geração */}
                       <div className="flex flex-col items-center py-6">
-                        <button
-                          onClick={handleGenerate}
-                          disabled={isGenerating || !canGenerate}
-                          className={`px-12 py-4 rounded font-mono font-bold tracking-widest uppercase text-base
-                            flex items-center gap-4 transition-all active:scale-95 relative overflow-hidden group
-                            ${canGenerate
-                              ? 'bg-primary text-on-primary technical-glow hover:opacity-95'
-                              : 'bg-surface-container-high text-on-surface-variant cursor-not-allowed'
-                            } disabled:opacity-60`}
-                        >
-                          <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <span className="material-symbols-outlined text-[28px]">
-                            {isGenerating ? 'sync' : 'bolt'}
-                          </span>
-                          {isGenerating ? 'COMPILANDO...' : 'GERAR PROMPT'}
-                        </button>
+                        {!generatedPrompt ? (
+                          <button
+                            onClick={handleGenerate}
+                            disabled={isGenerating || !canGenerate}
+                            className={`px-12 py-4 rounded font-mono font-bold tracking-widest uppercase text-base
+                              flex items-center gap-4 transition-all active:scale-95 relative overflow-hidden group
+                              ${canGenerate
+                                ? 'bg-primary text-on-primary technical-glow hover:opacity-95'
+                                : 'bg-surface-container-high text-on-surface-variant cursor-not-allowed'
+                              } disabled:opacity-60`}
+                          >
+                            <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span className="material-symbols-outlined text-[28px]">
+                              {isGenerating ? 'sync' : 'bolt'}
+                            </span>
+                            {isGenerating ? 'COMPILANDO...' : 'GERAR PROMPT'}
+                          </button>
+                        ) : (
+                          isPromptStale ? (
+                            <button
+                              onClick={handleGenerate}
+                              disabled={isGenerating || !canGenerate}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[10px] font-mono font-semibold transition-all active:scale-95 animate-pulse disabled:opacity-40"
+                              style={{
+                                borderColor: 'rgba(251,146,60,0.6)',
+                                color: '#fb923c',
+                                background: 'rgba(251,146,60,0.10)',
+                                boxShadow: '0 0 8px rgba(251,146,60,0.20)',
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+                                {isGenerating ? 'sync' : 'sync_problem'}
+                              </span>
+                              {isGenerating ? 'Regenerando...' : 'Configuração alterada — Regenerar prompt'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={async () => {
+                                const ok = await showDialog({ type: 'confirm', message: 'Regenerar o prompt a partir das configurações atuais?\n\nIsso vai sobrescrever o prompt atual, incluindo edições manuais e ajustes do simulador.' })
+                                if (ok) handleGenerate()
+                              }}
+                              disabled={isGenerating || !canGenerate}
+                              className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/35 hover:text-on-surface-variant/60 transition-colors disabled:opacity-30"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+                                {isGenerating ? 'sync' : 'refresh'}
+                              </span>
+                              {isGenerating ? 'Regenerando...' : 'Regenerar prompt'}
+                            </button>
+                          )
+                        )}
                       </div>
                     </>
                   )}
@@ -1230,6 +1357,7 @@ export default function App() {
                     onHistoryChange={setHistory}
                   />
                 </div>
+                </div>{/* /p-6 */}
               </div>
 
               {/* Painel Direito — Validator + State Machine + Campos */}
@@ -1328,6 +1456,10 @@ export default function App() {
               onDelete={handleDeleteAgent}
               onRename={handleRenameAgent}
               onRefresh={loadAgents}
+              onRestoreLogPrompt={(prompt) => {
+                setGeneratedPrompt(prompt)
+                setView('editor')
+              }}
             />
           )}
 

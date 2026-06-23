@@ -94,7 +94,7 @@ export async function reviewPromptChanges(instruction, config, aiConfig) {
                        (result.new_agent_name ? 1 : 0) +
                        (result.new_agent_persona ? 1 : 0)
 
-  if (totalChanges === 0) throw new Error('A IA não identificou mudanças necessárias para esta instrução.')
+  if (totalChanges === 0) throw new Error('SEM_MUDANCAS')
 
   return result
 }

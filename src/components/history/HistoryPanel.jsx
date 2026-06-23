@@ -9,15 +9,17 @@ function formatDate(isoString) {
   })
 }
 
-function LogsModal({ agent, onClose }) {
+function LogsModal({ agent, onClose, onRestorePrompt }) {
   const logs = Array.isArray(agent.logs) ? [...agent.logs].reverse() : []
+  const [expandedIdx, setExpandedIdx] = useState(null)
+
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md bg-surface-container border border-outline-variant rounded-xl shadow-2xl flex flex-col max-h-[80vh]"
+        className="w-full max-w-xl bg-surface-container border border-outline-variant rounded-xl shadow-2xl flex flex-col max-h-[85vh]"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant flex-shrink-0">
           <div>
             <p className="text-sm font-semibold text-on-surface">{agent.agent_name}</p>
             <p className="text-[11px] font-mono text-on-surface-variant/50 mt-0.5">Histórico de alterações</p>
@@ -26,20 +28,61 @@ function LogsModal({ agent, onClose }) {
             <span className="material-symbols-outlined text-[20px]">close</span>
           </button>
         </div>
+
         <div className="overflow-y-auto flex-1 px-5 py-4">
           {logs.length === 0 ? (
             <p className="text-[12px] font-mono text-on-surface-variant/50 text-center py-8">Nenhum registro ainda.</p>
           ) : (
-            <div className="space-y-2">
-              {logs.map((entry, i) => (
-                <div key={i} className="flex items-start gap-3 py-2 border-b border-outline-variant/40 last:border-0">
-                  <span className="material-symbols-outlined text-primary/60 text-[16px] mt-0.5 flex-shrink-0">history</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] text-on-surface font-medium">{entry.action}</p>
-                    <p className="text-[10px] font-mono text-on-surface-variant/50 mt-0.5">{formatDate(entry.at)}</p>
+            <div className="divide-y divide-outline-variant/30">
+              {logs.map((entry, i) => {
+                const isExpanded = expandedIdx === i
+                const hasPrompt = !!entry.prompt
+                return (
+                  <div key={i} className="py-3">
+                    <div className="flex items-start gap-3">
+                      <span className="material-symbols-outlined text-primary/60 text-[16px] mt-0.5 flex-shrink-0">history</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[12px] text-on-surface font-medium">{entry.action}</p>
+                          {hasPrompt && (
+                            <button
+                              onClick={() => setExpandedIdx(isExpanded ? null : i)}
+                              className="text-[10px] font-mono text-primary/70 hover:text-primary flex items-center gap-1 flex-shrink-0 transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">
+                                {isExpanded ? 'expand_less' : 'article'}
+                              </span>
+                              {isExpanded ? 'ocultar' : 'ver prompt'}
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-[10px] font-mono text-on-surface-variant/50 mt-0.5">{formatDate(entry.at)}</p>
+
+                        {isExpanded && hasPrompt && (
+                          <div className="mt-3 space-y-2">
+                            <pre className="text-[10px] font-mono text-on-surface/70 bg-surface border border-outline-variant/50 rounded-lg p-3 max-h-52 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                              {entry.prompt}
+                            </pre>
+                            <button
+                              onClick={() => { onRestorePrompt(entry.prompt); onClose() }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-secondary/40 text-[10px] font-mono font-semibold text-secondary hover:bg-secondary/10 transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">restore</span>
+                              Restaurar este prompt no editor
+                            </button>
+                          </div>
+                        )}
+
+                        {!hasPrompt && (
+                          <p className="text-[9px] font-mono text-on-surface-variant/30 mt-1 italic">
+                            Snapshot do prompt não disponível (salvo antes desta funcionalidade)
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -49,7 +92,7 @@ function LogsModal({ agent, onClose }) {
   )
 }
 
-function AgentCard({ agent, onLoad, onDelete, onRename }) {
+function AgentCard({ agent, onLoad, onDelete, onRename, onRestoreLogPrompt }) {
   const [expanded, setExpanded] = useState(false)
   const [showLogs, setShowLogs] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -213,7 +256,7 @@ function AgentCard({ agent, onLoad, onDelete, onRename }) {
             </button>
           </div>
         )}
-        {showLogs && <LogsModal agent={agent} onClose={() => setShowLogs(false)} />}
+        {showLogs && <LogsModal agent={agent} onClose={() => setShowLogs(false)} onRestorePrompt={onRestoreLogPrompt} />}
       </div>
 
       {expanded && agent.generated_prompt && (
@@ -227,7 +270,7 @@ function AgentCard({ agent, onLoad, onDelete, onRename }) {
   )
 }
 
-export default function HistoryPanel({ agents, isLoading, onLoad, onDelete, onRename, onRefresh }) {
+export default function HistoryPanel({ agents, isLoading, onLoad, onDelete, onRename, onRefresh, onRestoreLogPrompt }) {
   const [search, setSearch] = useState('')
 
   const filtered = agents.filter(a =>
@@ -296,6 +339,7 @@ export default function HistoryPanel({ agents, isLoading, onLoad, onDelete, onRe
               onLoad={onLoad}
               onDelete={onDelete}
               onRename={onRename}
+              onRestoreLogPrompt={onRestoreLogPrompt}
             />
           ))
         )}
