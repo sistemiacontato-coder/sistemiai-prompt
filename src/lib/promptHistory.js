@@ -3,7 +3,20 @@ const MAX_ENTRIES = 30
 
 export function loadHistory() {
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
+    // Deduplica: mantém só a entrada mais recente por agentKey
+    const seen = new Set()
+    const deduped = raw.filter(e => {
+      const key = e.agentKey !== undefined ? e.agentKey : (e.config?.agentName || '').trim()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    // Persiste a versão limpa se houve duplicatas
+    if (deduped.length !== raw.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(deduped))
+    }
+    return deduped
   } catch {
     return []
   }
@@ -20,7 +33,12 @@ export function saveSnapshot({ config, prompt, description }) {
     config: JSON.parse(JSON.stringify(config)),
     prompt,
   }
-  const updated = [entry, ...history].slice(0, MAX_ENTRIES)
+  // Upsert: remove entradas anteriores do mesmo agente e mantém só a mais recente
+  const rest = history.filter(e => {
+    const key = e.agentKey !== undefined ? e.agentKey : (e.config?.agentName || '').trim()
+    return key !== agentKey
+  })
+  const updated = [entry, ...rest].slice(0, MAX_ENTRIES)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
   return updated
 }

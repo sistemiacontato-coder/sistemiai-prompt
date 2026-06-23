@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import { getSession, onAuthStateChange, signOut as authSignOut } from './lib/supabaseAuth'
+import LoginView from './components/LoginView'
 import TopNav from './components/TopNav'
 import SideNav from './components/SideNav'
 import AgentConfigPanel from './components/editor/AgentConfigPanel'
@@ -213,6 +215,24 @@ function CustomDialogModal({ isOpen, type, message, placeholder, defaultValue, r
 }
 
 export default function App() {
+  const [session, setSession] = useState(undefined) // undefined = carregando
+  const [authLoading, setAuthLoading] = useState(true)
+
+  useEffect(() => {
+    let sub = null
+    getSession().then(s => {
+      setSession(s)
+      setAuthLoading(false)
+    })
+    onAuthStateChange(s => {
+      setSession(s)
+      setAuthLoading(false)
+    }).then(subscription => {
+      sub = subscription
+    })
+    return () => { sub?.unsubscribe() }
+  }, [])
+
   const [isDark, setIsDark] = useState(() => {
     const saved = localStorage.getItem('pm-theme')
     return saved ? saved === 'dark' : false
@@ -254,6 +274,7 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null) // 'ok' | 'error' | null
   const [loadedAgentId, setLoadedAgentId] = useState(null)
+  const [isDirty, setIsDirty] = useState(false)
   const [mensagemInicial, setMensagemInicial] = useState({
     textoFixo: '',
     instrucoesIndividuais: '',
@@ -289,6 +310,7 @@ export default function App() {
     () => localStorage.getItem('pm-sidebar') === 'collapsed'
   )
   const promptRef = useRef(null)
+  const skipNextDirtyRef = useRef(false)
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => {
@@ -297,6 +319,13 @@ export default function App() {
       return next
     })
   }, [])
+
+  // Marca como "tem edições não salvas" quando o usuário edita após ter um agente salvo
+  // (ignora mudanças que vêm de carregar um agente)
+  useEffect(() => {
+    if (skipNextDirtyRef.current) { skipNextDirtyRef.current = false; return }
+    if (loadedAgentId) setIsDirty(true)
+  }, [config])
 
   useEffect(() => {
     const html = document.documentElement
@@ -436,12 +465,6 @@ export default function App() {
     })
   }, [])
 
-  const handleRestoreIssues = useCallback(() => {
-    setDismissedIssueTitles([])
-    // Re-audita para trazer os issues ignorados de volta
-    handleAudit()
-  }, [handleAudit])
-
   const handleAudit = useCallback(async () => {
     setIsAuditing(true)
     setAuditResult(null)
@@ -458,6 +481,11 @@ export default function App() {
       setIsAuditing(false)
     }
   }, [generatedPrompt, config, aiConfig, dismissedIssueTitles])
+
+  const handleRestoreIssues = useCallback(() => {
+    setDismissedIssueTitles([])
+    handleAudit()
+  }, [handleAudit])
 
   const handleRefine = useCallback(async (correction) => {
     if (!pendingChanges) return
@@ -621,7 +649,7 @@ export default function App() {
   }, [config])
 
   useEffect(() => {
-    if (view === 'library') loadAgents()
+    if (view === 'library' || view === 'simulator') loadAgents()
   }, [view])
 
   const loadAgents = useCallback(async () => {
@@ -680,6 +708,7 @@ export default function App() {
   const handleLoadAgent = useCallback((agent, targetView = 'editor') => {
     const rawName = agent.agent_name || ''
     const cleanName = rawName.replace(/\s*\[[^\]]+\]$/, '')
+    skipNextDirtyRef.current = true
     setConfig({
       agentName: cleanName,
       agentPersona: agent.agent_persona || '',
@@ -690,6 +719,7 @@ export default function App() {
     })
     setGeneratedPrompt(agent.generated_prompt || '')
     setLoadedAgentId(agent.id || null)
+    setIsDirty(false)
     setAuditResult(null)
     setAnalyzeResult(null)
     setPendingChanges(null)
@@ -712,21 +742,32 @@ export default function App() {
     }
   }, [showDialog])
 
+  const handleLogout = useCallback(async () => {
+    if (isDirty || (generatedPrompt && !loadedAgentId)) {
+      const ok = await showDialog({ type: 'confirm', message: 'Há edições não salvas. Sair mesmo assim?' })
+      if (!ok) return
+    }
+    try {
+      await authSignOut()
+    } catch (e) {
+      console.error('Erro ao fazer logout:', e)
+    }
+    // onAuthStateChange vai setar session = null e mostrar LoginView automaticamente
+  }, [isDirty, generatedPrompt, loadedAgentId, showDialog])
+
   const handleSaveToDatabase = useCallback(async () => {
     if (!generatedPrompt || isSaving) return
     if (loadedAgentId) {
-      // Atualiza o agente já carregado — sem modal
       setIsSaving(true)
       setSaveStatus(null)
       try {
-        const updated = saveSnapshot({ config, prompt: generatedPrompt, description: `Atualizado — ${new Date().toLocaleDateString('pt-BR')}` })
-        setHistory(updated)
         if (isSupabaseConfigured) {
           const data = await updateAgent(loadedAgentId, { config, generatedPrompt })
           setAgents(prev => prev.map(a => a.id === data.id ? data : a))
         }
+        setIsDirty(false)
         setSaveStatus('ok')
-        setTimeout(() => setSaveStatus(null), 4000)
+        setTimeout(() => setSaveStatus(null), 3000)
       } catch (err) {
         console.error('Erro ao salvar:', err)
         setSaveStatus('error')
@@ -745,20 +786,16 @@ export default function App() {
     setIsSaving(true)
     setSaveStatus(null)
     try {
-      // 1. Salva no localstorage (Histórico de Versões)
-      const updated = saveSnapshot({ config, prompt: generatedPrompt, description: finalDesc })
-      setHistory(updated)
-
-      // 2. Cria novo agente no Supabase
       if (isSupabaseConfigured) {
         const data = await deployAgent({ config, generatedPrompt })
         setLoadedAgentId(data.id)
         setAgents(prev => [data, ...prev])
       }
 
+      setIsDirty(false)
       setSaveStatus('ok')
       setShowSaveModal(false)
-      setTimeout(() => setSaveStatus(null), 4000)
+      setTimeout(() => setSaveStatus(null), 3000)
     } catch (err) {
       console.error('Erro ao salvar:', err)
       setSaveStatus('error')
@@ -772,11 +809,26 @@ export default function App() {
   const criticalCount = validationResults.filter(r => r.type === 'critical').length
   const canGenerate = criticalCount === 0
 
+  // Tela de carregamento enquanto verifica sessão
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <span className="material-symbols-outlined animate-spin text-primary text-[32px]">progress_activity</span>
+      </div>
+    )
+  }
+
+  // Sem sessão → tela de login
+  if (!session) {
+    return <LoginView onLogin={() => {}} />
+  }
+
   return (
     <div className="bg-background text-on-surface min-h-screen font-sans">
       <TopNav
         isDark={isDark}
         onToggleTheme={handleToggleTheme}
+        onLogout={handleLogout}
       />
 
       <div className="flex h-screen pt-16">
@@ -808,6 +860,30 @@ export default function App() {
                           ? 'Há 1 campo obrigatório não preenchido.'
                           : `Há ${criticalCount} campos obrigatórios não preenchidos.`}
                       </p>
+                    </div>
+                  )}
+
+                  {/* Botão Salvar/Atualizar — alinhado à direita, acima da Identidade do Agente */}
+                  {generatedPrompt && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleSaveToDatabase}
+                        disabled={isSaving || !isSupabaseConfigured}
+                        title={isSupabaseConfigured ? (loadedAgentId ? 'Atualizar' : 'Salvar') : 'Banco offline'}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-[10px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={
+                          isSaving ? { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
+                          : saveStatus === 'ok' ? { borderColor: 'rgba(74,222,128,0.6)', color: '#4ade80', background: 'rgba(74,222,128,0.07)' }
+                          : saveStatus === 'error' ? { borderColor: 'rgba(248,113,113,0.6)', color: '#f87171' }
+                          : isDirty ? { borderColor: 'rgba(251,146,60,0.7)', color: '#fb923c', background: 'rgba(251,146,60,0.10)', boxShadow: '0 0 8px rgba(251,146,60,0.25)' }
+                          : { borderColor: 'var(--color-outline-variant)', color: 'var(--color-on-surface-variant)' }
+                        }
+                      >
+                        <span className={`material-symbols-outlined ${isSaving ? 'animate-spin' : ''}`} style={{ fontSize: 14 }}>
+                          {isSaving ? 'progress_activity' : saveStatus === 'ok' ? 'check_circle' : saveStatus === 'error' ? 'error' : loadedAgentId ? 'save' : 'cloud_upload'}
+                        </span>
+                        {isSaving ? 'Salvando...' : saveStatus === 'ok' ? 'Salvo!' : saveStatus === 'error' ? 'Erro' : loadedAgentId ? 'Atualizar' : 'Salvar'}
+                      </button>
                     </div>
                   )}
 
@@ -999,8 +1075,8 @@ export default function App() {
                         onRegeneratePrompt={handleGenerate}
                       />
 
-                      {/* Botão de Geração + Salvar */}
-                      <div className="flex flex-col items-center py-6 gap-3">
+                      {/* Botão de Geração */}
+                      <div className="flex flex-col items-center py-6">
                         <button
                           onClick={handleGenerate}
                           disabled={isGenerating || !canGenerate}
@@ -1017,49 +1093,6 @@ export default function App() {
                           </span>
                           {isGenerating ? 'COMPILANDO...' : 'GERAR PROMPT'}
                         </button>
-
-                        {/* Botão Salvar no Banco */}
-                        {generatedPrompt && (
-                          <div className="flex flex-col items-center gap-1">
-                            <button
-                              onClick={handleSaveToDatabase}
-                              disabled={isSaving || !isSupabaseConfigured}
-                              className="flex items-center gap-2 px-5 py-2 rounded-lg text-[11px] font-mono font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
-                              style={{
-                                border: saveStatus === 'ok'
-                                  ? '1.5px solid rgb(var(--color-secondary) / 0.6)'
-                                  : saveStatus === 'error'
-                                    ? '1.5px solid rgb(var(--color-error) / 0.6)'
-                                    : '1.5px solid rgb(var(--color-outline-variant))',
-                                color: saveStatus === 'ok'
-                                  ? 'rgb(var(--color-secondary))'
-                                  : saveStatus === 'error'
-                                    ? 'rgb(var(--color-error))'
-                                    : 'rgb(var(--color-on-surface-variant))',
-                                background: saveStatus === 'ok'
-                                  ? 'rgb(var(--color-secondary) / 0.07)'
-                                  : saveStatus === 'error'
-                                    ? 'rgb(var(--color-error) / 0.07)'
-                                    : 'transparent',
-                              }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-                                {isSaving ? 'progress_activity' : saveStatus === 'ok' ? 'check_circle' : saveStatus === 'error' ? 'error' : loadedAgentId ? 'save' : 'cloud_upload'}
-                              </span>
-                              {isSaving ? 'Salvando...' : saveStatus === 'ok' ? 'Salvo!' : saveStatus === 'error' ? 'Erro ao salvar' : loadedAgentId ? 'Atualizar' : 'Salvar no Banco'}
-                            </button>
-                            {!isSupabaseConfigured && (
-                              <p className="text-[9px] font-mono text-on-surface-variant/30 text-center">
-                                Banco offline — configure as credenciais Supabase
-                              </p>
-                            )}
-                            {saveStatus === 'error' && (
-                              <p className="text-[9px] font-mono text-error/70 text-center max-w-xs">
-                                Verifique se a tabela <code>prompt_bc_agents</code> foi criada no Supabase
-                              </p>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </>
                   )}
@@ -1146,6 +1179,7 @@ export default function App() {
               setGeneratedPrompt={setGeneratedPrompt}
               aiConfig={aiConfig}
               showDialog={showDialog}
+              agents={agents}
             />
           )}
 

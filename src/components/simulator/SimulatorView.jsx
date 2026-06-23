@@ -123,19 +123,28 @@ const DEFAULT_PRESETS = [
   { id: 'precise', name: 'Preciso (GPT-4o Mini / Temp 0.1)', model: 'gpt-4o-mini', temperature: 0.1, isDefault: false }
 ]
 
-export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig, showDialog }) {
+export default function SimulatorView({ config, setConfig, generatedPrompt, setGeneratedPrompt, aiConfig, showDialog, agents = [] }) {
   const [promptSource, setPromptSource] = useState('current')
-  const [historyList, setHistoryList] = useState([])
 
-  useEffect(() => {
-    setHistoryList(loadHistory())
-  }, [])
+  // historyList construído a partir dos agentes do Supabase (sem duplicatas, sem localStorage)
+  const historyList = useMemo(() => {
+    const seen = new Set()
+    return (agents || []).filter(a => {
+      if (!a.agent_name || seen.has(a.agent_name)) return false
+      seen.add(a.agent_name)
+      return true
+    }).map(a => ({
+      id: a.id,
+      agentKey: a.agent_name,
+      description: a.agent_name,
+      prompt: a.generated_prompt || '',
+    }))
+  }, [agents])
 
   const activePromptText = useMemo(() => {
     if (promptSource === 'current') return generatedPrompt || ''
-    if (!historyList || !promptSource) return ''
-    const found = historyList.find(h => h && h.id && h.id.toString() === promptSource.toString())
-    return found ? found.prompt || '' : ''
+    const found = historyList.find(h => h.id?.toString() === promptSource?.toString())
+    return found ? found.prompt : ''
   }, [promptSource, historyList, generatedPrompt])
 
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
@@ -309,7 +318,9 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
   const targetModelConfig = useMemo(() => {
     let apiKey = aiConfig?.apiKey
-    let endpoint = aiConfig?.endpoint
+    // Deriva endpoint da chave (igual ao callAI em claude.js) para garantir URL correta
+    const detectedFromKey = detectProviderFromKey(apiKey)
+    let endpoint = detectedFromKey?.endpoint || aiConfig?.endpoint
 
     // Se o modelo for compatível/OpenAI mas a chave principal for Gemini, tenta usar a de lapidação
     if (detectedProvider?.provider === 'compat') {
@@ -317,10 +328,11 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       const refinerIsCompat = aiConfig?.refinerApiKey?.startsWith('sk-') || aiConfig?.refinerApiKey?.startsWith('gsk_')
       if (mainIsGemini && refinerIsCompat) {
         apiKey = aiConfig.refinerApiKey
-        endpoint = aiConfig.refinerEndpoint
+        const refDetected = detectProviderFromKey(apiKey)
+        endpoint = refDetected?.endpoint || aiConfig.refinerEndpoint
       }
     }
-    
+
     // Se o modelo for Gemini mas a chave principal for compatível, tenta usar a de lapidação
     if (detectedProvider?.provider === 'gemini') {
       const mainIsCompat = apiKey?.startsWith('sk-') || apiKey?.startsWith('gsk_')
@@ -945,7 +957,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
               <option value="current">Rascunho Atual do Editor</option>
               {historyList.map(h => (
                 <option key={h.id} value={h.id}>
-                  {h.agentKey ? `[${h.agentKey}] ` : ''}{h.description}
+                  {h.description}
                 </option>
               ))}
             </select>

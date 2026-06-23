@@ -348,8 +348,15 @@ async function callChatAPI(messages, config) {
     model.toLowerCase().includes('gpt-5')
   )
 
+  // OpenRouter exige prefixo de provedor (ex: "openai/gpt-4o-mini")
+  // Se o modelo não tem "/" e é OpenAI, adicionamos o prefixo automaticamente
+  let resolvedModel = model || 'gpt-4o-mini'
+  if (isOpenRouter && !resolvedModel.includes('/') && /^(gpt-|o1-|o3-|o4-)/.test(resolvedModel)) {
+    resolvedModel = `openai/${resolvedModel}`
+  }
+
   const body = {
-    model: model || 'gpt-4o-mini',
+    model: resolvedModel,
     messages,
   }
 
