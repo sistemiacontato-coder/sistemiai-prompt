@@ -6,6 +6,7 @@ export default function LoginView({ onLogin }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -67,15 +68,27 @@ export default function LoginView({ onLogin }) {
               <label className="text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1.5 block uppercase tracking-widest">
                 Senha
               </label>
+              <div className="relative">
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full rounded-lg border border-outline-variant bg-surface px-3 py-2.5 text-sm font-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-on-surface-variant/30"
+                className="w-full rounded-lg border border-outline-variant bg-surface pl-3 pr-10 py-2.5 text-sm font-mono text-on-surface focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30 transition-all placeholder:text-on-surface-variant/30"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(p => !p)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant/40 hover:text-on-surface-variant transition-colors"
+                tabIndex={-1}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {showPassword ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+              </div>
             </div>
 
             {error && (
