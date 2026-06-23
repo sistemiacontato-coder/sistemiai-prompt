@@ -190,12 +190,8 @@ async function callClaude(apiKey, prompt, maxTokens = 2048) {
 async function callOpenAICompat(apiKey, prompt, endpoint, model, maxTokens = 2048) {
   const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
   const url = `${base}/chat/completions`
-  const isNewModel = model && (
-    model.toLowerCase().includes('o1') ||
-    model.toLowerCase().includes('o3') ||
-    model.toLowerCase().includes('gpt-5') ||
-    model.toLowerCase().startsWith('o-')
-  )
+  // Apenas modelos da série "o" (reasoning) usam max_completion_tokens sem temperature
+  const isNewModel = model && /^(o1|o3|o4|o-)/i.test(model.trim())
 
   const body = {
     model: model || 'gpt-4o-mini',
