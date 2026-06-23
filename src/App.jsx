@@ -47,12 +47,13 @@ function AgentSelectorBar({ agents, loadedAgentId, currentName, view, onLoad, on
     : (currentName || 'Novo agente')
 
   return (
-    <div className="flex items-center justify-between gap-3 mb-1">
+    <div className="flex items-center gap-3">
       {/* Seletor de agente */}
-      <div className="relative flex-1 min-w-0" ref={ref}>
+      <div className="relative" ref={ref}>
         <button
           onClick={() => setOpen(o => !o)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded border border-outline-variant bg-surface-container hover:border-primary/50 transition-colors text-left w-full max-w-xs"
+          className="flex items-center gap-2 px-3 py-1.5 rounded border border-outline-variant bg-surface-container hover:border-primary/50 transition-colors text-left"
+          style={{ minWidth: 160, maxWidth: 260 }}
         >
           <span className="material-symbols-outlined text-primary/70 text-[15px] flex-shrink-0">smart_toy</span>
           <span className="text-[11px] font-mono font-semibold text-on-surface truncate flex-1">{label}</span>
@@ -89,8 +90,8 @@ function AgentSelectorBar({ agents, loadedAgentId, currentName, view, onLoad, on
         )}
       </div>
 
-      {/* Botões de salvar */}
-      {generatedPrompt && (
+      {/* Botões de salvar — sempre visíveis quando Supabase configurado */}
+      {isSupabaseConfigured && (
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {/* Salvar como — sempre cria nova entrada */}
           {loadedAgentId && isSupabaseConfigured && (
