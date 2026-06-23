@@ -191,7 +191,7 @@ export async function refineConfigWithFeedback(config, testSuiteResults, aiConfi
   }
 
   const prompt = `Você é um Engenheiro de Prompt especialista na otimização de agentes de WhatsApp para o BotConversa.
-Sua missão é corrigir e ajustar os campos de configuração do agente para que ele passe em toda a bateria de testes.
+Sua missão é corrigir os campos de configuração do agente com base nos erros identificados.
 
 CONFIGURAÇÃO ATUAL DO AGENTE:
 ${JSON.stringify(existingConfig, null, 2)}
@@ -199,15 +199,7 @@ ${JSON.stringify(existingConfig, null, 2)}
 RESULTADOS DOS TESTES QUE FALHARAM:
 ${JSON.stringify(failures, null, 2)}
 
-INSTRUÇÕES DE AJUSTE:
-Analise onde a IA falhou. Ela pode ter falhado por:
-1. Não capturar uma variável (corrija atualizando a descrição da variável no campo 'description' correspondente).
-2. Não acionar a saída correta (corrija detalhando melhor a condição no campo 'description' daquela saída em exitDestinations).
-3. Ter o tom de voz inadequado ou responder com dados errados (corrija ajustando a 'agentPersona' ou regras associadas).
-
-Você deve propor alterações na configuração atual para consertar esses erros. Mantenha as alterações concisas e focadas.
-
-Retorne APENAS o JSON abaixo contendo as propriedades corrigidas (retorne apenas as propriedades que você de fato alterar):
+Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar):
 
 {
   "agentPersona": "Persona completa corrigida (vazio se não alterar)",
@@ -218,13 +210,17 @@ Retorne APENAS o JSON abaixo contendo as propriedades corrigidas (retorne apenas
   "update_exits": [
     { "key": "saida_exata_key", "description": "Nova condição iniciando com 'Interrompa a IA quando o cliente...'", "exitMessage": "Mensagem opcional de transição" }
   ],
-  "summary": "Explicação resumida em português de por que esta alteração resolve a falha"
+  "summary": "Uma frase direta explicando o que foi corrigido"
 }
 
-REGRAS:
-- update_variables: preencha apenas se precisar ajustar a descrição de uma variável já existente para que a IA entenda melhor como preenchê-la.
-- update_exits: preencha apenas para ajustar condições de saídas já existentes. A descrição DEVE iniciar com 'Interrompa a IA quando o cliente'.
-- Mantenha tudo no formato compatível com o BotConversa.`
+REGRAS OBRIGATÓRIAS:
+- Cada correção deve ser UMA FRASE curta e direta. Sem exemplos, sem exceções, sem parênteses explicativos.
+- Errado: "NÃO pergunte qual filial para fornecer o horário, apenas informe o horário padrão. Só peça esclarecimento se a pergunta for realmente ambígua..."
+- Certo: "Informe o horário padrão sem pedir confirmação de filial."
+- agentPersona/domain: inclua o texto COMPLETO com a correção inserida no lugar certo, não apenas o trecho corrigido.
+- update_variables: só se precisar ajustar descrição de variável existente.
+- update_exits: descrição DEVE iniciar com "Interrompa a IA quando o cliente".
+- summary: máximo 1 frase.`
 
   // Resolver se usa a chave de lapidação dedicada ou a chave padrão
   const activeConfig = aiConfig?.refinerApiKey
