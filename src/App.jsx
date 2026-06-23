@@ -260,6 +260,7 @@ export default function App() {
     preInstrucaoIA: '',
   })
   const [pendingFixIssueIdx, setPendingFixIssueIdx] = useState(null)
+  const [dismissedIssueTitles, setDismissedIssueTitles] = useState([])
   const [analyzeOptions, setAnalyzeOptions] = useState({
     includeNomeCliente: true,
     includeSaidaAtendente: true,
@@ -428,24 +429,35 @@ export default function App() {
   const handleDismissIssue = useCallback((idx) => {
     setAuditResult(prev => {
       if (!prev) return null
+      const issue = prev.issues[idx]
+      if (issue?.title) setDismissedIssueTitles(d => [...d, issue.title])
       const remaining = prev.issues.filter((_, i) => i !== idx)
-      if (remaining.length === 0) return null
       return { ...prev, issues: remaining }
     })
   }, [])
+
+  const handleRestoreIssues = useCallback(() => {
+    setDismissedIssueTitles([])
+    // Re-audita para trazer os issues ignorados de volta
+    handleAudit()
+  }, [handleAudit])
 
   const handleAudit = useCallback(async () => {
     setIsAuditing(true)
     setAuditResult(null)
     try {
       const result = await auditPrompt(generatedPrompt, config, aiConfig)
-      setAuditResult(result)
+      // Filtra issues cujos títulos foram marcados como "correto" pelo usuário
+      const filtered = dismissedIssueTitles.length > 0
+        ? { ...result, issues: result.issues.filter(i => !dismissedIssueTitles.includes(i.title)) }
+        : result
+      setAuditResult(filtered)
     } catch (err) {
       setAuditResult({ issues: [], overallScore: null, summary: err.message, isError: true })
     } finally {
       setIsAuditing(false)
     }
-  }, [generatedPrompt, config, aiConfig])
+  }, [generatedPrompt, config, aiConfig, dismissedIssueTitles])
 
   const handleRefine = useCallback(async (correction) => {
     if (!pendingChanges) return
@@ -1078,6 +1090,8 @@ export default function App() {
                       prompt={generatedPrompt}
                       config={config}
                       onDismissIssue={handleDismissIssue}
+                      dismissedCount={dismissedIssueTitles.length}
+                      onRestoreIssues={handleRestoreIssues}
                       onApplyFix={async (fix, issueIdx) => {
                         setPendingFixIssueIdx(issueIdx ?? null)
                         await handleReview(fix)

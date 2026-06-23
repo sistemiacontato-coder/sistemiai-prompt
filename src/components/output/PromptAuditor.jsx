@@ -329,7 +329,7 @@ function IssueRow({ issue, idx, onApplyFix, onDismiss }) {
   )
 }
 
-export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConfig, onApplyFix, onDismissIssue, prompt, config }) {
+export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConfig, onApplyFix, onDismissIssue, dismissedCount = 0, onRestoreIssues, prompt, config }) {
   const [expanded, setExpanded] = useState(true)
 
   if (!auditResult && !isAuditing) {
@@ -441,6 +441,14 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {dismissedCount > 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); onRestoreIssues?.() }}
+              className="text-[9px] font-mono text-on-surface-variant/40 hover:text-tertiary transition-colors px-2 py-1 rounded border border-outline-variant/30 flex items-center gap-1">
+              <span className="material-symbols-outlined" style={{ fontSize: 10 }}>visibility</span>
+              {dismissedCount} ignorado{dismissedCount !== 1 ? 's' : ''} · Restaurar
+            </button>
+          )}
           <button
             onClick={e => { e.stopPropagation(); onAudit() }}
             disabled={isAuditing}
