@@ -322,41 +322,15 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setConfig(prev => ({ ...prev, testModel: newModel }))
   }
 
-  // Provider vem da CHAVE, não do modelo — evita conflito entre modelo escolhido e chave configurada
+  // Usa exatamente o que está configurado em Configurações — sem nenhum valor pré-definido
   const targetModelConfig = useMemo(() => {
     const mainKey = aiConfig?.apiKey
-    const refinerKey = aiConfig?.refinerApiKey
-
     const mainDetected = detectProviderFromKey(mainKey)
-    const refinerDetected = detectProviderFromKey(refinerKey)
-
     const mainProvider = mainDetected?.provider || 'compat'
     const mainEndpoint = mainDetected?.endpoint || aiConfig?.endpoint
-
-    const modelIsGemini = /^gemini[-/]/.test(model || '')
-    const modelIsClaude = /^claude[-/]/.test(model || '')
-
-    // Se o modelo é Gemini mas a chave principal não é Gemini → tenta chave de lapidação
-    if (modelIsGemini && mainProvider !== 'gemini' && refinerDetected?.provider === 'gemini') {
-      return { provider: 'gemini', apiKey: refinerKey, endpoint: aiConfig?.refinerEndpoint, model, temperature }
-    }
-
-    // Se o modelo é Claude mas a chave principal não é Claude → tenta chave de lapidação
-    if (modelIsClaude && mainProvider !== 'claude' && refinerDetected?.provider === 'claude') {
-      return { provider: 'claude', apiKey: refinerKey, endpoint: null, model, temperature }
-    }
-
-    // Modelo vazio ou incompatível → usa o modelo de Configurações (sempre válido para a chave)
-    const settingsModel = aiConfig?.model || mainDetected?.model || ''
-    const resolvedModel = model || settingsModel
-
-    return {
-      provider: mainProvider,
-      apiKey: mainKey,
-      endpoint: mainEndpoint,
-      model: resolvedModel,
-      temperature,
-    }
+    // Modelo: o que o usuário digitou no simulador, senão o de Configurações — nunca hardcoda
+    const resolvedModel = (model && model.trim()) || (aiConfig?.model || '').trim()
+    return { provider: mainProvider, apiKey: mainKey, endpoint: mainEndpoint, model: resolvedModel, temperature }
   }, [aiConfig, model, temperature])
 
   // Chaves corretas para o ModelSelector buscar a lista oficial de modelos
@@ -1632,103 +1606,64 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   )
 }
 
-// Helper para chamar chat completion direta
+// Helper para chamar chat completion direta (chat manual)
 async function runChatDirect(messages, config) {
-  const { provider, apiKey, endpoint, model, temperature } = config
+  const { provider, apiKey, endpoint, temperature } = config
+  const model = (config.model || '').trim()
 
-  if (!apiKey) throw new Error('Nenhuma chave de IA configurada para teste.')
+  if (!apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
+  if (!model) throw new Error('Nenhum modelo de IA definido. Configure o modelo em Configurações.')
 
   if (provider === 'gemini') {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
-    const contents = messages.map(m => {
-      let role = 'user'
-      if (m.role === 'assistant') role = 'model'
-      return {
-        role,
-        parts: [{ text: m.content }]
-      }
-    }).filter(m => messages[0].role === 'system' ? messages.indexOf(m) > 0 : true)
-
+    const geminiModel = model.replace(/^gemini\//, '')
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`
     const systemInstruction = messages.find(m => m.role === 'system')?.content
+    const contents = messages
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }))
 
-    const body = {
-      contents,
-      generationConfig: {
-        temperature: temperature != null ? temperature : 0.1,
-        maxOutputTokens: 2048,
-        responseMimeType: "application/json"
-      }
-    }
+    const body = { contents, generationConfig: { temperature: temperature ?? 0.1, maxOutputTokens: 2048 } }
+    if (systemInstruction) body.systemInstruction = { parts: [{ text: systemInstruction }] }
 
-    if (systemInstruction) {
-      body.systemInstruction = {
-        parts: [{ text: systemInstruction }]
-      }
-    }
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error?.message || `Gemini API error ${res.status}`)
-    }
-    const data = await res.json()
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || `Gemini error ${res.status}`) }
+    return (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text || ''
   }
 
   if (provider === 'claude') {
     const systemMessage = messages.find(m => m.role === 'system')?.content
     const chatMessages = messages.filter(m => m.role !== 'system')
-
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: model || 'claude-3-5-sonnet-20241022',
-        max_tokens: 2048,
-        temperature: temperature != null ? temperature : 0.1,
-        system: systemMessage,
-        messages: chatMessages,
-      }),
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model, max_tokens: 2048, temperature: temperature ?? 0.1, system: systemMessage, messages: chatMessages }),
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.error?.message || `Claude API error ${res.status}`)
-    }
-    const data = await res.json()
-    return data.content?.[0]?.text || ''
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || `Claude error ${res.status}`) }
+    return (await res.json()).content?.[0]?.text || ''
   }
 
-  const base = (endpoint || 'https://api.openai.com/v1').replace(/\/$/, '')
+  const base = (endpoint || '').replace(/\/$/, '')
+  if (!base) throw new Error('Endpoint não configurado. Vá em Configurações.')
   const url = `${base}/chat/completions`
 
-  const isNewModel = model && (
-    model.toLowerCase().includes('o1') || 
-    model.toLowerCase().includes('o3') || 
-    model.toLowerCase().includes('gpt-5') || 
-    model.toLowerCase().startsWith('o-')
-  )
+  const isOpenRouter = base.includes('openrouter.ai')
+  const isOpenAIDirect = base.includes('api.openai.com')
+  const isNewModel = isOpenAIDirect && /^(o1|o3|o4|o-)/i.test(model)
 
-  const body = {
-    model: model || 'gpt-4o-mini',
-    messages,
-    response_format: { type: "json_object" }
+  let resolvedModel = model
+  if (isOpenRouter && !resolvedModel.includes('/')) {
+    if (/^(gpt-|o1-|o3-|o4-)/.test(resolvedModel)) resolvedModel = `openai/${resolvedModel}`
+    else if (/^gemini-/.test(resolvedModel)) resolvedModel = `google/${resolvedModel}`
+    else if (/^claude-/.test(resolvedModel)) resolvedModel = `anthropic/${resolvedModel}`
   }
 
+  const body = { model: resolvedModel, messages }
   if (isNewModel) {
     body.max_completion_tokens = 2048
   } else {
     body.max_tokens = 2048
-    body.temperature = temperature != null ? temperature : 0.1
+    body.temperature = temperature ?? 0.1
+    // Sem response_format — não suportado por Groq, Mistral, OpenRouter custom
   }
 
   const res = await fetch(url, {

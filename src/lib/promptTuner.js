@@ -232,7 +232,7 @@ REGRAS:
         provider: detectProviderFromKey(aiConfig.refinerApiKey)?.provider || 'compat',
         apiKey: aiConfig.refinerApiKey,
         endpoint: aiConfig.refinerEndpoint,
-        model: aiConfig.refinerModel || 'gpt-4o'
+        model: aiConfig.refinerModel || ''
       }
     : aiConfig
 
@@ -256,9 +256,12 @@ function extractJson(text) {
 
 // Executa requisição de chat completions direta de acordo com o provedor
 async function callChatAPI(messages, config) {
-  const { provider, apiKey, endpoint, model, temperature } = config
+  const { provider, apiKey, endpoint, temperature } = config
 
-  if (!apiKey) throw new Error('Nenhuma chave de IA configurada para teste.')
+  if (!apiKey) throw new Error('Nenhuma chave de IA configurada para teste. Vá em Configurações.')
+
+  const model = (config.model || '').trim()
+  if (!model) throw new Error('Nenhum modelo de IA definido. Configure o modelo em Configurações.')
 
   const fetchWithTimeout = (url, opts, ms = 90000) => {
     const ctrl = new AbortController()
@@ -269,7 +272,7 @@ async function callChatAPI(messages, config) {
   }
 
   if (provider === 'gemini') {
-    const geminiModel = (model || 'gemini-2.0-flash').replace(/^gemini\//, '')
+    const geminiModel = model.replace(/^gemini\//, '')
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${apiKey}`
 
     const systemInstruction = messages.find(m => m.role === 'system')?.content
@@ -308,7 +311,7 @@ async function callChatAPI(messages, config) {
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model: model || 'claude-3-5-sonnet-20241022',
+        model,
         max_tokens: 2048,
         temperature: temperature != null ? temperature : 0.1,
         system: systemMessage,
@@ -328,13 +331,15 @@ async function callChatAPI(messages, config) {
   const url = `${base}/chat/completions`
 
   const isOpenRouter = base.includes('openrouter.ai')
-  const isNewModel = !isOpenRouter && model && (
+  const isOpenAIDirect = base.includes('api.openai.com')
+  // Reasoning models (sem temperature/max_tokens) só na OpenAI direta
+  const isNewModel = isOpenAIDirect && (
     /^(o1|o3|o4|o-)/i.test(model.trim()) ||
     model.toLowerCase().includes('gpt-5')
   )
 
   // OpenRouter exige prefixo provider/modelo — adiciona automaticamente se ausente
-  let resolvedModel = model || 'gpt-4o-mini'
+  let resolvedModel = model
   if (isOpenRouter && !resolvedModel.includes('/')) {
     if (/^(gpt-|o1-|o3-|o4-)/.test(resolvedModel))  resolvedModel = `openai/${resolvedModel}`
     else if (/^gemini-/.test(resolvedModel))           resolvedModel = `google/${resolvedModel}`
