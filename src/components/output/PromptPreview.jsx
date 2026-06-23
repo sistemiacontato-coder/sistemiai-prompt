@@ -171,7 +171,7 @@ function DiffPairItem({ removed, added }) {
 
 // Painel dedicado de diff semântico — inclui réplica e botões de ação
 function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRefining, totalChanges }) {
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('modified')
   const [refineText, setRefineText] = useState('')
   const [refineError, setRefineError] = useState(null)
 
