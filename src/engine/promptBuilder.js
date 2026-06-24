@@ -27,16 +27,21 @@ export function buildPrompt(config, settings = {}) {
   const allExits = exitDestinations.filter(e => e.key)
   const hasAtendente = allExits.some(e => e.key === 'saida_atendente')
 
-  const variableFields = variables
-    .filter(v => v.name.trim())
+  const textVars = variables.filter(v => v.name.trim())
+
+  // Campos JSON sem comentários inline (JSON válido)
+  const variableFields = textVars
+    .map(v => `    "${idPrefix}${sanitizeVarName(v.name)}": ""`)
+    .join(',\n')
+
+  // Descrições das variáveis em texto, listadas fora do bloco JSON
+  const variableDescLines = textVars
+    .filter(v => v.type !== 'enum') // enum já tem seção própria abaixo
     .map(v => {
       const key = `${idPrefix}${sanitizeVarName(v.name)}`
-      const hint = v.type === 'enum'
-        ? `enum: ${(v.options || '').split('\n').map(l => l.trim()).filter(Boolean).slice(0, 3).join(' | ')}${(v.options || '').split('\n').filter(l => l.trim()).length > 3 ? '...' : ''}`
-        : (v.description || v.name)
-      return `    "${key}": "" // ${hint}`
+      const hint = v.description || v.name
+      return `- \`${key}\`: ${hint}`
     })
-    .join(',\n')
 
   const successExit = allExits.find(e => e.key === 'success')
   const successHasMsg = successExit?.sendExitMessage && successExit?.exitMessage?.trim()
@@ -96,6 +101,12 @@ export function buildPrompt(config, settings = {}) {
     lines.push(``)
     lines.push(`TODA RESPOSTA DEVE SER EM JSON VÁLIDO. NUNCA RESPONDA EM TEXTO SIMPLES.`)
     lines.push(``)
+    if (variableDescLines.length > 0) {
+      lines.push(`Campos de dados a preencher em \`variables\`:`)
+      lines.push(``)
+      variableDescLines.forEach(l => lines.push(l))
+      lines.push(``)
+    }
     lines.push(`Cada resposta deve seguir **exatamente** um dos formatos abaixo, conforme a situação:`)
     lines.push(``)
 
