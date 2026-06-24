@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { runTestSuite, runTestCase, refineConfigWithFeedback, refineAdjustment } from '../../lib/promptTuner'
+import { generateTestScenarios } from '../../lib/scenarioGenerator'
 import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
 import { loadHistory, saveSnapshot } from '../../lib/promptHistory'
@@ -411,6 +412,10 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [isRefiningAuto, setIsRefiningAuto] = useState(false)
   const [autoRefineResult, setAutoRefineResult] = useState(null)
   const [editingTestCase, setEditingTestCase] = useState(null)
+  const [isGeneratingScenarios, setIsGeneratingScenarios] = useState(false)
+  const [generatedScenarios, setGeneratedScenarios] = useState(null)
+  const [selectedGenerated, setSelectedGenerated] = useState(new Set())
+  const [generateError, setGenerateError] = useState(null)
 
   const chatEndRef = useRef(null)
 
@@ -810,6 +815,31 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     }
   }
 
+  const handleGenerateScenarios = async () => {
+    if (!aiConfig?.apiKey) { setGenerateError('Nenhuma chave de IA configurada. Vá em Configurações.'); return }
+    if (!config?.domain?.trim()) { setGenerateError('Configure o objetivo do agente antes de gerar cenários.'); return }
+    setIsGeneratingScenarios(true)
+    setGeneratedScenarios(null)
+    setSelectedGenerated(new Set())
+    setGenerateError(null)
+    try {
+      const scenarios = await generateTestScenarios(config, aiConfig, 8)
+      setGeneratedScenarios(scenarios)
+      setSelectedGenerated(new Set(scenarios.map(s => s.id)))
+    } catch (err) {
+      setGenerateError(err.message)
+    } finally {
+      setIsGeneratingScenarios(false)
+    }
+  }
+
+  const handleAddSelectedScenarios = () => {
+    const toAdd = (generatedScenarios || []).filter(s => selectedGenerated.has(s.id))
+    setTestCases(prev => [...prev, ...toAdd])
+    setGeneratedScenarios(null)
+    setSelectedGenerated(new Set())
+  }
+
   return (
     <div className="h-full grid grid-cols-12 overflow-hidden bg-background text-on-surface">
       <style>{`
@@ -1044,13 +1074,100 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
           <div className="flex-1 flex flex-col space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-[10px] font-mono font-bold text-on-surface-variant/60 uppercase">Cenários de Teste</span>
-              <button
-                onClick={() => setEditingTestCase({ name: 'Novo Cenário', steps: [{ clientMessage: '', expectedStatus: 'in_process' }] })}
-                className="text-[10px] font-mono flex items-center gap-0.5 text-primary hover:underline"
-              >
-                <span className="material-symbols-outlined text-[12px]">add</span> Adicionar
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleGenerateScenarios}
+                  disabled={isGeneratingScenarios}
+                  className="text-[10px] font-mono flex items-center gap-0.5 text-secondary hover:underline disabled:opacity-40"
+                >
+                  {isGeneratingScenarios
+                    ? <span className="material-symbols-outlined text-[12px] animate-spin">progress_activity</span>
+                    : <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
+                  }
+                  {isGeneratingScenarios ? 'Gerando...' : 'Gerar com IA'}
+                </button>
+                <span className="text-on-surface-variant/20 text-[10px]">|</span>
+                <button
+                  onClick={() => setEditingTestCase({ name: 'Novo Cenário', steps: [{ clientMessage: '', expectedStatus: 'in_process' }] })}
+                  className="text-[10px] font-mono flex items-center gap-0.5 text-primary hover:underline"
+                >
+                  <span className="material-symbols-outlined text-[12px]">add</span> Adicionar
+                </button>
+              </div>
             </div>
+
+            {/* Erro de geração */}
+            {generateError && (
+              <p className="text-[10px] font-mono text-error leading-snug">{generateError}</p>
+            )}
+
+            {/* Preview de cenários gerados */}
+            {generatedScenarios && (
+              <div className="rounded-lg border border-secondary/40 overflow-hidden" style={{ background: 'color-mix(in srgb, var(--color-secondary) 5%, transparent)' }}>
+                <div className="flex items-center justify-between px-3 py-2 border-b border-secondary/20">
+                  <div className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-secondary text-[14px]">auto_awesome</span>
+                    <span className="text-[10px] font-mono font-bold text-secondary uppercase tracking-wider">
+                      {generatedScenarios.length} cenários gerados
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSelectedGenerated(prev =>
+                      prev.size === generatedScenarios.length ? new Set() : new Set(generatedScenarios.map(s => s.id))
+                    )}
+                    className="text-[9px] font-mono text-secondary/70 hover:text-secondary"
+                  >
+                    {selectedGenerated.size === generatedScenarios.length ? 'Desmarcar todos' : 'Marcar todos'}
+                  </button>
+                </div>
+
+                <div className="max-h-[280px] overflow-y-auto divide-y divide-secondary/10">
+                  {generatedScenarios.map(s => {
+                    const checked = selectedGenerated.has(s.id)
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => setSelectedGenerated(prev => {
+                          const next = new Set(prev)
+                          checked ? next.delete(s.id) : next.add(s.id)
+                          return next
+                        })}
+                        className="flex items-start gap-2 px-3 py-2 cursor-pointer hover:bg-secondary/5 transition-colors"
+                        style={{ opacity: checked ? 1 : 0.4 }}
+                      >
+                        <span className="material-symbols-outlined text-[16px] flex-shrink-0 mt-0.5" style={{ color: checked ? 'rgb(var(--color-secondary))' : 'rgba(163,163,163,0.4)' }}>
+                          {checked ? 'check_box' : 'check_box_outline_blank'}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[11px] font-mono font-semibold text-on-surface truncate">{s.name}</p>
+                          {s.clientGoal && (
+                            <p className="text-[9px] font-mono text-on-surface-variant/50 mt-0.5 truncate">{s.clientGoal}</p>
+                          )}
+                          <p className="text-[9px] font-mono text-on-surface-variant/40 mt-0.5">{s.steps.length} passo(s)</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-2 px-3 py-2 border-t border-secondary/20">
+                  <button
+                    onClick={() => { setGeneratedScenarios(null); setSelectedGenerated(new Set()) }}
+                    className="flex-1 py-1.5 text-[10px] font-mono border border-outline-variant rounded hover:bg-surface-container-high transition-colors"
+                  >
+                    Descartar
+                  </button>
+                  <button
+                    onClick={handleAddSelectedScenarios}
+                    disabled={selectedGenerated.size === 0}
+                    className="flex-1 py-1.5 text-[10px] font-mono rounded font-semibold transition-colors disabled:opacity-40"
+                    style={{ background: 'rgb(var(--color-secondary))', color: 'rgb(var(--color-on-secondary))' }}
+                  >
+                    Adicionar {selectedGenerated.size} de {generatedScenarios.length}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {editingTestCase ? (
               <div className="p-3 rounded-lg border border-outline-variant bg-surface space-y-3">
