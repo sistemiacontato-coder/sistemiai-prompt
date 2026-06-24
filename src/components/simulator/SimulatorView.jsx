@@ -1164,25 +1164,57 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
               ) : (
                 chatMessages.map((msg, idx) => {
                   const isUser = msg.role === 'user'
+                  const exitStatus = msg.json?.status
+                  const isExit = !isUser && exitStatus && exitStatus !== 'in_process' && exitStatus !== 'success'
+                  const exitDef = isExit && config.exitDestinations?.find(e => e.key === exitStatus)
+                  const exitLabel = exitDef?.label || exitStatus || ''
+                  const exitMsg = isExit && msg.json?.message
                   return (
                     <div key={idx} className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} space-y-1`}>
-                      <div
-                        className={`max-w-[75%] rounded-lg px-4 py-2.5 text-xs shadow-sm font-mono whitespace-pre-wrap leading-relaxed ${
-                          isUser
-                            ? 'bg-primary text-on-primary rounded-tr-none'
-                            : msg.error
-                              ? 'bg-error-container text-on-error-container border border-error/20 rounded-tl-none'
-                              : 'bg-surface-container-high text-on-surface rounded-tl-none border border-outline-variant/30'
-                        }`}
-                      >
-                        {msg.content}
-                        
-                        {msg.error && (
-                          <div className="mt-2 pt-2 border-t border-error/20 text-[9px] font-semibold text-error/90 max-w-full overflow-x-auto">
-                            {msg.error}
+                      {isExit ? (
+                        <div className="max-w-[80%] rounded-lg border border-outline-variant/50 overflow-hidden shadow-sm"
+                             style={{ background: 'var(--color-surface-container-high)' }}>
+                          {exitMsg && (
+                            <div className="px-3 py-2 text-xs font-mono text-on-surface border-b border-outline-variant/30 whitespace-pre-wrap leading-relaxed">
+                              {exitMsg}
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2.5 px-3 py-2"
+                               style={{ background: 'color-mix(in srgb, var(--color-tertiary) 8%, transparent)' }}>
+                            <span className="material-symbols-outlined flex-shrink-0"
+                                  style={{ fontSize: 15, color: 'rgb(var(--color-tertiary))' }}>
+                              call_merge
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-[9px] font-mono text-on-surface-variant/50 leading-none mb-0.5">Saída acionada</p>
+                              <p className="text-[11px] font-mono font-semibold leading-none"
+                                 style={{ color: 'rgb(var(--color-tertiary))' }}>
+                                {exitLabel}
+                              </p>
+                              <p className="text-[9px] font-mono text-on-surface-variant/40 mt-0.5 leading-none">
+                                {exitStatus}
+                              </p>
+                            </div>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div
+                          className={`max-w-[75%] rounded-lg px-4 py-2.5 text-xs shadow-sm font-mono whitespace-pre-wrap leading-relaxed ${
+                            isUser
+                              ? 'bg-primary text-on-primary rounded-tr-none'
+                              : msg.error
+                                ? 'bg-error-container text-on-error-container border border-error/20 rounded-tl-none'
+                                : 'bg-surface-container-high text-on-surface rounded-tl-none border border-outline-variant/30'
+                          }`}
+                        >
+                          {msg.content}
+                          {msg.error && (
+                            <div className="mt-2 pt-2 border-t border-error/20 text-[9px] font-semibold text-error/90 max-w-full overflow-x-auto">
+                              {msg.error}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Painel de Avaliação por Turno (apenas nas respostas do bot, se válidas) */}
                       {!isUser && !msg.error && msg.json && (
