@@ -500,8 +500,7 @@ export default function App() {
   const filterIdenticalChanges = useCallback((changes, cfg) => {
     return {
       ...changes,
-      new_agent_name:    changes.new_agent_name    && changes.new_agent_name.trim()    !== (cfg.agentName    || '').trim()    ? changes.new_agent_name    : '',
-      new_agent_persona: changes.new_agent_persona && changes.new_agent_persona.trim() !== (cfg.agentPersona || '').trim()    ? changes.new_agent_persona : '',
+      new_agent_name: changes.new_agent_name && changes.new_agent_name.trim() !== (cfg.agentName || '').trim() ? changes.new_agent_name : '',
     }
   }, [])
 
@@ -532,12 +531,21 @@ export default function App() {
     if (!pendingChanges) return
     if (loadedAgentId) autoSaveAfterApplyRef.current = true
 
-    const { new_agent_name, new_agent_persona, domain_add = [], domain_remove = [], add_variables, remove_variables, add_exits, remove_exits, update_exits = [] } = pendingChanges
+    const { new_agent_name, persona_add = [], persona_remove = [], domain_add = [], domain_remove = [], add_variables, remove_variables, add_exits, remove_exits, update_exits = [] } = pendingChanges
     const baseId = Date.now()
 
     setConfig(prev => {
-      const agentName    = new_agent_name    || prev.agentName
-      const agentPersona = new_agent_persona || prev.agentPersona
+      const agentName = new_agent_name || prev.agentName
+
+      let agentPersona = prev.agentPersona || ''
+      if (persona_remove.length > 0) {
+        persona_remove.forEach(trecho => {
+          agentPersona = agentPersona.replace(trecho, '').replace(/\n{3,}/g, '\n\n').trim()
+        })
+      }
+      if (persona_add.length > 0) {
+        agentPersona = agentPersona.trimEnd() + '\n' + persona_add.join('\n')
+      }
 
       let domain = prev.domain || ''
       if (domain_remove.length > 0) {

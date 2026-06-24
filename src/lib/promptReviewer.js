@@ -30,7 +30,8 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
 
 {
   "new_agent_name": "Novo nome do agente (vazio se não precisar alterar)",
-  "new_agent_persona": "Nova persona COMPLETA do agente (vazio se não precisar alterar)",
+  "persona_add": ["Frase nova a acrescentar à persona — apenas tom/voz/apresentação"],
+  "persona_remove": ["Trecho EXATO da persona atual a remover"],
   "domain_add": ["Nova regra a acrescentar ao domínio — uma frase curta e direta"],
   "domain_remove": ["Trecho EXATO do domínio atual a remover ou substituir"],
   "add_variables": [
@@ -47,14 +48,20 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
   "summary": "Resumo das mudanças em português"
 }
 
+ONDE COLOCAR CADA TIPO DE MUDANÇA:
+- persona_add / persona_remove: SOMENTE para mudanças de tom, voz, idioma ou apresentação do agente (ex: "seja mais formal", "use emojis", "se apresente como X"). NUNCA use para regras de comportamento ou procedimentos.
+- domain_add / domain_remove: para regras de comportamento, procedimentos, o que perguntar ou NÃO perguntar, fatos, fluxos, restrições. Exemplos: "nunca perguntar nome", "informar horário sem perguntar filial", "registrar variável antes de acionar saída".
+- Se a instrução é sobre o que o agente DEVE ou NÃO DEVE FAZER → use domain_add/domain_remove, NÃO toque na persona.
+
 REGRAS OBRIGATÓRIAS:
 - new_agent_name: use APENAS quando a instrução pedir para corrigir o nome do agente. Vazio "" se não precisar.
-- new_agent_persona: use APENAS para alterar tom, comportamento ou apresentação do agente. ESCREVA O TEXTO COMPLETO. Vazio "" se não precisar.
-- domain_add: array com frases NOVAS a acrescentar ao domínio. Cada item é UMA frase curta. Use [] se não precisar adicionar.
-- domain_remove: array com trechos EXATOS do domínio atual a remover. Copie o texto sem alterar. Use [] se não precisar remover.
-- NUNCA reescreva o domínio inteiro. Altere APENAS o trecho relevante com domain_add e domain_remove.
-- CRÍTICO: não toque em partes do domínio que a instrução não menciona.
-- update_exits: use para CORRIGIR a condição de uma saída JÁ EXISTENTE (não adicione nem remova — apenas atualize). Use a chave EXATA da saída. A description DEVE começar com "Interrompa a IA quando o cliente".
+- NUNCA reescreva a persona inteira. Use persona_add e persona_remove para mudanças cirúrgicas. Use [] se não precisar alterar a persona.
+- NUNCA reescreva o domínio inteiro. Use domain_add e domain_remove para mudanças cirúrgicas. Use [] se não precisar alterar o domínio.
+- CRÍTICO: não toque em partes que a instrução não menciona.
+- domain_add: cada item é UMA frase curta e direta. Copie termos exatos da instrução do usuário — não invente vocabulário.
+- domain_remove: copie o trecho EXATO do domínio atual, sem alterar nenhuma palavra.
+- persona_remove: copie o trecho EXATO da persona atual, sem alterar nenhuma palavra.
+- update_exits: use para CORRIGIR a condição de uma saída JÁ EXISTENTE. Use a chave EXATA. A description DEVE começar com "Interrompa a IA quando o cliente".
 - add_exits: use APENAS para saídas NOVAS que não existem na configuração atual.
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
 - Arrays vazios [] se não houver mudanças desse tipo
@@ -75,17 +82,27 @@ function extractJson(text) {
 
 function normalizeResult(parsed) {
   return {
-    new_agent_name:    typeof parsed.new_agent_name === 'string'    ? parsed.new_agent_name.trim()    : '',
-    new_agent_persona: typeof parsed.new_agent_persona === 'string' ? parsed.new_agent_persona.trim() : '',
-    domain_add:        Array.isArray(parsed.domain_add)    ? parsed.domain_add.filter(Boolean)    : [],
-    domain_remove:     Array.isArray(parsed.domain_remove) ? parsed.domain_remove.filter(Boolean) : [],
-    add_variables:     Array.isArray(parsed.add_variables)    ? parsed.add_variables    : [],
-    remove_variables:  Array.isArray(parsed.remove_variables) ? parsed.remove_variables : [],
-    add_exits:         Array.isArray(parsed.add_exits)        ? parsed.add_exits        : [],
-    remove_exits:      Array.isArray(parsed.remove_exits)     ? parsed.remove_exits     : [],
-    update_exits:      Array.isArray(parsed.update_exits)     ? parsed.update_exits     : [],
-    summary:           parsed.summary || 'Mudanças propostas pela IA.',
+    new_agent_name:  typeof parsed.new_agent_name === 'string' ? parsed.new_agent_name.trim() : '',
+    persona_add:     Array.isArray(parsed.persona_add)     ? parsed.persona_add.filter(Boolean)     : [],
+    persona_remove:  Array.isArray(parsed.persona_remove)  ? parsed.persona_remove.filter(Boolean)  : [],
+    domain_add:      Array.isArray(parsed.domain_add)      ? parsed.domain_add.filter(Boolean)      : [],
+    domain_remove:   Array.isArray(parsed.domain_remove)   ? parsed.domain_remove.filter(Boolean)   : [],
+    add_variables:   Array.isArray(parsed.add_variables)   ? parsed.add_variables   : [],
+    remove_variables: Array.isArray(parsed.remove_variables) ? parsed.remove_variables : [],
+    add_exits:       Array.isArray(parsed.add_exits)       ? parsed.add_exits       : [],
+    remove_exits:    Array.isArray(parsed.remove_exits)    ? parsed.remove_exits    : [],
+    update_exits:    Array.isArray(parsed.update_exits)    ? parsed.update_exits    : [],
+    summary:         parsed.summary || 'Mudanças propostas pela IA.',
   }
+}
+
+function countChanges(result) {
+  return result.add_variables.length + result.remove_variables.length +
+         result.add_exits.length + result.remove_exits.length +
+         result.update_exits.length +
+         result.persona_add.length + result.persona_remove.length +
+         result.domain_add.length + result.domain_remove.length +
+         (result.new_agent_name ? 1 : 0)
 }
 
 export async function reviewPromptChanges(instruction, config, aiConfig, generatedPrompt) {
@@ -95,17 +112,9 @@ export async function reviewPromptChanges(instruction, config, aiConfig, generat
   const prompt = buildReviewPrompt(config, instruction, generatedPrompt)
   const text = await callAI(prompt, cfg)
   const parsed = extractJson(text)
-
   const result = normalizeResult(parsed)
 
-  const totalChanges = result.add_variables.length + result.remove_variables.length +
-                       result.add_exits.length + result.remove_exits.length +
-                       result.update_exits.length +
-                       result.domain_add.length + result.domain_remove.length +
-                       (result.new_agent_name ? 1 : 0) +
-                       (result.new_agent_persona ? 1 : 0)
-
-  if (totalChanges === 0) throw new Error('SEM_MUDANCAS')
+  if (countChanges(result) === 0) throw new Error('SEM_MUDANCAS')
 
   return result
 }
@@ -138,7 +147,8 @@ Retorne APENAS o JSON abaixo com as mudanças CORRIGIDAS, sem texto adicional, s
 
 {
   "new_agent_name": "Novo nome do agente (vazio se não precisar alterar)",
-  "new_agent_persona": "Nova persona COMPLETA (vazio se não precisar alterar)",
+  "persona_add": ["Frase nova a acrescentar à persona"],
+  "persona_remove": ["Trecho EXATO da persona a remover"],
   "domain_add": ["Nova regra a acrescentar ao domínio — uma frase curta"],
   "domain_remove": ["Trecho EXATO do domínio atual a remover"],
   "add_variables": [],
@@ -149,12 +159,15 @@ Retorne APENAS o JSON abaixo com as mudanças CORRIGIDAS, sem texto adicional, s
   "summary": "Resumo das mudanças corrigidas em português"
 }
 
+ONDE COLOCAR CADA TIPO DE MUDANÇA:
+- persona_add / persona_remove: SOMENTE para tom, voz, idioma ou apresentação. NUNCA para regras de comportamento.
+- domain_add / domain_remove: para regras, procedimentos, o que fazer ou não fazer, fatos, restrições.
+
 REGRAS OBRIGATÓRIAS:
 - new_agent_name: vazio "" se não precisar alterar o nome
-- new_agent_persona: escreva o texto COMPLETO da persona se precisar alterar. Vazio "" se não precisar.
+- NUNCA reescreva a persona inteira. Use persona_add e persona_remove para mudanças cirúrgicas.
 - NUNCA reescreva o domínio inteiro. Use domain_add e domain_remove para mudanças cirúrgicas.
-- domain_add: array com frases novas a acrescentar. Use [] se não precisar adicionar.
-- domain_remove: array com trechos EXATOS a remover. Copie sem alterar. Use [] se não precisar remover.
+- domain_remove / persona_remove: copie o trecho EXATO sem alterar nenhuma palavra.
 - add_variables[].name: minúsculo, underline, sem acento, MÁXIMO 14 caracteres
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
 - add_exits[].description: SEMPRE começar com "Interrompa a IA quando o cliente"
@@ -165,14 +178,7 @@ REGRAS OBRIGATÓRIAS:
   const parsed = extractJson(text)
   const result = normalizeResult(parsed)
 
-  const totalChanges = result.add_variables.length + result.remove_variables.length +
-                       result.add_exits.length + result.remove_exits.length +
-                       result.update_exits.length +
-                       result.domain_add.length + result.domain_remove.length +
-                       (result.new_agent_name ? 1 : 0) +
-                       (result.new_agent_persona ? 1 : 0)
-
-  if (totalChanges === 0) throw new Error('A IA não identificou mudanças na correção. Tente ser mais específico.')
+  if (countChanges(result) === 0) throw new Error('A IA não identificou mudanças na correção. Tente ser mais específico.')
 
   return result
 }

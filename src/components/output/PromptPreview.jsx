@@ -177,7 +177,7 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
 
   if (!pendingChanges) return null
 
-  const { new_agent_name, new_agent_persona, domain_add = [], domain_remove = [], add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
+  const { new_agent_name, persona_add = [], persona_remove = [], domain_add = [], domain_remove = [], add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
 
   // Monta itens semânticos
   const items = []
@@ -189,30 +189,15 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
     items.push({ type: 'added', category: 'nome', title: new_agent_name, detail: null, wordHighlight: highlightChangedWords(oldName, new_agent_name), _key: 'name-new' })
   }
 
-  // Persona do agente — diff pareado com word-highlight (igual ao domínio)
-  if (new_agent_persona) {
-    const oldPersona = config?.agentPersona || ''
-    if (oldPersona && oldPersona !== new_agent_persona) {
-      const personaDiff = diffLines(oldPersona, new_agent_persona)
-      const perRemoved = personaDiff.filter(d => d.type === 'removed').map(d => d.content || '')
-      const perAdded   = personaDiff.filter(d => d.type === 'added').map(d => d.content || '')
-      const pairCount  = Math.max(perRemoved.length, perAdded.length)
-      for (let i = 0; i < pairCount; i++) {
-        if (perRemoved[i] !== undefined)
-          items.push({ type: 'removed', category: 'persona', title: perRemoved[i] || '(vazio)', detail: null, wordHighlight: null, _key: `per-rem-${i}` })
-        if (perAdded[i] !== undefined) {
-          const highlight = highlightChangedWords(perRemoved[i] || '', perAdded[i])
-          items.push({ type: 'added', category: 'persona', title: perAdded[i] || '(vazio)', detail: null, wordHighlight: highlight, _key: `per-add-${i}` })
-        }
-      }
-    } else if (!oldPersona) {
-      new_agent_persona.split('\n').forEach((line, i) => {
-        if (line.trim()) items.push({ type: 'added', category: 'persona', title: line, detail: null, wordHighlight: null, _key: `per-new-${i}` })
-      })
-    }
-  }
+  // Persona — patches cirúrgicos
+  persona_remove.forEach((trecho, i) => {
+    if (trecho.trim()) items.push({ type: 'removed', category: 'persona', title: trecho, detail: null, wordHighlight: null, _key: `per-rem-${i}` })
+  })
+  persona_add.forEach((trecho, i) => {
+    items.push({ type: 'added', category: 'persona', title: trecho, detail: null, wordHighlight: null, _key: `per-add-${i}` })
+  })
 
-  // Objetivo — patches cirúrgicos: domain_remove (vermelho) e domain_add (verde)
+  // Objetivo — patches cirúrgicos
   domain_remove.forEach((trecho, i) => {
     if (trecho.trim()) items.push({ type: 'removed', category: 'objetivo', title: trecho, detail: null, wordHighlight: null, _key: `dom-rem-${i}` })
   })
@@ -435,9 +420,9 @@ export default function PromptPreview({
   const totalChanges = pendingChanges
     ? (pendingChanges.add_variables.length + pendingChanges.remove_variables.length +
        pendingChanges.add_exits.length + pendingChanges.remove_exits.length +
+       (pendingChanges.persona_add?.length || 0) + (pendingChanges.persona_remove?.length || 0) +
        (pendingChanges.domain_add?.length || 0) + (pendingChanges.domain_remove?.length || 0) +
-       (pendingChanges.new_agent_name ? 1 : 0) +
-       (pendingChanges.new_agent_persona ? 1 : 0))
+       (pendingChanges.new_agent_name ? 1 : 0))
     : 0
 
   return (
@@ -543,7 +528,7 @@ export default function PromptPreview({
                       nome atualizado
                     </span>
                   )}
-                  {pendingChanges.new_agent_persona && (
+                  {((pendingChanges.persona_add?.length || 0) + (pendingChanges.persona_remove?.length || 0)) > 0 && (
                     <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border border-secondary/30 text-secondary">
                       <span className="material-symbols-outlined" style={{ fontSize: 11 }}>person</span>
                       persona atualizada
