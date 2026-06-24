@@ -1,6 +1,6 @@
 import { callAI, loadAIConfig } from './claude'
 
-function buildReviewPrompt(config, instruction) {
+function buildReviewPrompt(config, instruction, generatedPrompt) {
   const existing = {
     agentName: config.agentName,
     agentPersona: config.agentPersona,
@@ -13,12 +13,16 @@ function buildReviewPrompt(config, instruction) {
       .map(e => ({ key: e.key, label: e.label, description: e.description || '' })),
   }
 
+  const promptSection = generatedPrompt
+    ? `\nPROMPT GERADO ATUAL (use para entender o contexto exato do problema):\n---\n${generatedPrompt.slice(0, 3000)}${generatedPrompt.length > 3000 ? '\n[...truncado]' : ''}\n---\n`
+    : ''
+
   return `Você é um revisor de configurações de agentes de chatbot para WhatsApp.
 
 CONFIGURAÇÃO ATUAL DO AGENTE:
 ${JSON.stringify(existing, null, 2)}
-
-INSTRUÇÃO DO USUÁRIO: "${instruction}"
+${promptSection}
+INSTRUÇÃO: "${instruction}"
 
 Com base na instrução, identifique as mudanças necessárias na configuração.
 
@@ -36,21 +40,22 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
     { "key": "saida_nome", "label": "Nome Legível", "description": "Interrompa a IA quando o cliente..." }
   ],
   "remove_exits": [],
+  "update_exits": [
+    { "key": "saida_existente", "description": "Condição corrigida iniciando com 'Interrompa a IA quando o cliente...'" }
+  ],
   "summary": "Resumo das mudanças em português"
 }
 
 REGRAS OBRIGATÓRIAS:
-- new_agent_name: use APENAS quando a instrução pedir para corrigir o nome do agente (campo agentName). Vazio "" se não precisar.
-- new_agent_persona: use APENAS quando a instrução alterar o campo persona do agente — texto de apresentação, comportamento, tom, como o agente se descreve. ESCREVA O TEXTO COMPLETO da persona com as correções aplicadas. Vazio "" se não precisar.
-- new_domain: use APENAS quando a instrução alterar o que o agente faz, o escopo de atendimento ou os objetivos do agente. Vazio "" se não precisar.
-- CRÍTICO: esses três campos são INDEPENDENTES. Corrigir o nome na persona → use new_agent_persona (não new_domain). Corrigir o nome do agente → use new_agent_name (não new_domain). Apenas altere new_domain quando a instrução tratar explicitamente do domínio/objetivo do agente.
-- EXEMPLO: se a instrução for "corrija o nome João para Marcos na persona", retorne new_agent_persona com o texto completo corrigido, e new_agent_name/new_domain vazios.
-- add_variables[].name: minúsculo, underline, sem acento, MÁXIMO 14 caracteres
+- new_agent_name: use APENAS quando a instrução pedir para corrigir o nome do agente. Vazio "" se não precisar.
+- new_agent_persona: use APENAS para alterar tom, comportamento ou apresentação do agente. ESCREVA O TEXTO COMPLETO. Vazio "" se não precisar.
+- new_domain: use APENAS quando a instrução alterar o escopo ou objetivos do agente. Vazio "" se não precisar.
+- CRÍTICO: esses três campos são INDEPENDENTES — use apenas o campo correto para cada tipo de mudança.
+- update_exits: use para CORRIGIR a condição de uma saída JÁ EXISTENTE (não adicione nem remova — apenas atualize). Use a chave EXATA da saída. A description DEVE começar com "Interrompa a IA quando o cliente".
+- add_exits: use APENAS para saídas NOVAS que não existem na configuração atual.
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
-- add_exits[].description: SEMPRE começar com "Interrompa a IA quando o cliente"
 - Arrays vazios [] se não houver mudanças desse tipo
-- remove_variables: use os nomes EXATOS das variáveis da configuração atual
-- remove_exits: use as chaves EXATAS das saídas da configuração atual
+- remove_variables / remove_exits: use os nomes/chaves EXATOS da configuração atual
 - Não remova saida_atendente a menos que explicitamente solicitado
 - summary: explique as mudanças de forma concisa em português`
 }
@@ -74,15 +79,16 @@ function normalizeResult(parsed) {
     remove_variables:  Array.isArray(parsed.remove_variables) ? parsed.remove_variables : [],
     add_exits:         Array.isArray(parsed.add_exits)        ? parsed.add_exits        : [],
     remove_exits:      Array.isArray(parsed.remove_exits)     ? parsed.remove_exits     : [],
+    update_exits:      Array.isArray(parsed.update_exits)     ? parsed.update_exits     : [],
     summary:           parsed.summary || 'Mudanças propostas pela IA.',
   }
 }
 
-export async function reviewPromptChanges(instruction, config, aiConfig) {
+export async function reviewPromptChanges(instruction, config, aiConfig, generatedPrompt) {
   const cfg = aiConfig || loadAIConfig()
   if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
 
-  const prompt = buildReviewPrompt(config, instruction)
+  const prompt = buildReviewPrompt(config, instruction, generatedPrompt)
   const text = await callAI(prompt, cfg)
   const parsed = extractJson(text)
 
@@ -90,6 +96,7 @@ export async function reviewPromptChanges(instruction, config, aiConfig) {
 
   const totalChanges = result.add_variables.length + result.remove_variables.length +
                        result.add_exits.length + result.remove_exits.length +
+                       result.update_exits.length +
                        (result.new_domain ? 1 : 0) +
                        (result.new_agent_name ? 1 : 0) +
                        (result.new_agent_persona ? 1 : 0)

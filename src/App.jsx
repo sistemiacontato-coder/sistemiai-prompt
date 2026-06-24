@@ -510,7 +510,7 @@ export default function App() {
     setIsReviewing(true)
     setPendingChanges(null)
     try {
-      const raw = await reviewPromptChanges(instruction, config, aiConfig)
+      const raw = await reviewPromptChanges(instruction, config, aiConfig, generatedPrompt)
       const changes = filterIdenticalChanges(raw, config)
       setPendingChanges({ ...changes, originalInstruction: instruction })
     } catch (err) {
@@ -533,7 +533,7 @@ export default function App() {
     if (!pendingChanges) return
     if (loadedAgentId) autoSaveAfterApplyRef.current = true
 
-    const { new_agent_name, new_agent_persona, new_domain, add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
+    const { new_agent_name, new_agent_persona, new_domain, add_variables, remove_variables, add_exits, remove_exits, update_exits = [] } = pendingChanges
     const baseId = Date.now()
 
     setConfig(prev => {
@@ -571,6 +571,14 @@ export default function App() {
         }))
         .filter(e => e.key.startsWith('saida_') && !exitDestinations.some(ex => ex.key === e.key))
       exitDestinations = [...exitDestinations, ...newExits]
+
+      // Atualiza condições de saídas existentes (update_exits)
+      if (update_exits.length > 0) {
+        exitDestinations = exitDestinations.map(e => {
+          const upd = update_exits.find(u => u.key === e.key)
+          return upd ? { ...e, description: upd.description } : e
+        })
+      }
 
       const newConfig = { ...prev, agentName, agentPersona, domain, variables, exitDestinations }
       const newPrompt = buildPrompt(newConfig, settings)
