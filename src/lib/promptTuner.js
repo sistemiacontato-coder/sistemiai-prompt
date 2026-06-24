@@ -228,8 +228,8 @@ Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar)
 
 {
   "agentPersona": "Persona completa corrigida — USE APENAS para tom/linguagem/personalidade (vazio se não alterar)",
-  "domain_add": ["Regra nova a acrescentar ao domínio — uma frase curta"],
-  "domain_remove": ["Trecho EXATO do domínio atual a remover ou substituir"],
+  "domain_add": ["Regra nova a acrescentar ao objetivo — uma frase curta"],
+  "domain_remove": ["Trecho EXATO do objetivo atual a remover ou substituir"],
   "update_variables": [
     { "name": "nome_exato_da_var", "description": "Nova descrição mais clara orientando a IA" }
   ],
@@ -240,9 +240,9 @@ Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar)
 }
 
 REGRAS CRÍTICAS:
-- NUNCA reescreva o domínio inteiro. Use APENAS domain_add e domain_remove para mudanças cirúrgicas.
+- NUNCA reescreva o objetivo inteiro. Use APENAS domain_add e domain_remove para mudanças cirúrgicas.
 - domain_add: array com as frases novas a adicionar. Cada item é UMA frase curta e direta.
-- domain_remove: array com trechos EXATOS do domínio atual que precisam ser removidos ou substituídos. Copie o texto original sem alterar.
+- domain_remove: array com trechos EXATOS do objetivo atual que precisam ser removidos ou substituídos. Copie o texto original sem alterar.
 - Se só precisa adicionar uma regra, use apenas domain_add e deixe domain_remove vazio.
 - agentPersona: texto COMPLETO apenas se o problema for de tom ou linguagem — nunca para regras de atendimento.
 - update_variables: só para ajustar descrição de variável já existente.
@@ -292,7 +292,7 @@ Retorne APENAS o JSON corrigido, sem texto adicional:
 {
   "agentPersona": "Persona completa corrigida — apenas se problema for de tom/linguagem (vazio se não alterar)",
   "domain_add": ["Regra nova a acrescentar — uma frase curta"],
-  "domain_remove": ["Trecho EXATO do domínio atual a remover"],
+  "domain_remove": ["Trecho EXATO do objetivo atual a remover"],
   "update_variables": [{ "name": "nome_exato", "description": "nova descrição" }],
   "update_exits": [{ "key": "saida_exata_key", "description": "Interrompa a IA quando o cliente...", "exitMessage": "" }],
   "summary": "Uma frase explicando o que foi corrigido"
@@ -300,7 +300,7 @@ Retorne APENAS o JSON corrigido, sem texto adicional:
 
 REGRAS:
 - Cada item em domain_add: UMA frase curta e direta, sem exemplos ou exceções.
-- NUNCA reescreva o domínio inteiro.
+- NUNCA reescreva o objetivo inteiro.
 - Não adicione informações não mencionadas pelo usuário.
 - summary: máximo 1 frase.`
 

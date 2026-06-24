@@ -32,8 +32,8 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
   "new_agent_name": "Novo nome do agente (vazio se não precisar alterar)",
   "persona_add": ["Frase nova a acrescentar à persona — apenas tom/voz/apresentação"],
   "persona_remove": ["Trecho EXATO da persona atual a remover"],
-  "domain_add": ["Nova regra a acrescentar ao domínio — uma frase curta e direta"],
-  "domain_remove": ["Trecho EXATO do domínio atual a remover ou substituir"],
+  "domain_add": ["Nova regra a acrescentar ao objetivo — uma frase curta e direta"],
+  "domain_remove": ["Trecho EXATO do objetivo atual a remover ou substituir"],
   "add_variables": [],
   "remove_variables": [],
   "add_exits": [],
@@ -52,10 +52,10 @@ ONDE COLOCAR CADA TIPO DE MUDANÇA:
 REGRAS OBRIGATÓRIAS:
 - new_agent_name: use APENAS quando a instrução pedir para corrigir o nome do agente. Vazio "" se não precisar.
 - NUNCA reescreva a persona inteira. Use persona_add e persona_remove para mudanças cirúrgicas. Use [] se não precisar alterar a persona.
-- NUNCA reescreva o domínio inteiro. Use domain_add e domain_remove para mudanças cirúrgicas. Use [] se não precisar alterar o domínio.
+- NUNCA reescreva o objetivo inteiro. Use domain_add e domain_remove para mudanças cirúrgicas. Use [] se não precisar alterar o objetivo.
 - CRÍTICO: não toque em partes que a instrução não menciona.
 - domain_add: cada item é UMA frase curta e direta. Copie termos exatos da instrução do usuário — não invente vocabulário.
-- domain_remove: copie o trecho EXATO do domínio atual, sem alterar nenhuma palavra.
+- domain_remove: copie o trecho EXATO do objetivo atual, sem alterar nenhuma palavra.
 - persona_remove: copie o trecho EXATO da persona atual, sem alterar nenhuma palavra.
 - update_exits: use para CORRIGIR a condição de uma saída JÁ EXISTENTE. Use a chave EXATA. A description DEVE começar com "Interrompa a IA quando o cliente".
 - add_exits: use APENAS para saídas NOVAS que não existem na configuração atual.
@@ -145,8 +145,8 @@ Retorne APENAS o JSON abaixo com as mudanças CORRIGIDAS, sem texto adicional, s
   "new_agent_name": "Novo nome do agente (vazio se não precisar alterar)",
   "persona_add": ["Frase nova a acrescentar à persona"],
   "persona_remove": ["Trecho EXATO da persona a remover"],
-  "domain_add": ["Nova regra a acrescentar ao domínio — uma frase curta"],
-  "domain_remove": ["Trecho EXATO do domínio atual a remover"],
+  "domain_add": ["Nova regra a acrescentar ao objetivo — uma frase curta"],
+  "domain_remove": ["Trecho EXATO do objetivo atual a remover"],
   "add_variables": [],
   "remove_variables": [],
   "add_exits": [],
@@ -162,7 +162,7 @@ ONDE COLOCAR CADA TIPO DE MUDANÇA:
 REGRAS OBRIGATÓRIAS:
 - new_agent_name: vazio "" se não precisar alterar o nome
 - NUNCA reescreva a persona inteira. Use persona_add e persona_remove para mudanças cirúrgicas.
-- NUNCA reescreva o domínio inteiro. Use domain_add e domain_remove para mudanças cirúrgicas.
+- NUNCA reescreva o objetivo inteiro. Use domain_add e domain_remove para mudanças cirúrgicas.
 - domain_remove / persona_remove: copie o trecho EXATO sem alterar nenhuma palavra.
 - add_variables[].name: minúsculo, underline, sem acento, MÁXIMO 14 caracteres
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total

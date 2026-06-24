@@ -1566,10 +1566,10 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                         )
                       })()}
 
-                      {/* Regras do domínio */}
+                      {/* Objetivo */}
                       {(res.domain_add?.length > 0 || res.domain_remove?.length > 0) && (
                         <div className="pt-2 border-t border-outline-variant/30 space-y-1.5">
-                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block">Regras do Domínio:</span>
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block">Objetivo:</span>
                           {res.domain_add?.map((r, i) => {
                             const key = `domain_add_${i}`; const on = enabledItems.has(key)
                             return (

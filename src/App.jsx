@@ -759,7 +759,7 @@ export default function App() {
           id: baseId + 201,
           key: 'saida_fora_escopo',
           label: 'Fora do Escopo',
-          description: 'Interrompa a IA quando o cliente fizer perguntas completamente fora do domínio de atendimento do agente.',
+          description: 'Interrompa a IA quando o cliente fizer perguntas completamente fora do objetivo de atendimento do agente.',
           isDefault: false,
           generated: true,
           sendExitMessage: false,
@@ -1101,7 +1101,7 @@ export default function App() {
                               {[
                                 { key: 'includeNomeCliente',    label: 'Campo: nome do cliente',          detail: 'Captura e armazena o nome do cliente na variável nome_cliente.' },
                                 { key: 'includeSaidaAtendente', label: 'Saída: atendente humano',         detail: 'Gera saida_atendente como saída padrão de transferência para humano.' },
-                                { key: 'includeSaidaEscopo',    label: 'Saída: perguntas fora do escopo', detail: 'Gera saida_fora_escopo para transferir quando cliente sai do domínio.' },
+                                { key: 'includeSaidaEscopo',    label: 'Saída: perguntas fora do escopo', detail: 'Gera saida_fora_escopo para transferir quando cliente sai do objetivo.' },
                               ].map(opt => {
                                 const on = analyzeOptions[opt.key]
                                 return (

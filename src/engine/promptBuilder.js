@@ -70,13 +70,13 @@ export function buildPrompt(config, settings = {}) {
   lines.push(`Você é um sistema automatizado. Nunca afirme ser humano. Se perguntado diretamente, confirme que é um assistente virtual.`)
   lines.push(``)
 
-  lines.push(`# DOMÍNIO E ESCOPO`)
+  lines.push(`# OBJETIVO DO AGENTE`)
   lines.push(``)
   if (domain.trim()) {
     lines.push(domain.trim())
     lines.push(``)
   }
-  lines.push(`Responda exclusivamente sobre assuntos relacionados ao domínio acima.`)
+  lines.push(`Responda exclusivamente sobre assuntos relacionados ao objetivo acima.`)
   lines.push(`Para qualquer outra solicitação, utilize o status \`saida_atendente\` com orientação ao cliente.`)
   lines.push(``)
 
@@ -258,7 +258,7 @@ export function buildPrompt(config, settings = {}) {
   lines.push(`3. Regras de formato JSON      → resposta sempre válida e completa`)
   lines.push(`4. Regra de sequência          → uma pergunta por vez`)
   lines.push(`5. Regras de tom e linguagem   → comunicação correta`)
-  lines.push(`6. Regras de domínio           → conteúdo específico do serviço`)
+  lines.push(`6. Objetivo do agente          → conteúdo específico do serviço`)
   lines.push(`\`\`\``)
   lines.push(``)
 
@@ -277,10 +277,10 @@ export function buildPrompt(config, settings = {}) {
   lines.push(``)
   lines.push(`Se o cliente enviar mensagem que não se encaixa em nenhuma condição mapeada:`)
   lines.push(``)
-  lines.push(`1. NUNCA inventar respostas fora do domínio.`)
+  lines.push(`1. NUNCA inventar respostas fora do objetivo.`)
   lines.push(`2. Solicitar esclarecimento (registrar tentativa no \`summary\`).`)
   lines.push(`3. Após ${maxAttempts} tentativas sem identificação: \`saida_atendente\`.`)
-  lines.push(`4. Se claramente fora do domínio: \`saida_atendente\` com orientação ao cliente.`)
+  lines.push(`4. Se claramente fora do objetivo: \`saida_atendente\` com orientação ao cliente.`)
   lines.push(``)
 
   const enumVars = variables.filter(v => v.name.trim() && v.type === 'enum')

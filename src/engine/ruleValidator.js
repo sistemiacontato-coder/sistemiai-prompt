@@ -29,7 +29,7 @@ export function validateConfig(config) {
     results.push({ type: 'warning', code: 'MISSING_PERSONA', message: 'Persona não definida. O agente terá comportamento genérico.' })
   }
   if (!domain?.trim()) {
-    results.push({ type: 'critical', code: 'MISSING_DOMAIN', message: 'Domínio/escopo do agente é obrigatório.' })
+    results.push({ type: 'critical', code: 'MISSING_DOMAIN', message: 'Objetivo do agente é obrigatório.' })
   }
 
   // Verificar travessão

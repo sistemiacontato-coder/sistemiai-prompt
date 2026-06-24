@@ -189,7 +189,7 @@ function AgentCard({ agent, onLoad, onDelete, onRename, onRestoreLogPrompt }) {
               </div>
             )}
             <p className="text-[11px] font-mono text-on-surface-variant/60 mt-0.5 truncate">
-              {agent.domain?.slice(0, 80) || 'Sem domínio definido'}...
+              {agent.domain?.slice(0, 80) || 'Sem objetivo definido'}...
             </p>
             <div className="flex items-center gap-3 mt-2">
               <span className="label-caps text-[9px] text-on-surface-variant/40">{formatDate(agent.created_at)}</span>
@@ -303,7 +303,7 @@ export default function HistoryPanel({ agents, isLoading, onLoad, onDelete, onRe
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por nome ou domínio..."
+          placeholder="Buscar por nome ou objetivo..."
           className="flex-1 bg-transparent text-[13px] font-mono text-on-surface focus:outline-none placeholder:text-on-surface-variant/30"
         />
       </div>
