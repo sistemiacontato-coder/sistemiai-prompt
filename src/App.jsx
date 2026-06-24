@@ -527,11 +527,12 @@ export default function App() {
     }
   }, [config, aiConfig, filterIdenticalChanges, isPromptStale])
 
-  const handleApplyChanges = useCallback(() => {
-    if (!pendingChanges) return
+  const handleApplyChanges = useCallback((overrideChanges) => {
+    const changes = overrideChanges || pendingChanges
+    if (!changes) return
     if (loadedAgentId) autoSaveAfterApplyRef.current = true
 
-    const { new_agent_name, persona_add = [], persona_remove = [], domain_add = [], domain_remove = [], add_variables, remove_variables, add_exits, remove_exits, update_exits = [] } = pendingChanges
+    const { new_agent_name, persona_add = [], persona_remove = [], domain_add = [], domain_remove = [], add_variables = [], remove_variables = [], add_exits = [], remove_exits = [], update_exits = [] } = changes
     const baseId = Date.now()
 
     setConfig(prev => {

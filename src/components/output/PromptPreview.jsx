@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { diffLines } from '../../lib/promptDiff'
 
 function tokenizeLine(line) {
@@ -100,7 +100,7 @@ function buildPairs(items) {
 }
 
 // Linha de item no painel de diff — cores via variáveis CSS (funciona em modo claro e escuro)
-function DiffItem({ type, category, title, detail, wordHighlight }) {
+function DiffItem({ type, category, title, detail, wordHighlight, dimmed }) {
   const isAdd = type === 'added'
   const cv = isAdd ? 'secondary' : 'error'
   const color     = `rgb(var(--color-${cv}))`
@@ -129,23 +129,18 @@ function DiffItem({ type, category, title, detail, wordHighlight }) {
 
   return (
     <div
-      className="flex items-start gap-2 px-3 py-2.5 border-b border-outline-variant/10 last:border-0"
-      style={{ background: bgItem, borderLeft: `3px solid ${bdrLeft}` }}
+      className="flex items-start gap-2 px-3 py-2.5 border-b border-outline-variant/10 last:border-0 transition-opacity"
+      style={{ background: dimmed ? 'transparent' : bgItem, borderLeft: `3px solid ${dimmed ? 'transparent' : bdrLeft}`, opacity: dimmed ? 0.3 : 1 }}
     >
       <span className="font-mono text-[13px] font-bold flex-shrink-0 mt-0.5 w-3" style={{ color }}>
         {isAdd ? '+' : '−'}
       </span>
       <div className="flex-1 min-w-0">
-        {/* Chip de categoria — sempre na própria linha */}
         <div className="mb-1">
-          <span
-            className="text-[8px] font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
-            style={{ background: bgChip, color }}
-          >
+          <span className="text-[8px] font-mono font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: bgChip, color }}>
             {category}
           </span>
         </div>
-        {/* Conteúdo — sempre na linha abaixo do chip */}
         <span className="font-mono text-[11px] font-normal leading-snug" style={{ color }}>
           {renderedContent}
         </span>
@@ -159,87 +154,122 @@ function DiffItem({ type, category, title, detail, wordHighlight }) {
   )
 }
 
-// Par de modificação: mostra o antes (vermelho) + depois (verde) juntos
-function DiffPairItem({ removed, added }) {
+// Item avulso com checkbox
+function CheckableItem({ item, checked, onToggle }) {
   return (
-    <div className="border-b border-outline-variant/10 last:border-0">
-      <DiffItem {...removed} />
-      <DiffItem {...added} />
+    <div className="flex items-stretch border-b border-outline-variant/10 last:border-0">
+      <button
+        onClick={onToggle}
+        className="flex items-start pt-2.5 px-2 hover:opacity-80 transition-opacity flex-shrink-0"
+        title={checked ? 'Desmarcar' : 'Marcar'}
+      >
+        <span className="material-symbols-outlined" style={{ fontSize: 16, color: checked ? '#4ade80' : 'rgba(163,163,163,0.35)' }}>
+          {checked ? 'check_box' : 'check_box_outline_blank'}
+        </span>
+      </button>
+      <div className="flex-1 min-w-0">
+        <DiffItem {...item} dimmed={!checked} />
+      </div>
     </div>
   )
 }
 
-// Painel dedicado de diff semântico — inclui réplica e botões de ação
-function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRefining, totalChanges }) {
-  const [filter, setFilter] = useState('modified')
+// Par de modificação com checkbox único
+function CheckablePair({ removed, added, checked, onToggle }) {
+  return (
+    <div className="border-b border-outline-variant/10 last:border-0">
+      <div className="flex items-stretch">
+        <button
+          onClick={onToggle}
+          className="flex items-start pt-2.5 px-2 hover:opacity-80 transition-opacity flex-shrink-0"
+          title={checked ? 'Desmarcar par' : 'Marcar par'}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: checked ? '#fb923c' : 'rgba(163,163,163,0.35)' }}>
+            {checked ? 'check_box' : 'check_box_outline_blank'}
+          </span>
+        </button>
+        <div className="flex-1 min-w-0">
+          <DiffItem {...removed} dimmed={!checked} />
+          <DiffItem {...added} dimmed={!checked} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Painel dedicado de diff semântico — inclui checkboxes individuais, réplica e botões de ação
+function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRefining }) {
   const [refineText, setRefineText] = useState('')
   const [refineError, setRefineError] = useState(null)
+  const [enabledKeys, setEnabledKeys] = useState(() => new Set())
 
-  if (!pendingChanges) return null
+  const { items, pairs } = useMemo(() => {
+    if (!pendingChanges) return { items: [], pairs: [] }
+    const { new_agent_name, persona_add = [], persona_remove = [], domain_add = [], domain_remove = [], add_variables = [], remove_variables = [], add_exits = [], remove_exits = [], update_exits = [] } = pendingChanges
+    const its = []
 
-  const { new_agent_name, persona_add = [], persona_remove = [], domain_add = [], domain_remove = [], add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
+    if (new_agent_name) {
+      const oldName = config?.agentName || ''
+      if (oldName) its.push({ type: 'removed', category: 'nome', title: oldName, detail: null, wordHighlight: null, _key: 'name-old' })
+      its.push({ type: 'added', category: 'nome', title: new_agent_name, detail: null, wordHighlight: highlightChangedWords(oldName, new_agent_name), _key: 'name-new' })
+    }
+    persona_remove.forEach((t, i) => { if (t.trim()) its.push({ type: 'removed', category: 'persona', title: t, detail: null, wordHighlight: null, _key: `per-rem-${i}` }) })
+    persona_add.forEach((t, i) => its.push({ type: 'added', category: 'persona', title: t, detail: null, wordHighlight: null, _key: `per-add-${i}` }))
+    domain_remove.forEach((t, i) => { if (t.trim()) its.push({ type: 'removed', category: 'objetivo', title: t, detail: null, wordHighlight: null, _key: `dom-rem-${i}` }) })
+    domain_add.forEach((t, i) => its.push({ type: 'added', category: 'objetivo', title: t, detail: null, wordHighlight: null, _key: `dom-add-${i}` }))
+    remove_variables.forEach((name, i) => { const v = config?.variables?.find(v => v.name === name); its.push({ type: 'removed', category: 'campo', title: name, detail: v?.description || null, wordHighlight: null, _key: `rv-${i}` }) })
+    add_variables.forEach((v, i) => its.push({ type: 'added', category: 'campo', title: v.name, detail: v.description || null, wordHighlight: null, _key: `av-${i}` }))
+    remove_exits.forEach((key, i) => { const e = config?.exitDestinations?.find(e => e.key === key); its.push({ type: 'removed', category: 'saída', title: e?.label || key, detail: e?.description || null, wordHighlight: null, _key: `re-${i}` }) })
+    add_exits.forEach((e, i) => its.push({ type: 'added', category: 'saída', title: e.label || e.key, detail: e.description || null, wordHighlight: null, _key: `ae-${i}` }))
+    update_exits.forEach((e, i) => {
+      const ex = config?.exitDestinations?.find(x => x.key === e.key)
+      if (ex?.description) its.push({ type: 'removed', category: 'saída', title: `${ex.label || e.key}: ${ex.description}`, detail: null, wordHighlight: null, _key: `ue-rem-${i}` })
+      its.push({ type: 'added', category: 'saída', title: `${ex?.label || e.key}: ${e.description}`, detail: null, wordHighlight: null, _key: `ue-add-${i}` })
+    })
 
-  // Monta itens semânticos
-  const items = []
+    return { items: its, pairs: buildPairs(its) }
+  }, [pendingChanges, config])
 
-  // Nome do agente
-  if (new_agent_name) {
-    const oldName = config?.agentName || ''
-    if (oldName) items.push({ type: 'removed', category: 'nome', title: oldName, detail: null, wordHighlight: null, _key: 'name-old' })
-    items.push({ type: 'added', category: 'nome', title: new_agent_name, detail: null, wordHighlight: highlightChangedWords(oldName, new_agent_name), _key: 'name-new' })
+  useEffect(() => {
+    setEnabledKeys(new Set(items.map(i => i._key)))
+  }, [pendingChanges])
+
+  if (!pendingChanges || items.length === 0) return null
+
+  const toggleKey = (key) => setEnabledKeys(prev => {
+    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key); return next
+  })
+  const togglePair = (keys) => setEnabledKeys(prev => {
+    const next = new Set(prev)
+    const allOn = keys.every(k => prev.has(k))
+    allOn ? keys.forEach(k => next.delete(k)) : keys.forEach(k => next.add(k))
+    return next
+  })
+  const toggleAll = () => setEnabledKeys(prev =>
+    prev.size === items.length ? new Set() : new Set(items.map(i => i._key))
+  )
+
+  const buildFiltered = () => {
+    const has = k => enabledKeys.has(k)
+    const fa = (arr, prefix) => (arr || []).filter((_, i) => has(`${prefix}${i}`))
+    return {
+      ...pendingChanges,
+      new_agent_name: has('name-new') ? pendingChanges.new_agent_name : '',
+      persona_add: fa(pendingChanges.persona_add, 'per-add-'),
+      persona_remove: fa(pendingChanges.persona_remove, 'per-rem-'),
+      domain_add: fa(pendingChanges.domain_add, 'dom-add-'),
+      domain_remove: fa(pendingChanges.domain_remove, 'dom-rem-'),
+      add_variables: fa(pendingChanges.add_variables, 'av-'),
+      remove_variables: fa(pendingChanges.remove_variables, 'rv-'),
+      add_exits: fa(pendingChanges.add_exits, 'ae-'),
+      remove_exits: fa(pendingChanges.remove_exits, 're-'),
+      update_exits: (pendingChanges.update_exits || []).filter((_, i) => has(`ue-add-${i}`)),
+    }
   }
 
-  // Persona — patches cirúrgicos
-  persona_remove.forEach((trecho, i) => {
-    if (trecho.trim()) items.push({ type: 'removed', category: 'persona', title: trecho, detail: null, wordHighlight: null, _key: `per-rem-${i}` })
-  })
-  persona_add.forEach((trecho, i) => {
-    items.push({ type: 'added', category: 'persona', title: trecho, detail: null, wordHighlight: null, _key: `per-add-${i}` })
-  })
-
-  // Objetivo — patches cirúrgicos
-  domain_remove.forEach((trecho, i) => {
-    if (trecho.trim()) items.push({ type: 'removed', category: 'objetivo', title: trecho, detail: null, wordHighlight: null, _key: `dom-rem-${i}` })
-  })
-  domain_add.forEach((trecho, i) => {
-    items.push({ type: 'added', category: 'objetivo', title: trecho, detail: null, wordHighlight: null, _key: `dom-add-${i}` })
-  })
-
-  // Campos removidos
-  remove_variables.forEach((name, i) => {
-    const v = config?.variables?.find(v => v.name === name)
-    items.push({ type: 'removed', category: 'campo', title: name, detail: v?.description || null, wordHighlight: null, _key: `rv-${i}` })
-  })
-
-  // Campos adicionados
-  add_variables.forEach((v, i) => {
-    items.push({ type: 'added', category: 'campo', title: v.name, detail: v.description || null, wordHighlight: null, _key: `av-${i}` })
-  })
-
-  // Saídas removidas
-  remove_exits.forEach((key, i) => {
-    const e = config?.exitDestinations?.find(e => e.key === key)
-    items.push({ type: 'removed', category: 'saída', title: e?.label || key, detail: e?.description || null, wordHighlight: null, _key: `re-${i}` })
-  })
-
-  // Saídas adicionadas
-  add_exits.forEach((e, i) => {
-    items.push({ type: 'added', category: 'saída', title: e.label || e.key, detail: e.description || null, wordHighlight: null, _key: `ae-${i}` })
-  })
-
-  if (items.length === 0) return null
-
-  const pairs = buildPairs(items)
-  const modifiedCount = pairs.filter(p => p.kind === 'modified').length
-  const pureAddedCount   = pairs.filter(p => p.kind === 'added').length
-  const pureRemovedCount = pairs.filter(p => p.kind === 'removed').length
-
-  const filterBtns = [
-    { key: 'all',      label: 'Tudo',      count: items.length,   activeColor: '#a3a3a3', activeBg: 'rgba(163,163,163,0.12)', activeBorder: 'rgba(163,163,163,0.25)' },
-    { key: 'modified', label: 'Alterado',  count: modifiedCount,  activeColor: '#fb923c', activeBg: 'rgba(251,146,60,0.15)',  activeBorder: 'rgba(251,146,60,0.35)' },
-    { key: 'added',    label: 'Adicionado',count: pureAddedCount,   activeColor: '#4ade80', activeBg: 'rgba(74,222,128,0.15)',  activeBorder: 'rgba(74,222,128,0.35)' },
-    { key: 'removed',  label: 'Removido',  count: pureRemovedCount, activeColor: '#f87171', activeBg: 'rgba(248,113,113,0.15)', activeBorder: 'rgba(248,113,113,0.35)' },
-  ].filter(f => f.count > 0 || f.key === 'all')
+  const enabledCount = items.filter(i => enabledKeys.has(i._key)).length
+  const allEnabled = enabledCount === items.length
+  const totalCount = items.length
 
   return (
     <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
@@ -251,45 +281,30 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
         <span className="text-[10px] font-mono font-semibold text-on-surface-variant/50 flex-1 tracking-wider uppercase">
           Prévia das Mudanças
         </span>
-        <div className="flex items-center gap-1">
-          {filterBtns.map(f => {
-            const isActive = filter === f.key
-            return (
-              <button key={f.key} onClick={() => setFilter(f.key)}
-                className="flex items-center gap-0.5 px-2 py-0.5 rounded text-[9px] font-mono font-semibold transition-all"
-                style={{
-                  background: isActive ? f.activeBg : 'transparent',
-                  color: isActive ? f.activeColor : 'rgba(163,163,163,0.45)',
-                  border: isActive ? `1px solid ${f.activeBorder}` : '1px solid transparent',
-                }}>
-                {f.key === 'added'   && <span>+</span>}
-                {f.key === 'removed' && <span>−</span>}
-                {f.label} ({f.count})
-              </button>
-            )
-          })}
-        </div>
+        <button onClick={toggleAll} className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-mono font-semibold transition-all hover:opacity-80"
+          style={{ color: 'rgba(163,163,163,0.6)', border: '1px solid rgba(163,163,163,0.2)' }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 12 }}>{allEnabled ? 'deselect' : 'select_all'}</span>
+          {allEnabled ? 'Desmarcar tudo' : 'Marcar tudo'}
+        </button>
+        <span className="text-[9px] font-mono text-on-surface-variant/40">
+          {enabledCount}/{totalCount}
+        </span>
       </div>
 
-      {/* Itens */}
-      <div className="max-h-[260px] overflow-y-auto" style={{ background: 'var(--color-surface)' }}>
-        {(() => {
-          if (filter === 'all') {
-            return items.length === 0
-              ? <p className="text-[10px] font-mono text-on-surface-variant/30 px-4 py-3">Nenhuma mudança.</p>
-              : items.map(item => <DiffItem key={item._key} {...item} />)
-          }
-          if (filter === 'modified') {
-            const modPairs = pairs.filter(p => p.kind === 'modified')
-            return modPairs.length === 0
-              ? <p className="text-[10px] font-mono text-on-surface-variant/30 px-4 py-3">Nenhuma alteração pareada.</p>
-              : modPairs.map((p, i) => <DiffPairItem key={i} removed={p.removed} added={p.added} />)
-          }
-          const filtered = pairs.filter(p => p.kind === filter).map(p => p.item)
-          return filtered.length === 0
-            ? <p className="text-[10px] font-mono text-on-surface-variant/30 px-4 py-3">Nenhuma mudança nesta categoria.</p>
-            : filtered.map(item => <DiffItem key={item._key} {...item} />)
-        })()}
+      {/* Itens com checkboxes */}
+      <div className="max-h-[280px] overflow-y-auto" style={{ background: 'var(--color-surface)' }}>
+        {pairs.length === 0
+          ? <p className="text-[10px] font-mono text-on-surface-variant/30 px-4 py-3">Nenhuma mudança.</p>
+          : pairs.map((p, i) => {
+              if (p.kind === 'modified') {
+                const pairKeys = [p.removed._key, p.added._key].filter(k => items.some(it => it._key === k))
+                const checked = pairKeys.some(k => enabledKeys.has(k))
+                return <CheckablePair key={i} removed={p.removed} added={p.added} checked={checked} onToggle={() => togglePair(pairKeys)} />
+              }
+              const item = p.item
+              return <CheckableItem key={item._key} item={item} checked={enabledKeys.has(item._key)} onToggle={() => toggleKey(item._key)} />
+            })
+        }
       </div>
 
       {/* Campo de réplica */}
@@ -322,15 +337,9 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
             }}
             className="self-stretch px-3 rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1"
             style={{
-              borderColor: refineText.trim() && !isRefining
-                ? 'rgba(74,222,128,0.4)'
-                : 'var(--color-outline-variant)',
-              background: refineText.trim() && !isRefining
-                ? 'rgba(74,222,128,0.08)'
-                : 'var(--color-surface)',
-              color: refineText.trim() && !isRefining
-                ? '#4ade80'
-                : 'var(--color-on-surface-variant)',
+              borderColor: refineText.trim() && !isRefining ? 'rgba(74,222,128,0.4)' : 'var(--color-outline-variant)',
+              background: refineText.trim() && !isRefining ? 'rgba(74,222,128,0.08)' : 'var(--color-surface)',
+              color: refineText.trim() && !isRefining ? '#4ade80' : 'var(--color-on-surface-variant)',
             }}>
             {isRefining
               ? <span className="material-symbols-outlined animate-spin" style={{ fontSize: 16 }}>progress_activity</span>
@@ -354,11 +363,12 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
           style={{ border: '1.5px solid rgba(248,113,113,0.6)', color: '#f87171', background: 'transparent' }}>
           Descartar
         </button>
-        <button onClick={onApply}
-          disabled={isRefining}
-          className="px-4 py-2 rounded-lg text-[11px] font-mono font-semibold transition-all active:scale-[0.99] disabled:opacity-50"
+        <button
+          onClick={() => onApply(buildFiltered())}
+          disabled={isRefining || enabledCount === 0}
+          className="px-4 py-2 rounded-lg text-[11px] font-mono font-semibold transition-all active:scale-[0.99] disabled:opacity-40"
           style={{ border: '1.5px solid rgba(74,222,128,0.6)', color: '#4ade80', background: 'transparent' }}>
-          Aplicar {totalChanges} mudança{totalChanges !== 1 ? 's' : ''}
+          Aplicar {enabledCount} de {totalCount}
         </button>
       </div>
     </div>
@@ -403,8 +413,8 @@ export default function PromptPreview({
     }
   }
 
-  const handleApply = () => {
-    onApplyChanges()
+  const handleApply = (filtered) => {
+    onApplyChanges(filtered)
     setInstruction('')
     setReviewError(null)
   }
@@ -577,7 +587,6 @@ export default function PromptPreview({
                 onDiscard={handleDiscard}
                 onRefine={onRefine}
                 isRefining={isReviewing}
-                totalChanges={totalChanges}
               />
             )}
 
