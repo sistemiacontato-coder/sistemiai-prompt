@@ -428,6 +428,8 @@ export default function App() {
   const skipNextDirtyRef = useRef(false)
   const skipNextMensagemDirtyRef = useRef(true)
   const handleGenerateRef = useRef(null)
+  const handleSaveRef = useRef(null)
+  const autoSaveAfterApplyRef = useRef(false)
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => {
@@ -450,6 +452,13 @@ export default function App() {
     setIsDirty(true)
     setConfigChangedAt(Date.now())
   }, [mensagemInicial])
+
+  // Auto-salva quando handleApplyChanges é chamado com agente já carregado
+  useEffect(() => {
+    if (!autoSaveAfterApplyRef.current || !loadedAgentId || !generatedPrompt) return
+    autoSaveAfterApplyRef.current = false
+    handleSaveRef.current?.()
+  }, [generatedPrompt, loadedAgentId])
 
   useEffect(() => {
     const html = document.documentElement
@@ -522,6 +531,7 @@ export default function App() {
 
   const handleApplyChanges = useCallback(() => {
     if (!pendingChanges) return
+    if (loadedAgentId) autoSaveAfterApplyRef.current = true
 
     const { new_agent_name, new_agent_persona, new_domain, add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
     const baseId = Date.now()
@@ -937,6 +947,7 @@ export default function App() {
       setShowSaveModal(true)
     }
   }, [generatedPrompt, isSaving, loadedAgentId, config, agents, isSupabaseConfigured, showDialog])
+  handleSaveRef.current = handleSaveToDatabase
 
   const handleConfirmSave = useCallback(async (desc) => {
     setIsSaving(true)
