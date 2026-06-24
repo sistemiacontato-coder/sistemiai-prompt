@@ -31,7 +31,8 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
 {
   "new_agent_name": "Novo nome do agente (vazio se não precisar alterar)",
   "new_agent_persona": "Nova persona COMPLETA do agente (vazio se não precisar alterar)",
-  "new_domain": "Texto COMPLETO e FINAL do domínio/objetivo do agente (vazio se não precisar alterar o domínio)",
+  "domain_add": ["Nova regra a acrescentar ao domínio — uma frase curta e direta"],
+  "domain_remove": ["Trecho EXATO do domínio atual a remover ou substituir"],
   "add_variables": [
     { "name": "nome_max14chars", "type": "text", "description": "orientação para a IA", "options": "" }
   ],
@@ -49,8 +50,10 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
 REGRAS OBRIGATÓRIAS:
 - new_agent_name: use APENAS quando a instrução pedir para corrigir o nome do agente. Vazio "" se não precisar.
 - new_agent_persona: use APENAS para alterar tom, comportamento ou apresentação do agente. ESCREVA O TEXTO COMPLETO. Vazio "" se não precisar.
-- new_domain: use APENAS quando a instrução alterar o escopo ou objetivos do agente. Vazio "" se não precisar.
-- CRÍTICO: esses três campos são INDEPENDENTES — use apenas o campo correto para cada tipo de mudança.
+- domain_add: array com frases NOVAS a acrescentar ao domínio. Cada item é UMA frase curta. Use [] se não precisar adicionar.
+- domain_remove: array com trechos EXATOS do domínio atual a remover. Copie o texto sem alterar. Use [] se não precisar remover.
+- NUNCA reescreva o domínio inteiro. Altere APENAS o trecho relevante com domain_add e domain_remove.
+- CRÍTICO: não toque em partes do domínio que a instrução não menciona.
 - update_exits: use para CORRIGIR a condição de uma saída JÁ EXISTENTE (não adicione nem remova — apenas atualize). Use a chave EXATA da saída. A description DEVE começar com "Interrompa a IA quando o cliente".
 - add_exits: use APENAS para saídas NOVAS que não existem na configuração atual.
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
@@ -74,7 +77,8 @@ function normalizeResult(parsed) {
   return {
     new_agent_name:    typeof parsed.new_agent_name === 'string'    ? parsed.new_agent_name.trim()    : '',
     new_agent_persona: typeof parsed.new_agent_persona === 'string' ? parsed.new_agent_persona.trim() : '',
-    new_domain:        typeof parsed.new_domain === 'string'        ? parsed.new_domain.trim()        : '',
+    domain_add:        Array.isArray(parsed.domain_add)    ? parsed.domain_add.filter(Boolean)    : [],
+    domain_remove:     Array.isArray(parsed.domain_remove) ? parsed.domain_remove.filter(Boolean) : [],
     add_variables:     Array.isArray(parsed.add_variables)    ? parsed.add_variables    : [],
     remove_variables:  Array.isArray(parsed.remove_variables) ? parsed.remove_variables : [],
     add_exits:         Array.isArray(parsed.add_exits)        ? parsed.add_exits        : [],
@@ -97,7 +101,7 @@ export async function reviewPromptChanges(instruction, config, aiConfig, generat
   const totalChanges = result.add_variables.length + result.remove_variables.length +
                        result.add_exits.length + result.remove_exits.length +
                        result.update_exits.length +
-                       (result.new_domain ? 1 : 0) +
+                       result.domain_add.length + result.domain_remove.length +
                        (result.new_agent_name ? 1 : 0) +
                        (result.new_agent_persona ? 1 : 0)
 
@@ -135,18 +139,22 @@ Retorne APENAS o JSON abaixo com as mudanças CORRIGIDAS, sem texto adicional, s
 {
   "new_agent_name": "Novo nome do agente (vazio se não precisar alterar)",
   "new_agent_persona": "Nova persona COMPLETA (vazio se não precisar alterar)",
-  "new_domain": "Texto COMPLETO e FINAL do domínio (vazio se não precisar alterar)",
+  "domain_add": ["Nova regra a acrescentar ao domínio — uma frase curta"],
+  "domain_remove": ["Trecho EXATO do domínio atual a remover"],
   "add_variables": [],
   "remove_variables": [],
   "add_exits": [],
   "remove_exits": [],
+  "update_exits": [],
   "summary": "Resumo das mudanças corrigidas em português"
 }
 
 REGRAS OBRIGATÓRIAS:
 - new_agent_name: vazio "" se não precisar alterar o nome
 - new_agent_persona: escreva o texto COMPLETO da persona se precisar alterar. Vazio "" se não precisar.
-- new_domain: escreva o texto COMPLETO do domínio se precisar alterar. Vazio "" se não precisar.
+- NUNCA reescreva o domínio inteiro. Use domain_add e domain_remove para mudanças cirúrgicas.
+- domain_add: array com frases novas a acrescentar. Use [] se não precisar adicionar.
+- domain_remove: array com trechos EXATOS a remover. Copie sem alterar. Use [] se não precisar remover.
 - add_variables[].name: minúsculo, underline, sem acento, MÁXIMO 14 caracteres
 - add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
 - add_exits[].description: SEMPRE começar com "Interrompa a IA quando o cliente"
@@ -159,7 +167,8 @@ REGRAS OBRIGATÓRIAS:
 
   const totalChanges = result.add_variables.length + result.remove_variables.length +
                        result.add_exits.length + result.remove_exits.length +
-                       (result.new_domain ? 1 : 0) +
+                       result.update_exits.length +
+                       result.domain_add.length + result.domain_remove.length +
                        (result.new_agent_name ? 1 : 0) +
                        (result.new_agent_persona ? 1 : 0)
 

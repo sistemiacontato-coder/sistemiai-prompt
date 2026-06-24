@@ -502,7 +502,6 @@ export default function App() {
       ...changes,
       new_agent_name:    changes.new_agent_name    && changes.new_agent_name.trim()    !== (cfg.agentName    || '').trim()    ? changes.new_agent_name    : '',
       new_agent_persona: changes.new_agent_persona && changes.new_agent_persona.trim() !== (cfg.agentPersona || '').trim()    ? changes.new_agent_persona : '',
-      new_domain:        changes.new_domain        && changes.new_domain.trim()        !== (cfg.domain       || '').trim()    ? changes.new_domain        : '',
     }
   }, [])
 
@@ -533,13 +532,22 @@ export default function App() {
     if (!pendingChanges) return
     if (loadedAgentId) autoSaveAfterApplyRef.current = true
 
-    const { new_agent_name, new_agent_persona, new_domain, add_variables, remove_variables, add_exits, remove_exits, update_exits = [] } = pendingChanges
+    const { new_agent_name, new_agent_persona, domain_add = [], domain_remove = [], add_variables, remove_variables, add_exits, remove_exits, update_exits = [] } = pendingChanges
     const baseId = Date.now()
 
     setConfig(prev => {
       const agentName    = new_agent_name    || prev.agentName
       const agentPersona = new_agent_persona || prev.agentPersona
-      const domain       = new_domain        || prev.domain
+
+      let domain = prev.domain || ''
+      if (domain_remove.length > 0) {
+        domain_remove.forEach(trecho => {
+          domain = domain.replace(trecho, '').replace(/\n{3,}/g, '\n\n').trim()
+        })
+      }
+      if (domain_add.length > 0) {
+        domain = domain.trimEnd() + '\n' + domain_add.join('\n')
+      }
 
       let variables = prev.variables.filter(v => !remove_variables.includes(v.name))
       const newVars = add_variables

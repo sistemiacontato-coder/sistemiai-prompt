@@ -177,7 +177,7 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
 
   if (!pendingChanges) return null
 
-  const { new_agent_name, new_agent_persona, new_domain, add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
+  const { new_agent_name, new_agent_persona, domain_add = [], domain_remove = [], add_variables, remove_variables, add_exits, remove_exits } = pendingChanges
 
   // Monta itens semânticos
   const items = []
@@ -212,31 +212,13 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
     }
   }
 
-  // Objetivo — diff linha a linha, com highlight de palavras nos itens adicionados
-  if (new_domain) {
-    const oldDomain = config?.domain || ''
-    if (oldDomain && oldDomain !== new_domain) {
-      const domainDiff = diffLines(oldDomain, new_domain)
-      const domRemoved = domainDiff.filter(d => d.type === 'removed').map(d => d.content || '')
-      const domAdded   = domainDiff.filter(d => d.type === 'added').map(d => d.content || '')
-
-      // Exibe pares: removido → adicionado (mesma posição)
-      const pairCount = Math.max(domRemoved.length, domAdded.length)
-      for (let i = 0; i < pairCount; i++) {
-        if (domRemoved[i] !== undefined) {
-          items.push({ type: 'removed', category: 'objetivo', title: domRemoved[i] || '(linha vazia)', detail: null, wordHighlight: null, _key: `dom-rem-${i}` })
-        }
-        if (domAdded[i] !== undefined) {
-          const highlight = highlightChangedWords(domRemoved[i] || '', domAdded[i])
-          items.push({ type: 'added', category: 'objetivo', title: domAdded[i] || '(linha vazia)', detail: null, wordHighlight: highlight, _key: `dom-add-${i}` })
-        }
-      }
-    } else if (!oldDomain) {
-      new_domain.split('\n').forEach((line, i) => {
-        if (line.trim()) items.push({ type: 'added', category: 'objetivo', title: line, detail: null, wordHighlight: null, _key: `dom-new-${i}` })
-      })
-    }
-  }
+  // Objetivo — patches cirúrgicos: domain_remove (vermelho) e domain_add (verde)
+  domain_remove.forEach((trecho, i) => {
+    if (trecho.trim()) items.push({ type: 'removed', category: 'objetivo', title: trecho, detail: null, wordHighlight: null, _key: `dom-rem-${i}` })
+  })
+  domain_add.forEach((trecho, i) => {
+    items.push({ type: 'added', category: 'objetivo', title: trecho, detail: null, wordHighlight: null, _key: `dom-add-${i}` })
+  })
 
   // Campos removidos
   remove_variables.forEach((name, i) => {
@@ -453,7 +435,7 @@ export default function PromptPreview({
   const totalChanges = pendingChanges
     ? (pendingChanges.add_variables.length + pendingChanges.remove_variables.length +
        pendingChanges.add_exits.length + pendingChanges.remove_exits.length +
-       (pendingChanges.new_domain ? 1 : 0) +
+       (pendingChanges.domain_add?.length || 0) + (pendingChanges.domain_remove?.length || 0) +
        (pendingChanges.new_agent_name ? 1 : 0) +
        (pendingChanges.new_agent_persona ? 1 : 0))
     : 0
@@ -567,7 +549,7 @@ export default function PromptPreview({
                       persona atualizada
                     </span>
                   )}
-                  {pendingChanges.new_domain && (
+                  {((pendingChanges.domain_add?.length || 0) + (pendingChanges.domain_remove?.length || 0)) > 0 && (
                     <span className="flex items-center gap-1 text-[10px] font-mono px-2 py-0.5 rounded-full border border-secondary/30 text-secondary">
                       <span className="material-symbols-outlined" style={{ fontSize: 11 }}>edit</span>
                       objetivo atualizado
