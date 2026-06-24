@@ -270,6 +270,48 @@ REGRAS CRÍTICAS:
   }
 }
 
+export async function refineAdjustment(currentAdjustment, userFeedback, config, aiConfig) {
+  const activeConfig = aiConfig?.refinerApiKey
+    ? { provider: detectProviderFromKey(aiConfig.refinerApiKey)?.provider || 'compat', apiKey: aiConfig.refinerApiKey, endpoint: aiConfig.refinerEndpoint, model: aiConfig.refinerModel || '' }
+    : aiConfig
+
+  const prompt = `Você é um Engenheiro de Prompt especialista em otimização de agentes de WhatsApp.
+
+CONFIGURAÇÃO ATUAL DO AGENTE:
+${JSON.stringify({ domain: config.domain, agentPersona: config.agentPersona }, null, 2)}
+
+SUGESTÃO DE AJUSTE GERADA ANTERIORMENTE:
+${JSON.stringify(currentAdjustment, null, 2)}
+
+CORREÇÃO DO USUÁRIO: "${userFeedback}"
+
+O usuário viu a sugestão e quer um ajuste. Refine a proposta aplicando a correção. Mantenha o que estava correto e altere apenas o que o usuário indicou.
+
+Retorne APENAS o JSON corrigido, sem texto adicional:
+
+{
+  "agentPersona": "Persona completa corrigida — apenas se problema for de tom/linguagem (vazio se não alterar)",
+  "domain_add": ["Regra nova a acrescentar — uma frase curta"],
+  "domain_remove": ["Trecho EXATO do domínio atual a remover"],
+  "update_variables": [{ "name": "nome_exato", "description": "nova descrição" }],
+  "update_exits": [{ "key": "saida_exata_key", "description": "Interrompa a IA quando o cliente...", "exitMessage": "" }],
+  "summary": "Uma frase explicando o que foi corrigido"
+}
+
+REGRAS:
+- Cada item em domain_add: UMA frase curta e direta, sem exemplos ou exceções.
+- NUNCA reescreva o domínio inteiro.
+- Não adicione informações não mencionadas pelo usuário.
+- summary: máximo 1 frase.`
+
+  const responseText = await callAI(prompt, activeConfig)
+  try {
+    return extractJson(responseText)
+  } catch (err) {
+    throw new Error(`Retorno inválido ao refinar ajuste: ${err.message}`)
+  }
+}
+
 // Helper para extrair JSON
 function extractJson(text) {
   const cleaned = text.replace(/```(?:json)?\s*/gi, '').replace(/```/g, '').trim()

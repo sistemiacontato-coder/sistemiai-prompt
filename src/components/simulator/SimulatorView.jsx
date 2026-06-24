@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { runTestSuite, runTestCase, refineConfigWithFeedback } from '../../lib/promptTuner'
+import { runTestSuite, runTestCase, refineConfigWithFeedback, refineAdjustment } from '../../lib/promptTuner'
 import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
 import { loadHistory, saveSnapshot } from '../../lib/promptHistory'
@@ -358,6 +358,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [isRefiningManual, setIsRefiningManual] = useState(false)
   const [manualRefineResult, setManualRefineResult] = useState(null)
   const [modalTab, setModalTab] = useState('summary') // 'summary' | 'diff'
+  const [adjustmentFeedback, setAdjustmentFeedback] = useState('')
+  const [isRefiningAdjustment, setIsRefiningAdjustment] = useState(false)
 
 
   // Estado atualizado do Bot (valores acumulados na conversa)
@@ -629,6 +631,23 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       await showDialog({ type: 'alert', message: `Erro no refinamento: ${err.message}` })
     } finally {
       setIsRefiningManual(false)
+    }
+  }
+
+  const handleRefineAdjustment = async () => {
+    if (!adjustmentFeedback.trim()) return
+    const current = manualRefineResult || autoRefineResult
+    if (!current) return
+    setIsRefiningAdjustment(true)
+    try {
+      const refined = await refineAdjustment(current, adjustmentFeedback, config, aiConfig)
+      if (manualRefineResult) setManualRefineResult(refined)
+      else setAutoRefineResult(refined)
+      setAdjustmentFeedback('')
+    } catch (err) {
+      await showDialog({ type: 'alert', message: `Erro ao refinar: ${err.message}` })
+    } finally {
+      setIsRefiningAdjustment(false)
     }
   }
 
@@ -1521,7 +1540,25 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                         </div>
                       )}
 
-                      {res.domain && (
+                      {(res.domain_add?.length > 0 || res.domain_remove?.length > 0) && (
+                        <div className="pt-2 border-t border-outline-variant/30 space-y-2">
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block">Regras do Domínio:</span>
+                          {res.domain_add?.map((r, i) => (
+                            <div key={i} className="flex items-start gap-1.5 text-[10px]">
+                              <span className="text-secondary font-bold mt-0.5 flex-shrink-0">+</span>
+                              <span className="text-on-surface-variant">{r}</span>
+                            </div>
+                          ))}
+                          {res.domain_remove?.map((r, i) => (
+                            <div key={i} className="flex items-start gap-1.5 text-[10px]">
+                              <span className="text-error font-bold mt-0.5 flex-shrink-0">−</span>
+                              <span className="text-on-surface-variant/60 line-through">{r}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Legado: domain completo (respostas antigas) */}
+                      {res.domain && !res.domain_add && !res.domain_remove && (
                         <div className="pt-2 border-t border-outline-variant/30">
                           <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Objetivo Modificado:</span>
                           <p className="text-[10px] text-on-surface-variant">{res.domain}</p>
@@ -1582,7 +1619,44 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                     </div>
                   )}
 
-                  <div className="flex gap-3 pt-2">
+                  {/* Campo de refinamento iterativo */}
+                  <div className="border border-outline-variant/50 rounded-lg overflow-hidden"
+                       style={{ background: 'var(--color-surface-container)' }}>
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-outline-variant/30"
+                         style={{ background: 'var(--color-surface-container-high)' }}>
+                      <span className="material-symbols-outlined text-on-surface-variant/50" style={{ fontSize: 14 }}>edit_note</span>
+                      <span className="text-[9px] font-mono text-on-surface-variant/50">Não ficou bom? Corrija aqui e refine antes de aplicar</span>
+                    </div>
+                    <div className="flex gap-2 p-2">
+                      <textarea
+                        value={adjustmentFeedback}
+                        onChange={e => setAdjustmentFeedback(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleRefineAdjustment() } }}
+                        placeholder="Ex: Remova a parte sobre horário, isso não foi pedido..."
+                        rows={2}
+                        disabled={isRefiningAdjustment}
+                        className="flex-1 text-[10px] font-mono bg-transparent border border-outline-variant/40 rounded px-2 py-1.5 focus:outline-none focus:border-secondary placeholder:text-on-surface-variant/25 resize-none disabled:opacity-40"
+                      />
+                      <button
+                        onClick={handleRefineAdjustment}
+                        disabled={!adjustmentFeedback.trim() || isRefiningAdjustment}
+                        className={`flex items-center gap-1 px-3 rounded text-[9px] font-mono font-semibold transition-all self-stretch flex-shrink-0
+                          ${isRefiningAdjustment
+                            ? 'animate-pulse cursor-wait'
+                            : 'hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed'}`}
+                        style={isRefiningAdjustment
+                          ? { border: '1px solid rgba(99,102,241,0.6)', color: '#fff', background: '#6366f1', boxShadow: '0 0 10px rgba(99,102,241,0.3)' }
+                          : { border: '1px solid rgb(var(--color-secondary) / 0.4)', color: 'rgb(var(--color-secondary))' }
+                        }
+                      >
+                        {isRefiningAdjustment
+                          ? <><span className="material-symbols-outlined animate-spin" style={{ fontSize: 12 }}>progress_activity</span> Refinando...</>
+                          : <><span className="material-symbols-outlined" style={{ fontSize: 12 }}>auto_awesome</span> Refinar</>}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 pt-1">
                     <button
                       onClick={() => handleApplyAdjustments(res)}
                       className="flex-1 py-3 bg-secondary text-on-secondary rounded font-mono text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all"
@@ -1590,7 +1664,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                       Aplicar Ajustes no Prompt
                     </button>
                     <button
-                      onClick={() => { setManualRefineResult(null); setAutoRefineResult(null) }}
+                      onClick={() => { setManualRefineResult(null); setAutoRefineResult(null); setAdjustmentFeedback('') }}
                       className="px-6 py-3 border border-outline-variant text-[11px] font-mono font-bold uppercase hover:bg-surface-container-high rounded"
                     >
                       Descartar
