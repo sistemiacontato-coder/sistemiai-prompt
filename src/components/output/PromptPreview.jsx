@@ -358,7 +358,7 @@ function DiffPanel({ pendingChanges, config, onApply, onDiscard, onRefine, isRef
           disabled={isRefining}
           className="px-4 py-2 rounded-lg text-[11px] font-mono font-semibold transition-all active:scale-[0.99] disabled:opacity-50"
           style={{ border: '1.5px solid rgba(74,222,128,0.6)', color: '#4ade80', background: 'transparent' }}>
-          Aplicar {totalChanges} mudança{totalChanges !== 1 ? 's' : ''} e Regenerar
+          Aplicar {totalChanges} mudança{totalChanges !== 1 ? 's' : ''}
         </button>
       </div>
     </div>
