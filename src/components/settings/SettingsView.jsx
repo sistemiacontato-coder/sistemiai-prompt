@@ -286,13 +286,22 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
   const [testingRefiner, setTestingRefiner] = useState(false)
   const [testRefinerResult, setTestRefinerResult] = useState(null)
 
+  const [scenarioApiKey, setScenarioApiKey] = useState(aiConfig?.scenarioApiKey || '')
+  const [scenarioModel, setScenarioModel] = useState(aiConfig?.scenarioModel || '')
+  const [customScenarioEndpoint, setCustomScenarioEndpoint] = useState(aiConfig?.scenarioEndpoint || '')
+  const [showScenarioKey, setShowScenarioKey] = useState(false)
+  const [testingScenario, setTestingScenario] = useState(false)
+  const [testScenarioResult, setTestScenarioResult] = useState(null)
+
   const [saved, setSaved] = useState(false)
 
   const detected = detectProviderFromKey(apiKey)
   const detectedRefiner = detectProviderFromKey(refinerApiKey)
+  const detectedScenario = detectProviderFromKey(scenarioApiKey)
 
   const effectiveEndpoint = getEffectiveEndpoint(detected, customEndpoint)
   const effectiveRefinerEndpoint = getEffectiveEndpoint(detectedRefiner, customRefinerEndpoint)
+  const effectiveScenarioEndpoint = getEffectiveEndpoint(detectedScenario, customScenarioEndpoint)
 
   const currentConfig = {
     provider: detected?.provider || 'compat',
@@ -303,6 +312,9 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
     refinerApiKey: refinerApiKey.trim(),
     refinerEndpoint: effectiveRefinerEndpoint,
     refinerModel: refinerModel.trim() || (detectedRefiner?.model || 'gpt-4o-mini'),
+    scenarioApiKey: scenarioApiKey.trim(),
+    scenarioEndpoint: effectiveScenarioEndpoint,
+    scenarioModel: scenarioModel.trim() || (detectedScenario?.model || ''),
   }
 
   const isDirty = apiKey !== (aiConfig?.apiKey || '')
@@ -312,6 +324,9 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
     || refinerApiKey !== (aiConfig?.refinerApiKey || '')
     || refinerModel !== (aiConfig?.refinerModel || '')
     || effectiveRefinerEndpoint !== (aiConfig?.refinerEndpoint || '')
+    || scenarioApiKey !== (aiConfig?.scenarioApiKey || '')
+    || scenarioModel !== (aiConfig?.scenarioModel || '')
+    || effectiveScenarioEndpoint !== (aiConfig?.scenarioEndpoint || '')
 
   const handleSave = () => {
     saveAIConfig(currentConfig)
@@ -367,6 +382,21 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
           testing={testingRefiner} setTesting={setTestingRefiner}
           testResult={testRefinerResult} setTestResult={setTestRefinerResult}
           defaultModel="gpt-4o"
+          fallbackKey={apiKey}
+        />
+
+        <AIKeyBlock
+          title="IA de Geração de Cenários"
+          subtitle="Chave usada para gerar cenários de teste automaticamente — recomendamos Gemini Flash (gratuito). Usa a principal se vazio."
+          badge="CENÁRIOS"
+          accentColor="tertiary"
+          apiKey={scenarioApiKey} setApiKey={v => { setScenarioApiKey(v); setSaved(false) }}
+          showKey={showScenarioKey} setShowKey={setShowScenarioKey}
+          model={scenarioModel} setModel={v => { setScenarioModel(v); setSaved(false) }}
+          customEndpoint={customScenarioEndpoint} setCustomEndpoint={v => { setCustomScenarioEndpoint(v); setSaved(false) }}
+          testing={testingScenario} setTesting={setTestingScenario}
+          testResult={testScenarioResult} setTestResult={setTestScenarioResult}
+          defaultModel="gemini-2.0-flash"
           fallbackKey={apiKey}
         />
 

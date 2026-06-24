@@ -1,8 +1,18 @@
-import { callAI, loadAIConfig } from './claude'
+import { callAI, loadAIConfig, detectProviderFromKey } from './claude'
 
 export async function generateTestScenarios(config, aiConfig, count = 8) {
-  const cfg = aiConfig || loadAIConfig()
-  if (!cfg?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
+  const base = aiConfig || loadAIConfig()
+  if (!base?.apiKey) throw new Error('Nenhuma chave de IA configurada. Vá em Configurações.')
+
+  // Usa chave dedicada para cenários se configurada; senão cai para a principal
+  const cfg = base.scenarioApiKey
+    ? {
+        provider: detectProviderFromKey(base.scenarioApiKey)?.provider || 'compat',
+        apiKey: base.scenarioApiKey,
+        endpoint: base.scenarioEndpoint || '',
+        model: base.scenarioModel || 'gemini-2.0-flash',
+      }
+    : base
 
   const exits = config.exitDestinations
     .filter(e => !e.isSystem)
