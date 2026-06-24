@@ -228,7 +228,8 @@ Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar)
 
 {
   "agentPersona": "Persona completa corrigida — USE APENAS para tom/linguagem/personalidade (vazio se não alterar)",
-  "domain": "Domínio completo corrigido com a regra adicionada (vazio se não alterar)",
+  "domain_add": ["Regra nova a acrescentar ao domínio — uma frase curta"],
+  "domain_remove": ["Trecho EXATO do domínio atual a remover ou substituir"],
   "update_variables": [
     { "name": "nome_exato_da_var", "description": "Nova descrição mais clara orientando a IA" }
   ],
@@ -238,11 +239,15 @@ Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar)
   "summary": "Uma frase direta explicando o que foi corrigido"
 }
 
-REGRAS:
-- Cada correção: UMA frase curta e direta. Sem exemplos, sem exceções, sem parênteses.
-- domain/agentPersona: texto COMPLETO com a correção inserida no lugar certo, não apenas o trecho novo.
+REGRAS CRÍTICAS:
+- NUNCA reescreva o domínio inteiro. Use APENAS domain_add e domain_remove para mudanças cirúrgicas.
+- domain_add: array com as frases novas a adicionar. Cada item é UMA frase curta e direta.
+- domain_remove: array com trechos EXATOS do domínio atual que precisam ser removidos ou substituídos. Copie o texto original sem alterar.
+- Se só precisa adicionar uma regra, use apenas domain_add e deixe domain_remove vazio.
+- agentPersona: texto COMPLETO apenas se o problema for de tom ou linguagem — nunca para regras de atendimento.
 - update_variables: só para ajustar descrição de variável já existente.
 - update_exits: descrição DEVE iniciar com "Interrompa a IA quando o cliente".
+- Não adicione informações (horários, preços, procedimentos) que não foram mencionadas no feedback.
 - summary: máximo 1 frase.`
 
   // Resolver se usa a chave de lapidação dedicada ou a chave padrão

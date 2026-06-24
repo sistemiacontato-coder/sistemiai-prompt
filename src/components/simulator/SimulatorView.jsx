@@ -705,10 +705,25 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       })
     }
 
+    // Aplica patches cirúrgicos no domain em vez de substituir o texto inteiro
+    let domain = baseConfig.domain || ''
+    if (adjustments.domain_remove?.length) {
+      adjustments.domain_remove.forEach(trecho => {
+        domain = domain.replace(trecho, '').replace(/\n{3,}/g, '\n\n').trim()
+      })
+    }
+    if (adjustments.domain_add?.length) {
+      domain = domain.trimEnd() + '\n' + adjustments.domain_add.join('\n')
+    }
+    // Compatibilidade retroativa: se ainda vier domain completo (legado), usa ele
+    if (!adjustments.domain_add && !adjustments.domain_remove && adjustments.domain) {
+      domain = adjustments.domain
+    }
+
     const nextConfig = {
       ...baseConfig,
       agentPersona: adjustments.agentPersona || baseConfig.agentPersona || '',
-      domain:       adjustments.domain       || baseConfig.domain       || '',
+      domain,
       variables,
       exitDestinations,
     }
