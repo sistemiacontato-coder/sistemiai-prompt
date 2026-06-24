@@ -360,6 +360,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [modalTab, setModalTab] = useState('summary') // 'summary' | 'diff'
   const [adjustmentFeedback, setAdjustmentFeedback] = useState('')
   const [isRefiningAdjustment, setIsRefiningAdjustment] = useState(false)
+  const [enabledItems, setEnabledItems] = useState(new Set())
 
 
   // Estado atualizado do Bot (valores acumulados na conversa)
@@ -464,6 +465,19 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chatMessages, isSending])
+
+  // Inicializa todos os itens do ajuste como habilitados quando chega um novo resultado
+  useEffect(() => {
+    const res = manualRefineResult || autoRefineResult
+    if (!res) { setEnabledItems(new Set()); return }
+    const keys = new Set()
+    if (res.agentPersona) keys.add('persona')
+    res.domain_add?.forEach((_, i) => keys.add(`domain_add_${i}`))
+    res.domain_remove?.forEach((_, i) => keys.add(`domain_remove_${i}`))
+    res.update_variables?.forEach((_, i) => keys.add(`var_${i}`))
+    res.update_exits?.forEach((_, i) => keys.add(`exit_${i}`))
+    setEnabledItems(keys)
+  }, [manualRefineResult, autoRefineResult])
 
   // Monitora alterações de variáveis para aplicar animação piscante
   const updateBotState = (newState) => {
@@ -1528,36 +1542,66 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
                   {modalTab === 'summary' ? (
                     <div className="space-y-3 bg-surface-container rounded-lg p-4 text-xs font-mono border border-outline-variant/60 max-h-[50vh] overflow-y-auto">
+                      {/* Motivo — não é toggleável, só informativo */}
                       <div>
                         <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Motivo do Ajuste:</span>
                         <p className="text-[11px] text-on-surface leading-relaxed italic">"{res.summary}"</p>
                       </div>
 
-                      {res.agentPersona && (
-                        <div className="pt-2 border-t border-outline-variant/30">
-                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Persona Modificada:</span>
-                          <p className="text-[10px] text-on-surface-variant max-h-20 overflow-y-auto whitespace-pre-wrap">{res.agentPersona}</p>
+                      {/* Persona */}
+                      {res.agentPersona && (() => {
+                        const key = 'persona'; const on = enabledItems.has(key)
+                        return (
+                          <div className={`pt-2 border-t border-outline-variant/30 transition-opacity ${on ? '' : 'opacity-40'}`}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-bold text-secondary text-[10px] uppercase tracking-wider">Persona Modificada:</span>
+                              <button onClick={() => setEnabledItems(prev => { const n = new Set(prev); on ? n.delete(key) : n.add(key); return n })}
+                                className={`flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded border transition-all ${on ? 'border-secondary/40 text-secondary' : 'border-outline-variant/40 text-on-surface-variant/40'}`}>
+                                <span className="material-symbols-outlined" style={{ fontSize: 11, fontVariationSettings: on ? "'FILL' 1" : undefined }}>{on ? 'check_box' : 'check_box_outline_blank'}</span>
+                                {on ? 'Incluir' : 'Excluído'}
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-on-surface-variant max-h-20 overflow-y-auto whitespace-pre-wrap">{res.agentPersona}</p>
+                          </div>
+                        )
+                      })()}
+
+                      {/* Regras do domínio */}
+                      {(res.domain_add?.length > 0 || res.domain_remove?.length > 0) && (
+                        <div className="pt-2 border-t border-outline-variant/30 space-y-1.5">
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block">Regras do Domínio:</span>
+                          {res.domain_add?.map((r, i) => {
+                            const key = `domain_add_${i}`; const on = enabledItems.has(key)
+                            return (
+                              <div key={key} className={`flex items-start gap-2 transition-opacity ${on ? '' : 'opacity-40'}`}>
+                                <button onClick={() => setEnabledItems(prev => { const n = new Set(prev); on ? n.delete(key) : n.add(key); return n })}
+                                  className="flex-shrink-0 mt-0.5" title={on ? 'Desabilitar' : 'Habilitar'}>
+                                  <span className={`material-symbols-outlined transition-colors ${on ? 'text-secondary' : 'text-on-surface-variant/30'}`}
+                                        style={{ fontSize: 14, fontVariationSettings: on ? "'FILL' 1" : undefined }}>check_box{on ? '' : '_outline_blank'}</span>
+                                </button>
+                                <span className={`text-[9px] flex-shrink-0 font-bold mt-0.5 ${on ? 'text-secondary' : 'text-on-surface-variant/30'}`}>+</span>
+                                <span className={`text-[10px] ${on ? 'text-on-surface-variant' : 'text-on-surface-variant/40 line-through'}`}>{r}</span>
+                              </div>
+                            )
+                          })}
+                          {res.domain_remove?.map((r, i) => {
+                            const key = `domain_remove_${i}`; const on = enabledItems.has(key)
+                            return (
+                              <div key={key} className={`flex items-start gap-2 transition-opacity ${on ? '' : 'opacity-40'}`}>
+                                <button onClick={() => setEnabledItems(prev => { const n = new Set(prev); on ? n.delete(key) : n.add(key); return n })}
+                                  className="flex-shrink-0 mt-0.5" title={on ? 'Desabilitar' : 'Habilitar'}>
+                                  <span className={`material-symbols-outlined transition-colors ${on ? 'text-error' : 'text-on-surface-variant/30'}`}
+                                        style={{ fontSize: 14, fontVariationSettings: on ? "'FILL' 1" : undefined }}>check_box{on ? '' : '_outline_blank'}</span>
+                                </button>
+                                <span className={`text-[9px] flex-shrink-0 font-bold mt-0.5 ${on ? 'text-error' : 'text-on-surface-variant/30'}`}>−</span>
+                                <span className={`text-[10px] ${on ? 'text-on-surface-variant/60 line-through' : 'text-on-surface-variant/30 line-through'}`}>{r}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
 
-                      {(res.domain_add?.length > 0 || res.domain_remove?.length > 0) && (
-                        <div className="pt-2 border-t border-outline-variant/30 space-y-2">
-                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block">Regras do Domínio:</span>
-                          {res.domain_add?.map((r, i) => (
-                            <div key={i} className="flex items-start gap-1.5 text-[10px]">
-                              <span className="text-secondary font-bold mt-0.5 flex-shrink-0">+</span>
-                              <span className="text-on-surface-variant">{r}</span>
-                            </div>
-                          ))}
-                          {res.domain_remove?.map((r, i) => (
-                            <div key={i} className="flex items-start gap-1.5 text-[10px]">
-                              <span className="text-error font-bold mt-0.5 flex-shrink-0">−</span>
-                              <span className="text-on-surface-variant/60 line-through">{r}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      {/* Legado: domain completo (respostas antigas) */}
+                      {/* Legado: domain completo */}
                       {res.domain && !res.domain_add && !res.domain_remove && (
                         <div className="pt-2 border-t border-outline-variant/30">
                           <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Objetivo Modificado:</span>
@@ -1565,25 +1609,47 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                         </div>
                       )}
 
-                      {res.update_variables && res.update_variables.length > 0 && (
-                        <div className="pt-2 border-t border-outline-variant/30">
-                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Campos Ajustados:</span>
-                          <ul className="list-disc list-inside space-y-1 text-[10px] text-on-surface-variant">
-                            {res.update_variables.map((v, i) => (
-                              <li key={i}>Variável `{v.name}`: "{v.description}"</li>
-                            ))}
-                          </ul>
+                      {/* Variáveis */}
+                      {res.update_variables?.length > 0 && (
+                        <div className="pt-2 border-t border-outline-variant/30 space-y-1.5">
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block">Campos Ajustados:</span>
+                          {res.update_variables.map((v, i) => {
+                            const key = `var_${i}`; const on = enabledItems.has(key)
+                            return (
+                              <div key={key} className={`flex items-start gap-2 transition-opacity ${on ? '' : 'opacity-40'}`}>
+                                <button onClick={() => setEnabledItems(prev => { const n = new Set(prev); on ? n.delete(key) : n.add(key); return n })}
+                                  className="flex-shrink-0 mt-0.5" title={on ? 'Desabilitar' : 'Habilitar'}>
+                                  <span className={`material-symbols-outlined transition-colors ${on ? 'text-secondary' : 'text-on-surface-variant/30'}`}
+                                        style={{ fontSize: 14, fontVariationSettings: on ? "'FILL' 1" : undefined }}>check_box{on ? '' : '_outline_blank'}</span>
+                                </button>
+                                <span className={`text-[10px] ${on ? 'text-on-surface-variant' : 'text-on-surface-variant/40 line-through'}`}>
+                                  Variável <code>{v.name}</code>: "{v.description}"
+                                </span>
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
 
-                      {res.update_exits && res.update_exits.length > 0 && (
-                        <div className="pt-2 border-t border-outline-variant/30">
-                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block mb-1">Saídas Ajustadas:</span>
-                          <ul className="list-disc list-inside space-y-1 text-[10px] text-on-surface-variant">
-                            {res.update_exits.map((e, i) => (
-                              <li key={i}>Saída `{e.key}`: "{e.description}"</li>
-                            ))}
-                          </ul>
+                      {/* Saídas */}
+                      {res.update_exits?.length > 0 && (
+                        <div className="pt-2 border-t border-outline-variant/30 space-y-1.5">
+                          <span className="font-bold text-secondary text-[10px] uppercase tracking-wider block">Saídas Ajustadas:</span>
+                          {res.update_exits.map((e, i) => {
+                            const key = `exit_${i}`; const on = enabledItems.has(key)
+                            return (
+                              <div key={key} className={`flex items-start gap-2 transition-opacity ${on ? '' : 'opacity-40'}`}>
+                                <button onClick={() => setEnabledItems(prev => { const n = new Set(prev); on ? n.delete(key) : n.add(key); return n })}
+                                  className="flex-shrink-0 mt-0.5" title={on ? 'Desabilitar' : 'Habilitar'}>
+                                  <span className={`material-symbols-outlined transition-colors ${on ? 'text-secondary' : 'text-on-surface-variant/30'}`}
+                                        style={{ fontSize: 14, fontVariationSettings: on ? "'FILL' 1" : undefined }}>check_box{on ? '' : '_outline_blank'}</span>
+                                </button>
+                                <span className={`text-[10px] ${on ? 'text-on-surface-variant' : 'text-on-surface-variant/40 line-through'}`}>
+                                  Saída <code>{e.key}</code>: "{e.description}"
+                                </span>
+                              </div>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
@@ -1658,10 +1724,20 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
                   <div className="flex gap-3 pt-1">
                     <button
-                      onClick={() => handleApplyAdjustments(res)}
+                      onClick={() => {
+                        const filtered = {
+                          ...res,
+                          agentPersona: enabledItems.has('persona') ? res.agentPersona : '',
+                          domain_add: (res.domain_add || []).filter((_, i) => enabledItems.has(`domain_add_${i}`)),
+                          domain_remove: (res.domain_remove || []).filter((_, i) => enabledItems.has(`domain_remove_${i}`)),
+                          update_variables: (res.update_variables || []).filter((_, i) => enabledItems.has(`var_${i}`)),
+                          update_exits: (res.update_exits || []).filter((_, i) => enabledItems.has(`exit_${i}`)),
+                        }
+                        handleApplyAdjustments(filtered)
+                      }}
                       className="flex-1 py-3 bg-secondary text-on-secondary rounded font-mono text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all"
                     >
-                      Aplicar Ajustes no Prompt
+                      Aplicar Selecionados
                     </button>
                     <button
                       onClick={() => { setManualRefineResult(null); setAutoRefineResult(null); setAdjustmentFeedback('') }}
