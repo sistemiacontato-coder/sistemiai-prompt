@@ -230,12 +230,8 @@ Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar)
   "agentPersona": "Persona completa corrigida — USE APENAS para tom/linguagem/personalidade (vazio se não alterar)",
   "domain_add": ["Regra nova a acrescentar ao objetivo — uma frase curta"],
   "domain_remove": ["Trecho EXATO do objetivo atual a remover ou substituir"],
-  "update_variables": [
-    { "name": "nome_exato_da_var", "description": "Nova descrição mais clara orientando a IA" }
-  ],
-  "update_exits": [
-    { "key": "saida_exata_key", "description": "Nova condição iniciando com 'Interrompa a IA quando o cliente...'", "exitMessage": "Mensagem opcional de transição" }
-  ],
+  "update_variables": [],
+  "update_exits": [],
   "summary": "Uma frase direta explicando o que foi corrigido"
 }
 
@@ -293,8 +289,8 @@ Retorne APENAS o JSON corrigido, sem texto adicional:
   "agentPersona": "Persona completa corrigida — apenas se problema for de tom/linguagem (vazio se não alterar)",
   "domain_add": ["Regra nova a acrescentar — uma frase curta"],
   "domain_remove": ["Trecho EXATO do objetivo atual a remover"],
-  "update_variables": [{ "name": "nome_exato", "description": "nova descrição" }],
-  "update_exits": [{ "key": "saida_exata_key", "description": "Interrompa a IA quando o cliente...", "exitMessage": "" }],
+  "update_variables": [],
+  "update_exits": [],
   "summary": "Uma frase explicando o que foi corrigido"
 }
 

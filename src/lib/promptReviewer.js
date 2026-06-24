@@ -38,9 +38,7 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
   "remove_variables": [],
   "add_exits": [],
   "remove_exits": [],
-  "update_exits": [
-    { "key": "saida_existente", "description": "Condição corrigida iniciando com 'Interrompa a IA quando o cliente...'" }
-  ],
+  "update_exits": [],
   "summary": "Resumo das mudanças em português"
 }
 
