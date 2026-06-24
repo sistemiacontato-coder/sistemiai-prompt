@@ -34,13 +34,9 @@ Retorne APENAS o JSON abaixo, sem texto adicional, sem markdown, sem bloco de c�
   "persona_remove": ["Trecho EXATO da persona atual a remover"],
   "domain_add": ["Nova regra a acrescentar ao domínio — uma frase curta e direta"],
   "domain_remove": ["Trecho EXATO do domínio atual a remover ou substituir"],
-  "add_variables": [
-    { "name": "nome_max14chars", "type": "text", "description": "orientação para a IA", "options": "" }
-  ],
+  "add_variables": [],
   "remove_variables": [],
-  "add_exits": [
-    { "key": "saida_nome", "label": "Nome Legível", "description": "Interrompa a IA quando o cliente..." }
-  ],
+  "add_exits": [],
   "remove_exits": [],
   "update_exits": [
     { "key": "saida_existente", "description": "Condição corrigida iniciando com 'Interrompa a IA quando o cliente...'" }
