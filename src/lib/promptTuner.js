@@ -216,14 +216,19 @@ ${JSON.stringify(failures, null, 2)}
 
 HIERARQUIA DE PRIORIDADE para gerar a correção:
 1. Se há "instrucao_do_usuario": use EXATAMENTE o que o usuário pediu. Não adicione nada além disso.
-2. Se não há "instrucao_do_usuario": use "pergunta_do_usuario" para inferir o que o agente deveria ter respondido.
-3. "resposta_errada_da_ia": use APENAS para entender o tipo de erro (ex: pediu dados desnecessários, respondeu fora do escopo). NUNCA copie termos ou conceitos dela para a correção — ela pode ter inventado coisas que não existem no prompt original.
+2. Se não há "instrucao_do_usuario": use "pergunta_do_usuario" para inferir o que o agente deveria ter feito.
+3. "resposta_errada_da_ia": use APENAS para entender o tipo de erro. NUNCA copie termos ou conceitos dela para a correção.
+
+ONDE COLOCAR CADA TIPO DE CORREÇÃO:
+- "domain": use para regras de atendimento, informações factuais, procedimentos específicos, o que perguntar ou informar em cada situação. É aqui que vai a grande maioria das correções.
+- "agentPersona": use SOMENTE se o problema for de tom, linguagem ou personalidade (ex: foi rude, foi informal demais, não se apresentou). NUNCA use para corrigir fatos, procedimentos ou o que o agente deve perguntar/informar.
+- "update_variables" / "update_exits": use se o problema for captura de dados ou encaminhamento.
 
 Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar):
 
 {
-  "agentPersona": "Persona completa corrigida (vazio se não alterar)",
-  "domain": "Domínio completo corrigido (vazio se não alterar)",
+  "agentPersona": "Persona completa corrigida — USE APENAS para tom/linguagem/personalidade (vazio se não alterar)",
+  "domain": "Domínio completo corrigido com a regra adicionada (vazio se não alterar)",
   "update_variables": [
     { "name": "nome_exato_da_var", "description": "Nova descrição mais clara orientando a IA" }
   ],
@@ -235,7 +240,7 @@ Retorne APENAS o JSON abaixo (somente as propriedades que você de fato alterar)
 
 REGRAS:
 - Cada correção: UMA frase curta e direta. Sem exemplos, sem exceções, sem parênteses.
-- agentPersona/domain: texto COMPLETO com a correção inserida, não apenas o trecho novo.
+- domain/agentPersona: texto COMPLETO com a correção inserida no lugar certo, não apenas o trecho novo.
 - update_variables: só para ajustar descrição de variável já existente.
 - update_exits: descrição DEVE iniciar com "Interrompa a IA quando o cliente".
 - summary: máximo 1 frase.`
