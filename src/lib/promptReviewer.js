@@ -56,8 +56,8 @@ REGRAS OBRIGATÓRIAS:
 - domain_remove: copie o trecho EXATO do objetivo atual, sem alterar nenhuma palavra.
 - persona_remove: copie o trecho EXATO da persona atual, sem alterar nenhuma palavra.
 - update_exits: use para CORRIGIR a condição de uma saída JÁ EXISTENTE. Use a chave EXATA. A description DEVE começar com "Interrompa a IA quando o cliente".
-- add_exits: use APENAS para saídas NOVAS que não existem na configuração atual.
-- add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
+- add_exits: use APENAS para saídas NOVAS que não existem na configuração atual. Cada item tem "key" (começa com "saida_", máx. 20 chars total), "label" e "description".
+- add_variables: use APENAS se a instrução pedir para adicionar uma nova variável. Cada item tem "name" (snake_case, sem acentos, máx. 14 chars), "type" e "description". NÃO invente variáveis que a instrução não pediu.
 - Arrays vazios [] se não houver mudanças desse tipo
 - remove_variables / remove_exits: use os nomes/chaves EXATOS da configuração atual
 - Não remova saida_atendente a menos que explicitamente solicitado
@@ -162,8 +162,8 @@ REGRAS OBRIGATÓRIAS:
 - NUNCA reescreva a persona inteira. Use persona_add e persona_remove para mudanças cirúrgicas.
 - NUNCA reescreva o objetivo inteiro. Use domain_add e domain_remove para mudanças cirúrgicas.
 - domain_remove / persona_remove: copie o trecho EXATO sem alterar nenhuma palavra.
-- add_variables[].name: minúsculo, underline, sem acento, MÁXIMO 14 caracteres
-- add_exits[].key: sempre começa com "saida_", MÁXIMO 20 caracteres total
+- add_variables: só se a instrução pedir nova variável. Cada item tem "name" (snake_case, sem acentos, máx. 14 chars), "type" e "description". NÃO invente variáveis.
+- add_exits: só para saídas novas. Cada item tem "key" (começa com "saida_", máx. 20 chars), "label" e "description".
 - add_exits[].description: SEMPRE começar com "Interrompa a IA quando o cliente"
 - Arrays vazios [] se não houver mudanças desse tipo
 - summary: explique as mudanças corrigidas de forma concisa em português`
