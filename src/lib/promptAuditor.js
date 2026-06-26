@@ -31,6 +31,15 @@ function buildAuditPrompt(generatedPrompt, config) {
 
   return `Você é um auditor especialista em prompts para chatbots WhatsApp no formato BotConversa.
 
+LINGUAGEM OBRIGATÓRIA — siga estas regras ao escrever title, description e fix:
+- Escreva em português brasileiro simples, como se estivesse explicando para alguém que nunca viu um prompt de chatbot.
+- NUNCA use termos técnicos em inglês (routing, token, canonical, enum, mapping, block, etc.).
+- NUNCA mencione partes internas do prompt pelo nome técnico (ex: "bloco de mapeamento", "seção CLASSIFICAÇÃO DE INTENÇÃO", "variável de sistema").
+- Em vez disso, explique o EFEITO PRÁTICO: "o chatbot vai salvar X mas encaminhar usando Y — isso vai causar erro no roteamento".
+- title: problema em uma frase curta, sem jargão. Ex: "Valores do campo 'interesse' são inconsistentes"
+- description: explique o que está errado e o que vai acontecer de errado no chatbot, em linguagem de leigo.
+- fix: instrução passo a passo do que o usuário precisa fazer para corrigir. Comece com verbo. Ex: "Abra o campo 'interesse' nos campos personalizados e troque o tipo de Enumeração para Texto Livre."
+
 Analise o prompt abaixo e identifique APENAS problemas reais. NÃO invente problemas onde não existem.
 
 CONFIGURAÇÃO ATUAL DO AGENTE:

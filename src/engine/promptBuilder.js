@@ -349,13 +349,20 @@ export function buildPrompt(config, settings = {}) {
         lines.push('')
       }
       lines.push(`Identifique a intenção do cliente e classifique em **uma** das opções abaixo.`)
-      lines.push(`Salve o valor **exato** na variável \`${fullKey}\`.`)
+      lines.push(`Salve o valor **exato** (minúsculo, sem acentos, com underscore) na variável \`${fullKey}\`.`)
       lines.push('')
       if (opts.length > 0) {
-        lines.push('**Opções válidas:**')
-        opts.forEach(opt => lines.push(`- ${opt}`))
+        lines.push('**Opções válidas** — salvar exatamente o valor entre backticks:')
+        opts.forEach(opt => {
+          const canonical = normalizeEnumValue(opt)
+          if (canonical !== opt.trim()) {
+            lines.push(`- \`${canonical}\` → quando o cliente mencionar "${opt.trim()}"`)
+          } else {
+            lines.push(`- \`${canonical}\``)
+          }
+        })
         lines.push('')
-        lines.push('**CRÍTICO:** Use APENAS os valores listados acima, com grafia exata. Nunca invente variações, abreviações ou sinônimos.')
+        lines.push('**CRÍTICO:** Salvar APENAS os valores entre backticks (minúsculo, sem acentos). Nunca a versão com maiúsculas, acentos ou espaços.')
       }
       lines.push('')
       lines.push('Quando a intenção for identificada:')
@@ -408,6 +415,15 @@ function buildExitSection(exit, maxAttempts = 3) {
 
 function sanitizeVarName(name) {
   return name.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+}
+
+function normalizeEnumValue(opt) {
+  return opt.trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
 }
 
 export function getDefaultConfig() {
