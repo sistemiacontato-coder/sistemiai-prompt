@@ -849,6 +849,7 @@ export default function App() {
       try {
         const prompt = buildPrompt(config, settings)
         setGeneratedPrompt(prompt)
+        setAuditResult(null)
         const now = Date.now()
         setLastGeneratedAt(now)
         setConfigChangedAt(null)
