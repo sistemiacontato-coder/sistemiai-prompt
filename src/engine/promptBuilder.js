@@ -63,7 +63,7 @@ export function buildPrompt(config, settings = {}) {
     ...customExits.map(e => {
       const hasMsg = e.sendExitMessage && e.exitMessage?.trim()
       const msgCol = (hasMsg ? 'Preenchida' : 'Vazia ""').padEnd(10)
-      const desc = e.label || e.key
+      const desc = (e.label && e.label !== 'Nova Saída') ? e.label : e.key
       return `| \`${e.key}\`${' '.repeat(Math.max(1, 20 - e.key.length))}| Transferência        | ${msgCol} | ${desc.slice(0, 45).padEnd(45)} |`
     }),
     hasAtendente
@@ -176,7 +176,8 @@ export function buildPrompt(config, settings = {}) {
 
   for (const exit of customExits) {
     const msgValue = (exit.sendExitMessage && exit.exitMessage?.trim()) ? exit.exitMessage.trim() : ''
-    lines.push(`SE encaminhar para ${exit.label || exit.key}:`)
+    const exitDisplayName = (exit.label && exit.label !== 'Nova Saída') ? exit.label : exit.key
+    lines.push(`SE encaminhar para ${exitDisplayName}:`)
     lines.push(jsonBlock(exit.key, msgValue))
     lines.push('')
   }
