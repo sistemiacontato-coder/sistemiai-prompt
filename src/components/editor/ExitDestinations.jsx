@@ -156,15 +156,15 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
             </div>
           )}
 
-          {/* Salvar / Cancelar — sempre visível quando editável */}
-          {editable && (
+          {/* Salvar / Cancelar — aparece apenas quando há alteração */}
+          {editable && hasDraft && (
             <div className="border-t border-outline-variant/40 px-4 py-2.5 flex items-center justify-end gap-2">
-              <button onClick={handleCancel} disabled={!hasDraft}
-                className="px-3 py-1 rounded text-[10px] font-mono border border-outline-variant/50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-on-surface-variant/60 hover:text-on-surface-variant">
+              <button onClick={handleCancel}
+                className="px-3 py-1 rounded text-[10px] font-mono text-on-surface-variant/60 hover:text-on-surface-variant border border-outline-variant/50 transition-colors">
                 Cancelar
               </button>
-              <button onClick={handleSave} disabled={!hasDraft}
-                className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-mono font-bold transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed bg-primary text-on-primary hover:opacity-90">
+              <button onClick={handleSave}
+                className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-mono font-bold bg-primary text-on-primary hover:opacity-90 transition-all active:scale-95">
                 <span className="material-symbols-outlined" style={{ fontSize: 12 }}>check</span>
                 Salvar
               </button>
