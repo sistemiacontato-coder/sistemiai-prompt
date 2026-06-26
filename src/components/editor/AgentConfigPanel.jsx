@@ -14,9 +14,9 @@ function FieldLabel({ children, required, hint }) {
 
 function ExpandModal({ label, value, onChange, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6" style={{ background: 'rgba(0,0,0,0.6)' }} onClick={onClose}>
-      <div className="w-full max-w-3xl rounded-xl border border-outline-variant shadow-2xl flex flex-col overflow-hidden" style={{ background: 'var(--color-surface)', maxHeight: '80vh' }} onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-3 border-b border-outline-variant" style={{ background: 'var(--color-surface-container-high)' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-full max-w-3xl rounded-xl border border-outline-variant shadow-2xl flex flex-col overflow-hidden bg-surface-container" style={{ maxHeight: '80vh' }} onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-outline-variant bg-surface-container-high">
           <span className="text-xs font-mono font-bold text-on-surface uppercase tracking-wider">{label}</span>
           <button onClick={onClose} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
             <span className="material-symbols-outlined" style={{ fontSize: 20 }}>close</span>
@@ -25,11 +25,11 @@ function ExpandModal({ label, value, onChange, onClose }) {
         <textarea
           value={value}
           onChange={e => onChange(e.target.value)}
-          className="flex-1 w-full p-5 font-mono text-sm leading-relaxed bg-transparent text-on-surface outline-none"
+          className="flex-1 w-full p-5 font-mono text-sm leading-relaxed text-on-surface outline-none bg-surface-container"
           style={{ resize: 'none', minHeight: 320 }}
           autoFocus
         />
-        <div className="px-5 py-3 border-t border-outline-variant flex justify-end" style={{ background: 'var(--color-surface-container)' }}>
+        <div className="px-5 py-3 border-t border-outline-variant flex justify-end bg-surface-container-high">
           <button onClick={onClose} className="px-4 py-1.5 rounded bg-primary text-on-primary text-xs font-mono font-bold">Fechar</button>
         </div>
       </div>
@@ -181,6 +181,7 @@ export default function AgentConfigPanel({ config, setConfig }) {
             <button onClick={() => setExpandedField('agentPersona')} className="absolute top-2 right-2 opacity-30 hover:opacity-70 transition-opacity" title="Expandir">
               <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 16 }}>open_in_full</span>
             </button>
+            <span className="absolute bottom-1.5 right-1.5 opacity-20 pointer-events-none select-none text-on-surface-variant" style={{ fontSize: 10, lineHeight: 1 }}>⠿</span>
           </div>
         </div>
 
@@ -201,6 +202,7 @@ export default function AgentConfigPanel({ config, setConfig }) {
             <button onClick={() => setExpandedField('domain')} className="absolute top-2 right-2 opacity-30 hover:opacity-70 transition-opacity" title="Expandir">
               <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 16 }}>open_in_full</span>
             </button>
+            <span className="absolute bottom-1.5 right-1.5 opacity-20 pointer-events-none select-none text-on-surface-variant" style={{ fontSize: 10, lineHeight: 1 }}>⠿</span>
           </div>
 
           <div className="mt-2 flex items-center gap-1.5">
