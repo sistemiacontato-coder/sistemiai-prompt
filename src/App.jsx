@@ -430,6 +430,7 @@ export default function App() {
   const handleGenerateRef = useRef(null)
   const handleSaveRef = useRef(null)
   const autoSaveAfterApplyRef = useRef(false)
+  const generatedPromptRef = useRef('')
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => {
@@ -439,11 +440,23 @@ export default function App() {
     })
   }, [])
 
-  // Marca dirty em qualquer edição (agente salvo ou novo)
+  // Mantém ref do prompt sincronizada para leitura sem dependência de closure
+  useEffect(() => { generatedPromptRef.current = generatedPrompt }, [generatedPrompt])
+
+  // Marca dirty e auto-regenera o prompt quando a config muda
   useEffect(() => {
     if (skipNextDirtyRef.current) { skipNextDirtyRef.current = false; return }
     setIsDirty(true)
-    setConfigChangedAt(Date.now())
+
+    if (generatedPromptRef.current && !hasCriticalErrors(validateConfig(config))) {
+      const newPrompt = buildPrompt(config, settings)
+      setGeneratedPrompt(newPrompt)
+      setAuditResult(null)
+      setLastGeneratedAt(Date.now())
+      setConfigChangedAt(null)
+    } else {
+      setConfigChangedAt(Date.now())
+    }
   }, [config])
 
   // Marca dirty quando mensagemInicial muda (Instruções Individuais, Pré-mensagem, etc.)
