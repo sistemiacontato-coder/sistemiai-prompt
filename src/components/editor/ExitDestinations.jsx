@@ -38,8 +38,14 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
   const [labelDraft, setLabelDraft] = useState(exit.label || '')
   const [descDraft, setDescDraft] = useState(exit.description || '')
   const [msgDraft, setMsgDraft] = useState(exit.exitMessage || '')
+  const [keyHistory, setKeyHistory] = useState([namePart])
+  const [keyHistoryIdx, setKeyHistoryIdx] = useState(0)
 
-  useEffect(() => { setKeyDraft(namePart) }, [namePart])
+  useEffect(() => {
+    setKeyDraft(namePart)
+    setKeyHistory([namePart])
+    setKeyHistoryIdx(0)
+  }, [namePart])
   useEffect(() => { setLabelDraft(exit.label || '') }, [exit.label])
   useEffect(() => { setDescDraft(exit.description || '') }, [exit.description])
   useEffect(() => { setMsgDraft(exit.exitMessage || '') }, [exit.exitMessage])
@@ -56,8 +62,24 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
   const handleKeyInput = (val) => {
     const slug = val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
     const autoLabel = slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    setKeyHistory(prev => [...prev.slice(0, keyHistoryIdx + 1), slug])
+    setKeyHistoryIdx(prev => prev + 1)
     setKeyDraft(slug)
     setLabelDraft(autoLabel || exit.label || '')
+  }
+
+  const handleKeyUndo = (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault()
+      if (keyHistoryIdx > 0) {
+        const newIdx = keyHistoryIdx - 1
+        const prev = keyHistory[newIdx]
+        setKeyHistoryIdx(newIdx)
+        setKeyDraft(prev)
+        const autoLabel = prev.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        setLabelDraft(autoLabel || exit.label || '')
+      }
+    }
   }
 
   const handleSave = () => onChange({ ...exit, key: fullKeyDraft, label: labelDraft, description: descDraft, exitMessage: msgDraft })
@@ -66,6 +88,8 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
     setLabelDraft(exit.label || '')
     setDescDraft(exit.description || '')
     setMsgDraft(exit.exitMessage || '')
+    setKeyHistory([namePart])
+    setKeyHistoryIdx(0)
   }
 
   return (
@@ -87,6 +111,7 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
                   type="text"
                   value={keyDraft}
                   onChange={e => handleKeyInput(e.target.value)}
+                  onKeyDown={handleKeyUndo}
                   placeholder="nome_saida"
                   className={`flex-1 min-w-0 bg-transparent font-mono text-sm font-semibold focus:outline-none
                     ${isOver ? 'text-error' : s.text} placeholder:text-on-surface-variant/25 placeholder:font-normal`}
