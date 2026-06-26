@@ -264,6 +264,16 @@ export function buildPrompt(config, settings = {}) {
     const tr = config.toneRules || {}
     const rule = (key, def = true) => tr[key] !== undefined ? !!tr[key] : def
 
+    // Regra anti-alucinação — bloco próprio, antes de tudo
+    if (rule('noHallucination')) {
+      lines.push('**Anti-alucinação — regra de segurança:**')
+      lines.push('- NUNCA invente informações, preços, horários, procedimentos, nomes ou qualquer dado não fornecido explicitamente neste prompt.')
+      lines.push('- SE não souber a resposta → acionar `saida_atendente` imediatamente. Nunca tente adivinhar.')
+      lines.push('- SE a pergunta estiver fora do objetivo → acionar `saida_atendente` com orientação ao cliente.')
+      lines.push('- **Regra de ouro: dúvida = transferência. Nunca tentativa.**')
+      lines.push('')
+    }
+
     const toneBullets = []
     if (rule('formal'))          toneBullets.push('Formal, objetivo e prestativo.')
     if (rule('noSlang'))         toneBullets.push('Sem gírias ou termos carinhosos (ex: querido, amigo, parceiro, mano).')
@@ -427,6 +437,7 @@ export function getDefaultConfig() {
     ],
     maxAttempts: 3,
     toneRules: {
+      noHallucination: true,
       formal: true,
       noSlang: true,
       noGreetings: true,

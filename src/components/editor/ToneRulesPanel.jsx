@@ -37,6 +37,16 @@ const TONE_RULES = [
   },
 ]
 
+const SAFETY_RULES = [
+  {
+    key: 'noHallucination',
+    label: 'Nunca inventar respostas',
+    detail: 'Se não souber a resposta ou a pergunta estiver fora do objetivo, transfere imediatamente para atendente. Dúvida = transferência. Nunca tentativa.',
+    defaultVal: true,
+    isSafety: true,
+  },
+]
+
 function Toggle({ on, onChange }) {
   return (
     <button
@@ -62,7 +72,7 @@ export default function ToneRulesPanel({ config, setConfig }) {
 
   const neverDenyAI = get('neverDenyAI', true)
 
-  const allRules = [
+  const toneRulesList = [
     ...TONE_RULES,
     {
       key: 'neverDenyAI',
@@ -74,6 +84,35 @@ export default function ToneRulesPanel({ config, setConfig }) {
       isIdentity: true,
     },
   ]
+
+  const renderRule = (rule) => {
+    const on = get(rule.key, rule.defaultVal)
+    const isOff = (rule.isIdentity || rule.isSafety) && !on
+    return (
+      <div key={rule.key}
+        className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border transition-all cursor-pointer ${
+          isOff ? 'border-error/30' : 'border-outline-variant/50'
+        }`}
+        style={{
+          background: isOff
+            ? 'color-mix(in srgb, var(--color-error) 5%, var(--color-surface-container-high))'
+            : on
+              ? 'color-mix(in srgb, var(--color-primary) 4%, var(--color-surface-container-high))'
+              : 'var(--color-surface-container-high)',
+        }}
+        onClick={() => set(rule.key, !on)}>
+        <Toggle on={on} onChange={v => set(rule.key, v)} />
+        <div className="flex-1 min-w-0">
+          <p className={`text-[12px] font-mono font-semibold leading-none ${isOff ? 'text-error/80' : on ? 'text-on-surface' : 'text-on-surface-variant/40'}`}>
+            {rule.label}
+          </p>
+          <p className={`text-[10px] font-mono mt-0.5 leading-relaxed ${isOff ? 'text-error/55' : on ? 'text-on-surface-variant/55' : 'text-on-surface-variant/25'}`}>
+            {rule.detail}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <section className="rounded-lg border border-outline-variant overflow-hidden" style={{ background: 'var(--color-surface-container)' }}>
@@ -94,37 +133,32 @@ export default function ToneRulesPanel({ config, setConfig }) {
         </span>
       </div>
 
-      <div className="p-5">
-        <div className="space-y-2">
-          {allRules.map(rule => {
-            const on = get(rule.key, rule.defaultVal)
-            const isOff = rule.isIdentity && !on
-            return (
-              <div key={rule.key}
-                className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border transition-all cursor-pointer ${
-                  isOff ? 'border-error/30' : 'border-outline-variant/50'
-                }`}
-                style={{
-                  background: isOff
-                    ? 'color-mix(in srgb, var(--color-error) 5%, var(--color-surface-container-high))'
-                    : on
-                      ? 'color-mix(in srgb, var(--color-primary) 4%, var(--color-surface-container-high))'
-                      : 'var(--color-surface-container-high)',
-                }}
-                onClick={() => set(rule.key, !on)}>
-                <Toggle on={on} onChange={v => set(rule.key, v)} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-[12px] font-mono font-semibold leading-none ${isOff ? 'text-error/80' : on ? 'text-on-surface' : 'text-on-surface-variant/40'}`}>
-                    {rule.label}
-                  </p>
-                  <p className={`text-[10px] font-mono mt-0.5 leading-relaxed ${isOff ? 'text-error/55' : on ? 'text-on-surface-variant/55' : 'text-on-surface-variant/25'}`}>
-                    {rule.detail}
-                  </p>
-                </div>
-              </div>
-            )
-          })}
+      <div className="p-5 space-y-4">
+
+        {/* Regra de segurança — destaque especial */}
+        <div>
+          <p className="text-[9px] font-mono font-bold text-error/60 uppercase tracking-wider mb-2 flex items-center gap-1">
+            <span className="material-symbols-outlined" style={{ fontSize: 11 }}>shield</span>
+            Segurança
+          </p>
+          <div className="space-y-2">
+            {SAFETY_RULES.map(renderRule)}
+          </div>
         </div>
+
+        {/* Separador */}
+        <div className="border-t border-outline-variant/40" />
+
+        {/* Tom e linguagem */}
+        <div>
+          <p className="text-[9px] font-mono font-bold text-on-surface-variant/40 uppercase tracking-wider mb-2">
+            Tom e linguagem
+          </p>
+          <div className="space-y-2">
+            {toneRulesList.map(renderRule)}
+          </div>
+        </div>
+
       </div>
     </section>
   )
