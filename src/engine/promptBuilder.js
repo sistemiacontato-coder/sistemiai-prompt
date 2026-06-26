@@ -39,9 +39,9 @@ export function buildPrompt(config, settings = {}) {
     return !SYSTEM_FIELDS.has(sanitizeVarName(v.name))
   })
 
-  // Campos JSON sem comentários — JSON sempre válido
+  // Campos JSON com placeholder descritivo — nunca "" para não induzir sobrescrita
   const variableFields = textVars
-    .map(v => `    "${idPrefix}${sanitizeVarName(v.name)}": ""`)
+    .map(v => `    "${idPrefix}${sanitizeVarName(v.name)}": "<${sanitizeVarName(v.name)}>"`)
     .join(',\n')
 
   // Glossário textual fora do JSON
@@ -441,7 +441,7 @@ function buildExitSection(exit, maxAttempts = 3) {
     lines.push('1. Cliente solicita explicitamente falar com humano, atendente, pessoa real ou similar.')
     lines.push(`2. Agente não identificou a intenção após ${maxAttempts} tentativas consecutivas.`)
     lines.push('3. Situação identificada como fora da capacidade do agente.')
-    if (exit.exitMessage?.trim()) {
+    if (exit.sendExitMessage && exit.exitMessage?.trim()) {
       lines.push('')
       lines.push(`**Mensagem de transição:** "${applyLineBreaks(exit.exitMessage.trim())}"`)
     }
