@@ -14,8 +14,8 @@ function FieldLabel({ children, required, hint }) {
 
 function ExpandModal({ label, value, onChange, onClose }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <div className="w-full max-w-3xl rounded-xl border border-outline-variant shadow-2xl flex flex-col overflow-hidden bg-surface-container" style={{ maxHeight: '80vh' }} onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-[92vw] h-[92vh] rounded-xl border border-outline-variant shadow-2xl flex flex-col overflow-hidden bg-surface-container" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-outline-variant bg-surface-container-high">
           <span className="text-xs font-mono font-bold text-on-surface uppercase tracking-wider">{label}</span>
           <button onClick={onClose} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
@@ -26,7 +26,7 @@ function ExpandModal({ label, value, onChange, onClose }) {
           value={value}
           onChange={e => onChange(e.target.value)}
           className="flex-1 w-full p-5 font-mono text-sm leading-relaxed text-on-surface outline-none bg-surface-container"
-          style={{ resize: 'none', minHeight: 320 }}
+          style={{ resize: 'none' }}
           autoFocus
         />
         <div className="px-5 py-3 border-t border-outline-variant flex justify-end bg-surface-container-high">
