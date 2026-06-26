@@ -27,8 +27,17 @@ export function buildPrompt(config, settings = {}) {
   const allExits = exitDestinations.filter(e => e.key)
   const hasAtendente = allExits.some(e => e.key === 'saida_atendente')
 
-  const textVars = variables.filter(v => v.name?.trim())
-  const enumVars = variables.filter(v => v.name?.trim() && v.type === 'enum')
+  // Campos de sistema que o builder sempre injeta — nunca duplicar se o usuário criar uma variável com nome similar
+  const SYSTEM_FIELDS = new Set(['ultimamsgcliente', 'ultimamsgclien', 'ultima_msg_cliente', 'ultimamsg'])
+
+  const textVars = variables.filter(v => {
+    if (!v.name?.trim()) return false
+    return !SYSTEM_FIELDS.has(sanitizeVarName(v.name))
+  })
+  const enumVars = variables.filter(v => {
+    if (!v.name?.trim() || v.type !== 'enum') return false
+    return !SYSTEM_FIELDS.has(sanitizeVarName(v.name))
+  })
 
   // Campos JSON sem comentários — JSON sempre válido
   const variableFields = textVars
@@ -134,6 +143,8 @@ export function buildPrompt(config, settings = {}) {
     lines.push('')
     variableGlossary.forEach(l => lines.push(l))
     lines.push('- `ultimaMsgCliente`: última mensagem literal enviada pelo cliente')
+    lines.push('')
+    lines.push('**Preservação de contexto:** NUNCA sobrescreva com `""` uma variável que já foi preenchida num turno anterior. Se um dado já foi coletado, mantenha o valor em todos os turnos seguintes — inclusive durante transferências.')
     lines.push('')
   }
 
