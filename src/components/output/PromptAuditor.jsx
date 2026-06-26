@@ -336,7 +336,7 @@ function IssueRow({ issue, idx, onApplyFix, onDismiss }) {
   )
 }
 
-export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConfig, onApplyFix, onDismissIssue, dismissedCount = 0, onRestoreIssues, prompt, config }) {
+export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConfig, onApplyFix, onDismissIssue, onUndismissIssue, dismissedTitles = [], onRestoreIssues, prompt, config }) {
   const [expanded, setExpanded] = useState(true)
 
   if (!auditResult && !isAuditing) {
@@ -391,9 +391,11 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
   }
 
   const { issues, overallScore, summary, isError } = auditResult
-  const criticals   = issues.filter(i => i.severity === 'critical')
-  const warnings    = issues.filter(i => i.severity === 'warning')
-  const suggestions = issues.filter(i => i.severity === 'suggestion')
+  const activeIssues    = issues.filter(i => !dismissedTitles.includes(i.title))
+  const dismissedIssues = issues.filter(i => dismissedTitles.includes(i.title))
+  const criticals   = activeIssues.filter(i => i.severity === 'critical')
+  const warnings    = activeIssues.filter(i => i.severity === 'warning')
+  const suggestions = activeIssues.filter(i => i.severity === 'suggestion')
 
   // Estado de erro: IA não respondeu corretamente
   if (isError) {
@@ -435,7 +437,7 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <p className="text-[12px] font-mono font-semibold text-on-surface">Auditoria de Prompt</p>
-            {issues.length === 0 && overallScore != null && (
+            {activeIssues.length === 0 && overallScore != null && (
               <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
                     style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}>
                 APROVADO
@@ -466,12 +468,12 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          {dismissedCount > 0 && (
+          {dismissedTitles.length > 0 && (
             <button
               onClick={e => { e.stopPropagation(); onRestoreIssues?.() }}
               className="text-[9px] font-mono text-on-surface-variant/40 hover:text-tertiary transition-colors px-2 py-1 rounded border border-outline-variant/30 flex items-center gap-1">
               <span className="material-symbols-outlined" style={{ fontSize: 10 }}>visibility</span>
-              {dismissedCount} ignorado{dismissedCount !== 1 ? 's' : ''} · Restaurar
+              {dismissedTitles.length} revisado{dismissedTitles.length !== 1 ? 's' : ''} · Limpar
             </button>
           )}
           <button
@@ -486,16 +488,37 @@ export default function PromptAuditor({ onAudit, isAuditing, auditResult, aiConf
         </div>
       </div>
 
-      {/* Problemas */}
-      {expanded && issues.length > 0 && (
+      {/* Problemas ativos */}
+      {expanded && activeIssues.length > 0 && (
         <div className="divide-y divide-outline-variant/20">
-          {issues.map((issue, i) => (
-            <IssueRow key={i} issue={issue} idx={i} onApplyFix={onApplyFix} onDismiss={onDismissIssue} />
+          {activeIssues.map((issue, i) => (
+            <IssueRow key={issue.title} issue={issue} idx={issues.indexOf(issue)} onApplyFix={onApplyFix} onDismiss={onDismissIssue} />
           ))}
         </div>
       )}
 
-      {expanded && issues.length === 0 && (
+      {/* Achados já revisados — recolhidos */}
+      {expanded && dismissedIssues.length > 0 && (
+        <div className="border-t border-outline-variant/20">
+          {dismissedIssues.map((issue) => (
+            <div key={issue.title}
+                 className="flex items-center gap-2 px-5 py-2 opacity-40 hover:opacity-60 transition-opacity">
+              <span className="material-symbols-outlined text-on-surface-variant flex-shrink-0" style={{ fontSize: 12 }}>check_circle</span>
+              <span className="text-[8px] font-mono font-bold uppercase tracking-wide text-on-surface-variant px-1.5 py-0.5 rounded border border-outline-variant/40">
+                Já revisado
+              </span>
+              <span className="text-[10px] font-mono text-on-surface-variant flex-1 truncate">{issue.title}</span>
+              <button
+                onClick={() => onUndismissIssue?.(issue.title)}
+                className="text-[8px] font-mono text-on-surface-variant/60 hover:text-on-surface-variant transition-colors flex-shrink-0 underline">
+                restaurar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {expanded && activeIssues.length === 0 && dismissedIssues.length === 0 && (
         <div className="px-5 py-6 space-y-4">
           <div className="flex flex-col items-center gap-2">
             <span className="material-symbols-outlined" style={{ fontSize: 32, color: '#4ade80' }}>verified</span>

@@ -410,6 +410,21 @@ export default function App() {
 
   const agentKey = (config.agentName || '').trim()
 
+  // Carrega títulos dispensados do localStorage quando o agente muda
+  useEffect(() => {
+    if (!agentKey) { setDismissedIssueTitles([]); return }
+    try {
+      const saved = JSON.parse(localStorage.getItem(`dismissed_v1_${agentKey}`) || '[]')
+      setDismissedIssueTitles(Array.isArray(saved) ? saved : [])
+    } catch { setDismissedIssueTitles([]) }
+  }, [agentKey])
+
+  // Persiste títulos dispensados no localStorage quando mudam
+  useEffect(() => {
+    if (!agentKey) return
+    localStorage.setItem(`dismissed_v1_${agentKey}`, JSON.stringify(dismissedIssueTitles))
+  }, [agentKey, dismissedIssueTitles])
+
   const filteredHistory = useMemo(() => {
     if (!agentKey) return []
     return history.filter(e => {
@@ -632,10 +647,15 @@ export default function App() {
     setAuditResult(prev => {
       if (!prev) return null
       const issue = prev.issues[idx]
-      if (issue?.title) setDismissedIssueTitles(d => [...d, issue.title])
-      const remaining = prev.issues.filter((_, i) => i !== idx)
-      return { ...prev, issues: remaining }
+      if (issue?.title) {
+        setDismissedIssueTitles(d => d.includes(issue.title) ? d : [...d, issue.title])
+      }
+      return prev
     })
+  }, [])
+
+  const handleUndismissIssue = useCallback((title) => {
+    setDismissedIssueTitles(d => d.filter(t => t !== title))
   }, [])
 
   const handleAudit = useCallback(async () => {
@@ -643,22 +663,17 @@ export default function App() {
     setAuditResult(null)
     try {
       const result = await auditPrompt(generatedPrompt, config, aiConfig)
-      // Filtra issues cujos títulos foram marcados como "correto" pelo usuário
-      const filtered = dismissedIssueTitles.length > 0
-        ? { ...result, issues: result.issues.filter(i => !dismissedIssueTitles.includes(i.title)) }
-        : result
-      setAuditResult(filtered)
+      setAuditResult(result)
     } catch (err) {
       setAuditResult({ issues: [], overallScore: null, summary: err.message, isError: true })
     } finally {
       setIsAuditing(false)
     }
-  }, [generatedPrompt, config, aiConfig, dismissedIssueTitles])
+  }, [generatedPrompt, config, aiConfig])
 
   const handleRestoreIssues = useCallback(() => {
     setDismissedIssueTitles([])
-    handleAudit()
-  }, [handleAudit])
+  }, [])
 
   const handleRefine = useCallback(async (correction) => {
     if (!pendingChanges) return
@@ -1384,7 +1399,8 @@ export default function App() {
                       prompt={generatedPrompt}
                       config={config}
                       onDismissIssue={handleDismissIssue}
-                      dismissedCount={dismissedIssueTitles.length}
+                      onUndismissIssue={handleUndismissIssue}
+                      dismissedTitles={dismissedIssueTitles}
                       onRestoreIssues={handleRestoreIssues}
                       onApplyFix={async (fix, issueIdx) => {
                         setPendingFixIssueIdx(issueIdx ?? null)
