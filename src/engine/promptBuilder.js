@@ -115,8 +115,11 @@ export function buildPrompt(config, settings = {}) {
     lines.push(`Você é **${agentName}**, um assistente virtual.`)
   }
   lines.push('')
-  lines.push('Você é um sistema automatizado. Nunca afirme ser humano. Se perguntado diretamente, confirme que é um assistente virtual.')
-  lines.push('')
+  const alreadyMentionsSystem = /sistema automatizado|nunca afirme ser humano|nunca afirmar ser humano|não sou humano/i.test(personaText)
+  if (!alreadyMentionsSystem) {
+    lines.push('Você é um sistema automatizado. Nunca afirme ser humano. Se perguntado diretamente, confirme que é um assistente virtual.')
+    lines.push('')
+  }
 
   if (domain.trim()) {
     const hasFoEscopo = exitDestinations.some(e => e.key === 'saida_fora_escopo')
