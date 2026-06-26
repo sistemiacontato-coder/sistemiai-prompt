@@ -54,7 +54,7 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
   const draftCharCount = fullKeyDraft.length
   const isOver = draftCharCount > MAX_CHARS
 
-  const keyDirty = fullKeyDraft !== exit.key
+  const keyDirty = exit.key.startsWith(PREFIX) && fullKeyDraft !== exit.key
   const descDirty = descDraft !== (exit.description || '')
   const msgDirty = msgDraft !== (exit.exitMessage || '')
   const hasDraft = keyDirty || descDirty || msgDirty
