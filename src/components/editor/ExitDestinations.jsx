@@ -32,29 +32,41 @@ function SystemBadge({ exit }) {
 
 function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGeneratingMessage, aiAvailable }) {
   const s = getStyle(exit.key)
-  const charCount = exit.key.length
-  const isOver = charCount > MAX_CHARS
   const namePart = exit.key.startsWith(PREFIX) ? exit.key.slice(PREFIX.length) : exit.key
 
+  const [keyDraft, setKeyDraft] = useState(namePart)
+  const [labelDraft, setLabelDraft] = useState(exit.label || '')
   const [descDraft, setDescDraft] = useState(exit.description || '')
   const [msgDraft, setMsgDraft] = useState(exit.exitMessage || '')
 
+  useEffect(() => { setKeyDraft(namePart) }, [namePart])
+  useEffect(() => { setLabelDraft(exit.label || '') }, [exit.label])
   useEffect(() => { setDescDraft(exit.description || '') }, [exit.description])
   useEffect(() => { setMsgDraft(exit.exitMessage || '') }, [exit.exitMessage])
 
+  const fullKeyDraft = PREFIX + keyDraft.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
+  const draftCharCount = fullKeyDraft.length
+  const isOver = draftCharCount > MAX_CHARS
+
+  const keyDirty = fullKeyDraft !== exit.key
   const descDirty = descDraft !== (exit.description || '')
   const msgDirty = msgDraft !== (exit.exitMessage || '')
-  const hasDraft = descDirty || msgDirty
+  const hasDraft = keyDirty || descDirty || msgDirty
 
-  const handleKeyChange = (val) => {
+  const handleKeyInput = (val) => {
     const slug = val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
-    const full = PREFIX + slug
     const autoLabel = slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-    if (full.length <= MAX_CHARS) onChange({ ...exit, key: full, label: autoLabel || exit.label })
+    setKeyDraft(slug)
+    setLabelDraft(autoLabel || exit.label || '')
   }
 
-  const handleSave = () => onChange({ ...exit, description: descDraft, exitMessage: msgDraft })
-  const handleCancel = () => { setDescDraft(exit.description || ''); setMsgDraft(exit.exitMessage || '') }
+  const handleSave = () => onChange({ ...exit, key: fullKeyDraft, label: labelDraft, description: descDraft, exitMessage: msgDraft })
+  const handleCancel = () => {
+    setKeyDraft(namePart)
+    setLabelDraft(exit.label || '')
+    setDescDraft(exit.description || '')
+    setMsgDraft(exit.exitMessage || '')
+  }
 
   return (
     <div className={`rounded-lg border ${s.border} overflow-hidden transition-all`}
@@ -73,8 +85,8 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
                 <span className="font-mono text-[11px] text-on-surface-variant/40 flex-shrink-0">{PREFIX}</span>
                 <input
                   type="text"
-                  value={namePart}
-                  onChange={e => handleKeyChange(e.target.value)}
+                  value={keyDraft}
+                  onChange={e => handleKeyInput(e.target.value)}
                   placeholder="nome_saida"
                   className={`flex-1 min-w-0 bg-transparent font-mono text-sm font-semibold focus:outline-none
                     ${isOver ? 'text-error' : s.text} placeholder:text-on-surface-variant/25 placeholder:font-normal`}
@@ -86,7 +98,7 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
 
             <div className="flex items-center gap-3 flex-shrink-0">
               <span className={`font-mono text-[10px] tabular-nums ${isOver ? 'text-error font-bold' : 'text-on-surface-variant/35'}`}>
-                {charCount} / {MAX_CHARS}
+                {draftCharCount} / {MAX_CHARS}
               </span>
               {onDelete && (
                 <button onClick={onDelete} className="text-on-surface-variant/30 hover:text-error transition-colors">
