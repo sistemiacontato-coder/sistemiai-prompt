@@ -84,7 +84,7 @@ export function buildPrompt(config, settings = {}) {
 
   // Bloco JSON por status — sem comentários, sem strings de placeholder nas variáveis
   const jsonBlock = (statusValue, messageValue) => {
-    const escapedMsg = messageValue.replace(/\n/g, '\\n\\n').replace(/"/g, '\\"')
+    const escapedMsg = applyLineBreaks(messageValue).replace(/\n/g, '\\n\\n').replace(/"/g, '\\"')
     return [
     '```json',
     '{',
@@ -425,6 +425,10 @@ export function normalizeCondition(description) {
   return 'Interrompa a IA quando o cliente ' + lc
 }
 
+function applyLineBreaks(text) {
+  return text.replace(/([.!?])\s+/g, '$1\\n\\n').trim()
+}
+
 function buildExitSection(exit, maxAttempts = 3) {
   const lines = []
   if (exit.key === 'in_process') {
@@ -438,7 +442,7 @@ function buildExitSection(exit, maxAttempts = 3) {
     lines.push('3. Situação identificada como fora da capacidade do agente.')
     if (exit.exitMessage?.trim()) {
       lines.push('')
-      lines.push(`**Mensagem de transição:** "${exit.exitMessage.trim()}"`)
+      lines.push(`**Mensagem de transição:** "${applyLineBreaks(exit.exitMessage.trim())}"`)
     }
   } else {
     lines.push(`## \`${exit.key}\``)
@@ -446,7 +450,7 @@ function buildExitSection(exit, maxAttempts = 3) {
     const condition = normalizeCondition(exit.description || fallbackDesc)
     lines.push(`**Quando usar:** ${condition}.`)
     if (exit.sendExitMessage && exit.exitMessage?.trim()) {
-      lines.push(`**Mensagem de transição:** "${exit.exitMessage.trim()}"`)
+      lines.push(`**Mensagem de transição:** "${applyLineBreaks(exit.exitMessage.trim())}"`)
     }
   }
   return lines.join('\n')
