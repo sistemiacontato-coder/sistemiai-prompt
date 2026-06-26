@@ -1079,6 +1079,25 @@ export default function App() {
                     const hasAIKey = !!aiConfig?.apiKey
                     const canAnalyze = config.domain.trim().length > 20 && hasAIKey && !isAnalyzing
                     const activeProvider = aiConfig?.apiKey ? detectProviderFromKey(aiConfig.apiKey) : null
+
+                    // Quando campos/saídas já estão configurados, mostrar só botão secundário compacto
+                    if (sectionsRevealed) {
+                      return (
+                        <div className="flex justify-center py-1">
+                          <button
+                            onClick={handleAnalyzeObjective}
+                            disabled={!canAnalyze}
+                            className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/35 hover:text-on-surface-variant/60 transition-colors disabled:opacity-30"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+                              {isAnalyzing ? 'progress_activity' : 'auto_awesome'}
+                            </span>
+                            {isAnalyzing ? 'Analisando...' : 'Sugerir novos campos e saídas com IA'}
+                          </button>
+                        </div>
+                      )
+                    }
+
                     return (
                       <div className="space-y-3">
 
@@ -1318,16 +1337,21 @@ export default function App() {
                           ) : (
                             <button
                               onClick={async () => {
-                                const ok = await showDialog({ type: 'confirm', message: 'Regenerar o prompt a partir das configurações atuais?\n\nIsso vai sobrescrever o prompt atual, incluindo edições manuais e ajustes do simulador.' })
+                                const ok = await showDialog({ type: 'confirm', message: 'Atualizar o prompt a partir das configurações atuais?\n\nIsso vai sobrescrever o prompt atual, incluindo edições manuais.' })
                                 if (ok) handleGenerate()
                               }}
                               disabled={isGenerating || !canGenerate}
-                              className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/35 hover:text-on-surface-variant/60 transition-colors disabled:opacity-30"
+                              className={`px-12 py-4 rounded font-mono font-bold tracking-widest uppercase text-base
+                                flex items-center gap-4 transition-all active:scale-95 relative overflow-hidden group
+                                ${canGenerate
+                                  ? 'bg-surface-container-high text-on-surface border-2 border-outline-variant hover:border-primary/40 hover:text-primary'
+                                  : 'bg-surface-container-high text-on-surface-variant cursor-not-allowed'
+                                } disabled:opacity-60`}
                             >
-                              <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+                              <span className="material-symbols-outlined text-[28px]">
                                 {isGenerating ? 'sync' : 'refresh'}
                               </span>
-                              {isGenerating ? 'Atualizando...' : 'Atualizar prompt'}
+                              {isGenerating ? 'ATUALIZANDO...' : 'ATUALIZAR PROMPT'}
                             </button>
                           )
                         )}
