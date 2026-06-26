@@ -1419,6 +1419,7 @@ export default function App() {
                   <PromptVersionPanel
                     history={filteredHistory}
                     currentPrompt={generatedPrompt}
+                    currentConfig={config}
                     agentKey={agentKey}
                     onRevert={(entry) => {
                       setConfig({ ...getDefaultConfig(), ...entry.config })

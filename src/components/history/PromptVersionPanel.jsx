@@ -16,11 +16,48 @@ function DiffBadge({ before, after }) {
   )
 }
 
-export default function PromptVersionPanel({ history, currentPrompt, onRevert, onHistoryChange, agentKey }) {
+function summarizeConfigDiff(oldCfg, newCfg) {
+  if (!oldCfg || !newCfg) return []
+  const changes = []
+
+  const oldDomain = (oldCfg.domain || '').trim()
+  const newDomain = (newCfg.domain || '').trim()
+  if (oldDomain !== newDomain) {
+    const diff = newDomain.length - oldDomain.length
+    changes.push({ icon: 'description', text: `Objetivo alterado (${diff > 0 ? '+' : ''}${diff} caracteres)`, type: 'changed' })
+  }
+
+  if ((oldCfg.agentPersona || '').trim() !== (newCfg.agentPersona || '').trim()) {
+    changes.push({ icon: 'person', text: 'Persona alterada', type: 'changed' })
+  }
+
+  const oldVars = (oldCfg.variables || []).map(v => v.name).filter(Boolean)
+  const newVars = (newCfg.variables || []).map(v => v.name).filter(Boolean)
+  newVars.filter(n => !oldVars.includes(n)).forEach(n =>
+    changes.push({ icon: 'add_circle', text: `Campo adicionado: ${n}`, type: 'added' })
+  )
+  oldVars.filter(n => !newVars.includes(n)).forEach(n =>
+    changes.push({ icon: 'remove_circle', text: `Campo removido: ${n}`, type: 'removed' })
+  )
+
+  const oldExits = (oldCfg.exitDestinations || []).filter(e => !e.isSystem).map(e => e.key).filter(Boolean)
+  const newExits = (newCfg.exitDestinations || []).filter(e => !e.isSystem).map(e => e.key).filter(Boolean)
+  newExits.filter(k => !oldExits.includes(k)).forEach(k =>
+    changes.push({ icon: 'add_circle', text: `Saída adicionada: ${k}`, type: 'added' })
+  )
+  oldExits.filter(k => !newExits.includes(k)).forEach(k =>
+    changes.push({ icon: 'remove_circle', text: `Saída removida: ${k}`, type: 'removed' })
+  )
+
+  return changes
+}
+
+export default function PromptVersionPanel({ history, currentPrompt, currentConfig, onRevert, onHistoryChange, agentKey }) {
   const [expanded, setExpanded] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [confirmRevertId, setConfirmRevertId] = useState(null)
+  const [detailId, setDetailId] = useState(null)
 
   if (!history || history.length === 0) return null
 
@@ -48,6 +85,7 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
     const updated = deleteSnapshot(id)
     onHistoryChange(updated)
     setConfirmDeleteId(null)
+    if (detailId === id) setDetailId(null)
   }
 
   const handleClear = () => {
@@ -59,6 +97,13 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
     const updated = clearHistory(agentKey)
     onHistoryChange(updated)
     setConfirmClear(false)
+    setDetailId(null)
+  }
+
+  const toggleDetail = (id) => {
+    setDetailId(prev => prev === id ? null : id)
+    setConfirmDeleteId(null)
+    setConfirmRevertId(null)
   }
 
   return (
@@ -92,6 +137,9 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
             const isConfirmingDelete = confirmDeleteId === entry.id
             const isConfirmingRevert = confirmRevertId === entry.id
             const isConfirming = isConfirmingDelete || isConfirmingRevert
+            const isShowingDetail = detailId === entry.id
+
+            const changes = isShowingDetail ? summarizeConfigDiff(entry.config, currentConfig) : []
 
             return (
               <div key={entry.id}
@@ -101,7 +149,9 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
                        ? 'color-mix(in srgb, var(--color-primary) 40%, transparent)'
                        : isConfirmingDelete
                          ? 'color-mix(in srgb, var(--color-error) 40%, transparent)'
-                         : 'color-mix(in srgb, var(--color-outline-variant) 50%, transparent)',
+                         : isShowingDetail
+                           ? 'color-mix(in srgb, var(--color-secondary) 35%, transparent)'
+                           : 'color-mix(in srgb, var(--color-outline-variant) 50%, transparent)',
                      background: isConfirmingRevert
                        ? 'color-mix(in srgb, var(--color-primary) 6%, var(--color-surface-container-high))'
                        : isConfirmingDelete
@@ -109,8 +159,11 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
                          : 'var(--color-surface-container-high)',
                    }}>
 
-                {/* Linha principal */}
-                <div className="px-3 py-2.5 flex items-start gap-2">
+                {/* Linha principal — clicável para ver detalhes */}
+                <div
+                  className="px-3 py-2.5 flex items-start gap-2 cursor-pointer hover:bg-white/5 transition-colors"
+                  onClick={() => !isConfirming && toggleDetail(entry.id)}
+                >
                   <span className="font-mono text-[9px] text-on-surface-variant/30 mt-0.5 flex-shrink-0 w-4 text-right">
                     {history.length - idx}
                   </span>
@@ -129,7 +182,7 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
 
                   {/* Botões — ocultos quando há confirmação aberta */}
                   {!isConfirming && (
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
                       <button
                         onClick={() => handleRevertRequest(entry.id)}
                         className="flex items-center gap-1 px-2 py-1 rounded text-[9px] font-mono font-semibold transition-all opacity-60 hover:opacity-100 hover:bg-primary/10"
@@ -145,6 +198,43 @@ export default function PromptVersionPanel({ history, currentPrompt, onRevert, o
                     </div>
                   )}
                 </div>
+
+                {/* Painel de detalhes — o que mudou desde esta versão */}
+                {isShowingDetail && (
+                  <div className="border-t px-3 py-3 space-y-2"
+                       style={{ borderColor: 'color-mix(in srgb, var(--color-secondary) 20%, transparent)', background: 'color-mix(in srgb, var(--color-secondary) 4%, var(--color-surface-container))' }}>
+                    <p className="text-[9px] font-mono font-bold uppercase tracking-wider text-on-surface-variant/50 mb-2">
+                      O que mudou desde esta versão
+                    </p>
+                    {changes.length === 0 ? (
+                      <p className="text-[10px] font-mono text-on-surface-variant/40 italic">Nenhuma alteração de configuração detectada.</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {changes.map((c, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="material-symbols-outlined flex-shrink-0"
+                                  style={{
+                                    fontSize: 13,
+                                    color: c.type === 'added' ? 'var(--color-secondary)'
+                                         : c.type === 'removed' ? 'var(--color-error)'
+                                         : 'var(--color-on-surface-variant)',
+                                  }}>
+                              {c.icon}
+                            </span>
+                            <span className="text-[10px] font-mono"
+                                  style={{
+                                    color: c.type === 'added' ? 'var(--color-secondary)'
+                                         : c.type === 'removed' ? 'var(--color-error)'
+                                         : 'var(--color-on-surface-variant)',
+                                  }}>
+                              {c.text}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Confirmação de revert */}
                 {isConfirmingRevert && (
