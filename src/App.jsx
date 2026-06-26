@@ -440,23 +440,11 @@ export default function App() {
     })
   }, [])
 
-  // Mantém ref do prompt sincronizada para leitura sem dependência de closure
-  useEffect(() => { generatedPromptRef.current = generatedPrompt }, [generatedPrompt])
-
-  // Marca dirty e auto-regenera o prompt quando a config muda
+  // Marca dirty em qualquer edição (agente salvo ou novo)
   useEffect(() => {
     if (skipNextDirtyRef.current) { skipNextDirtyRef.current = false; return }
     setIsDirty(true)
-
-    if (generatedPromptRef.current && !hasCriticalErrors(validateConfig(config))) {
-      const newPrompt = buildPrompt(config, settings)
-      setGeneratedPrompt(newPrompt)
-      setAuditResult(null)
-      setLastGeneratedAt(Date.now())
-      setConfigChangedAt(null)
-    } else {
-      setConfigChangedAt(Date.now())
-    }
+    setConfigChangedAt(Date.now())
   }, [config])
 
   // Marca dirty quando mensagemInicial muda (Instruções Individuais, Pré-mensagem, etc.)

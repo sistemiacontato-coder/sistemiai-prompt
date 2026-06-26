@@ -37,6 +37,50 @@ function ExpandModal({ label, value, onChange, onClose }) {
   )
 }
 
+function DraftTextarea({ value, onCommit, rows, placeholder, className, style, expandBtn, resizeHint }) {
+  const [draft, setDraft] = React.useState(value)
+  const isDirty = draft !== value
+
+  React.useEffect(() => {
+    if (!isDirty) setDraft(value)
+  }, [value])
+
+  return (
+    <div>
+      <div className="relative">
+        <textarea
+          rows={rows}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          placeholder={placeholder}
+          className={className}
+          style={style}
+        />
+        {expandBtn}
+        {resizeHint}
+      </div>
+      {isDirty && (
+        <div className="flex items-center gap-2 mt-1.5">
+          <button
+            onClick={() => onCommit(draft)}
+            className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-mono font-bold bg-primary text-on-primary hover:opacity-90 transition-all active:scale-95"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>check</span>
+            Salvar
+          </button>
+          <button
+            onClick={() => setDraft(value)}
+            className="px-3 py-1 rounded text-[10px] font-mono text-on-surface-variant/60 hover:text-on-surface-variant border border-outline-variant/50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <span className="text-[9px] font-mono text-on-surface-variant/35 italic">alteração não salva</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AgentConfigPanel({ config, setConfig }) {
   const [expandedField, setExpandedField] = React.useState(null)
   const update = (field, value) => setConfig(prev => ({ ...prev, [field]: value }))
@@ -169,20 +213,16 @@ export default function AgentConfigPanel({ config, setConfig }) {
           <FieldLabel hint={config.agentPersona.length > 0 ? `${config.agentPersona.length} chars` : null}>
             PERSONA DO AGENTE
           </FieldLabel>
-          <div className="relative">
-            <textarea
-              rows={3}
-              value={config.agentPersona}
-              onChange={e => update('agentPersona', e.target.value)}
-              placeholder="Como este agente se comporta? Ex: especializado em atendimento de cartório, formal e objetivo, com domínio em certidões e registros civis..."
-              className="textarea-field rounded-lg text-sm leading-relaxed"
-              style={{ resize: 'vertical' }}
-            />
-            <button onClick={() => setExpandedField('agentPersona')} className="absolute top-2 right-2 opacity-30 hover:opacity-70 transition-opacity" title="Expandir">
-              <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 16 }}>open_in_full</span>
-            </button>
-            <span className="absolute bottom-1.5 right-1.5 opacity-20 pointer-events-none select-none text-on-surface-variant" style={{ fontSize: 10, lineHeight: 1 }}>⠿</span>
-          </div>
+          <DraftTextarea
+            value={config.agentPersona}
+            onCommit={v => update('agentPersona', v)}
+            rows={3}
+            placeholder="Como este agente se comporta? Ex: especializado em atendimento de cartório, formal e objetivo, com domínio em certidões e registros civis..."
+            className="textarea-field rounded-lg text-sm leading-relaxed"
+            style={{ resize: 'vertical' }}
+            expandBtn={<button onClick={() => setExpandedField('agentPersona')} className="absolute top-2 right-2 opacity-30 hover:opacity-70 transition-opacity" title="Expandir"><span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 16 }}>open_in_full</span></button>}
+            resizeHint={<span className="absolute bottom-1.5 right-1.5 opacity-20 pointer-events-none select-none text-on-surface-variant" style={{ fontSize: 10, lineHeight: 1 }}>⠿</span>}
+          />
         </div>
 
         {/* Objetivo do Assistente */}
@@ -190,20 +230,16 @@ export default function AgentConfigPanel({ config, setConfig }) {
           <FieldLabel required hint={config.domain.length > 0 ? `${config.domain.length} chars` : null}>
             OBJETIVO DO ASSISTENTE
           </FieldLabel>
-          <div className="relative">
-            <textarea
-              rows={5}
-              value={config.domain}
-              onChange={e => update('domain', e.target.value)}
-              placeholder="Descreva o que este agente faz e para onde ele encaminha. Ex: Este assistente tira dúvidas sobre cursos, encaminha para o setor de matrículas quando o cliente quer se matricular, para o setor de agendamento quando quer agendar uma aula, e para o setor de dúvidas para informações gerais."
-              className="textarea-field rounded-lg text-sm leading-relaxed"
-              style={{ resize: 'vertical' }}
-            />
-            <button onClick={() => setExpandedField('domain')} className="absolute top-2 right-2 opacity-30 hover:opacity-70 transition-opacity" title="Expandir">
-              <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 16 }}>open_in_full</span>
-            </button>
-            <span className="absolute bottom-1.5 right-1.5 opacity-20 pointer-events-none select-none text-on-surface-variant" style={{ fontSize: 10, lineHeight: 1 }}>⠿</span>
-          </div>
+          <DraftTextarea
+            value={config.domain}
+            onCommit={v => update('domain', v)}
+            rows={5}
+            placeholder="Descreva o que este agente faz e para onde ele encaminha. Ex: Este assistente tira dúvidas sobre cursos, encaminha para o setor de matrículas quando o cliente quer se matricular, para o setor de agendamento quando quer agendar uma aula, e para o setor de dúvidas para informações gerais."
+            className="textarea-field rounded-lg text-sm leading-relaxed"
+            style={{ resize: 'vertical' }}
+            expandBtn={<button onClick={() => setExpandedField('domain')} className="absolute top-2 right-2 opacity-30 hover:opacity-70 transition-opacity" title="Expandir"><span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 16 }}>open_in_full</span></button>}
+            resizeHint={<span className="absolute bottom-1.5 right-1.5 opacity-20 pointer-events-none select-none text-on-surface-variant" style={{ fontSize: 10, lineHeight: 1 }}>⠿</span>}
+          />
 
           <div className="mt-2 flex items-center gap-1.5">
             <span className="material-symbols-outlined text-error/60" style={{ fontSize: 12 }}>info</span>
@@ -226,6 +262,7 @@ export default function AgentConfigPanel({ config, setConfig }) {
           onClose={() => setExpandedField(null)}
         />
       )}
+
     </section>
   )
 }
