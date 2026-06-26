@@ -69,11 +69,7 @@ export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollap
           const isActive = view === item.id || (isEditorItem && view === 'editor')
           const showBadge = item.id === 'settings' && aiConfig?.apiKey
 
-          const visibleSections = isEditorItem ? EDITOR_SECTIONS.filter(s => {
-            if (s.show === 'sections') return sectionsRevealed
-            if (s.show === 'prompt') return hasPrompt
-            return true
-          }) : []
+          const visibleSections = isEditorItem ? EDITOR_SECTIONS : []
 
           return (
             <div key={item.id}>
