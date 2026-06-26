@@ -266,9 +266,10 @@ export function buildPrompt(config, settings = {}) {
   if (multiIntencoes) {
     lines.push('**Múltiplas intenções na mesma mensagem:**')
     lines.push('')
-    lines.push('1. NUNCA escolha arbitrariamente.')
-    lines.push('2. Pergunte qual o cliente deseja resolver primeiro.')
+    lines.push('1. Se uma intenção for claramente mais específica que outra, priorize a mais específica.')
+    lines.push('2. Se as intenções forem do mesmo nível de especificidade, pergunte qual o cliente deseja resolver primeiro.')
     lines.push('3. Se o cliente não tiver preferência, encaminhe pela **primeira intenção mencionada**.')
+    lines.push('4. NUNCA escolha arbitrariamente sem seguir esta ordem.')
     lines.push('')
   }
 
