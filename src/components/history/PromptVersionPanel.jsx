@@ -210,27 +210,19 @@ export default function PromptVersionPanel({ history, currentPrompt, currentConf
                       <p className="text-[10px] font-mono text-on-surface-variant/40 italic">Nenhuma alteração de configuração detectada.</p>
                     ) : (
                       <div className="space-y-1">
-                        {changes.map((c, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <span className="material-symbols-outlined flex-shrink-0"
-                                  style={{
-                                    fontSize: 13,
-                                    color: c.type === 'added' ? 'var(--color-secondary)'
-                                         : c.type === 'removed' ? 'var(--color-error)'
-                                         : 'var(--color-on-surface-variant)',
-                                  }}>
-                              {c.icon}
-                            </span>
-                            <span className="text-[10px] font-mono"
-                                  style={{
-                                    color: c.type === 'added' ? 'var(--color-secondary)'
-                                         : c.type === 'removed' ? 'var(--color-error)'
-                                         : 'var(--color-on-surface-variant)',
-                                  }}>
-                              {c.text}
-                            </span>
-                          </div>
-                        ))}
+                        {changes.map((c, i) => {
+                          const colorClass = c.type === 'added' ? 'text-secondary' : c.type === 'removed' ? 'text-error' : 'text-on-surface-variant'
+                          return (
+                            <div key={i} className="flex items-center gap-2">
+                              <span className={`material-symbols-outlined flex-shrink-0 ${colorClass}`} style={{ fontSize: 13 }}>
+                                {c.icon}
+                              </span>
+                              <span className={`text-[10px] font-mono font-semibold ${colorClass}`}>
+                                {c.text}
+                              </span>
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
