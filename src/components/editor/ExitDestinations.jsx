@@ -49,7 +49,8 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
   const handleKeyChange = (val) => {
     const slug = val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
     const full = PREFIX + slug
-    if (full.length <= MAX_CHARS) onChange({ ...exit, key: full })
+    const autoLabel = slug.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    if (full.length <= MAX_CHARS) onChange({ ...exit, key: full, label: autoLabel || exit.label })
   }
 
   const handleSave = () => onChange({ ...exit, description: descDraft, exitMessage: msgDraft })
