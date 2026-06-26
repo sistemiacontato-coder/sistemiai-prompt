@@ -78,8 +78,7 @@ export function buildPrompt(config, settings = {}) {
   ].filter(Boolean).join('\n')
 
   const exitSections = allExits
-    .filter(e => e.key !== 'success')
-    .map(e => buildExitSection(e, maxAttempts))
+    .map(e => buildExitSection(e, maxAttempts, successHasMsg, successExit))
     .join('\n\n')
 
   // Bloco JSON por status — sem comentários, sem strings de placeholder nas variáveis
@@ -259,7 +258,7 @@ export function buildPrompt(config, settings = {}) {
   lines.push('1. Verifique o histórico completo da conversa.')
   lines.push('2. Na 1ª tentativa → solicitar esclarecimento com pergunta direta.')
   lines.push('3. Na 2ª tentativa → nova pergunta de esclarecimento.')
-  lines.push(`4. Na ${maxAttempts}ª tentativa → acionar \`saida_atendente\` com mensagem de transição.`)
+  lines.push(`4. Na ${maxAttempts}ª tentativa → acionar \`saida_atendente\`${(() => { const ae = allExits.find(e => e.key === 'saida_atendente'); return (ae?.sendExitMessage && ae?.exitMessage?.trim()) ? ' com a mensagem de transição configurada.' : '.' })()}`)
   lines.push('')
   lines.push(`**CRÍTICO:** Após ${maxAttempts} tentativas sem identificar a intenção, acionar \`saida_atendente\` imediatamente.`)
   lines.push('')
@@ -430,11 +429,17 @@ function applyLineBreaks(text) {
   return text.replace(/([.!?])\s+/g, '$1\\n\\n').trim()
 }
 
-function buildExitSection(exit, maxAttempts = 3) {
+function buildExitSection(exit, maxAttempts = 3, successHasMsg = false, successExit = null) {
   const lines = []
   if (exit.key === 'in_process') {
     lines.push('## `in_process`')
     lines.push('**Quando usar:** a qualquer momento em que o fluxo está ativo e o agente aguarda resposta.')
+  } else if (exit.key === 'success') {
+    lines.push('## `success`')
+    lines.push('**Quando usar:** quando o atendimento foi concluído com sucesso pelo agente — cliente recebeu as informações solicitadas ou foi atendido sem necessidade de transferência.')
+    if (successHasMsg && successExit?.exitMessage?.trim()) {
+      lines.push(`**Mensagem de transição:** "${applyLineBreaks(successExit.exitMessage.trim())}"`)
+    }
   } else if (exit.key === 'saida_atendente') {
     lines.push('## `saida_atendente`')
     lines.push('**Quando usar:**')
