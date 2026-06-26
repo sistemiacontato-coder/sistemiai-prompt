@@ -13,6 +13,11 @@ function FieldLabel({ children, required, hint }) {
 }
 
 function ExpandModal({ label, value, onChange, onClose }) {
+  const [draft, setDraft] = React.useState(value)
+  const isDirty = draft !== value
+
+  const handleSave = () => { onChange(draft); onClose() }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div className="w-[92vw] h-[92vh] rounded-xl border border-outline-variant shadow-2xl flex flex-col overflow-hidden bg-surface-container" onClick={e => e.stopPropagation()}>
@@ -23,14 +28,24 @@ function ExpandModal({ label, value, onChange, onClose }) {
           </button>
         </div>
         <textarea
-          value={value}
-          onChange={e => onChange(e.target.value)}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
           className="flex-1 w-full p-5 font-mono text-sm leading-relaxed text-on-surface outline-none bg-surface-container"
           style={{ resize: 'none' }}
           autoFocus
         />
-        <div className="px-5 py-3 border-t border-outline-variant flex justify-end bg-surface-container-high">
-          <button onClick={onClose} className="px-4 py-1.5 rounded bg-primary text-on-primary text-xs font-mono font-bold">Fechar</button>
+        <div className="px-5 py-3 border-t border-outline-variant flex items-center justify-end gap-2 bg-surface-container-high">
+          <button onClick={onClose} className="px-4 py-1.5 rounded border border-outline-variant text-xs font-mono text-on-surface-variant hover:text-on-surface transition-colors">
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            className={`flex items-center gap-1 px-4 py-1.5 rounded text-xs font-mono font-bold transition-all active:scale-95 ${isDirty ? 'bg-primary text-on-primary hover:opacity-90' : 'bg-outline-variant/40 text-on-surface-variant/40 cursor-default'}`}
+            disabled={!isDirty}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 12 }}>check</span>
+            Salvar
+          </button>
         </div>
       </div>
     </div>
