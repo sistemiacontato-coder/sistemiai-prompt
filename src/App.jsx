@@ -1087,7 +1087,8 @@ export default function App() {
                           <button
                             onClick={handleAnalyzeObjective}
                             disabled={!canAnalyze}
-                            className="flex items-center gap-1.5 text-[10px] font-mono text-on-surface-variant/35 hover:text-on-surface-variant/60 transition-colors disabled:opacity-30"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant text-[10px] font-mono font-medium text-on-surface-variant/60 hover:text-on-surface-variant hover:border-secondary/40 hover:text-secondary transition-all active:scale-95 disabled:opacity-30"
+                            style={{ background: 'var(--color-surface-container-high)' }}
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
                               {isAnalyzing ? 'progress_activity' : 'auto_awesome'}
@@ -1341,17 +1342,13 @@ export default function App() {
                                 if (ok) handleGenerate()
                               }}
                               disabled={isGenerating || !canGenerate}
-                              className={`px-12 py-4 rounded font-mono font-bold tracking-widest uppercase text-base
-                                flex items-center gap-4 transition-all active:scale-95 relative overflow-hidden group
-                                ${canGenerate
-                                  ? 'bg-surface-container-high text-on-surface border-2 border-outline-variant hover:border-primary/40 hover:text-primary'
-                                  : 'bg-surface-container-high text-on-surface-variant cursor-not-allowed'
-                                } disabled:opacity-60`}
+                              className="flex items-center gap-2 px-5 py-2.5 rounded-lg border-2 border-outline-variant text-[11px] font-mono font-bold uppercase tracking-wider text-on-surface-variant hover:border-primary/50 hover:text-primary transition-all active:scale-95 disabled:opacity-40"
+                              style={{ background: 'var(--color-surface-container-high)' }}
                             >
-                              <span className="material-symbols-outlined text-[28px]">
+                              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
                                 {isGenerating ? 'sync' : 'refresh'}
                               </span>
-                              {isGenerating ? 'ATUALIZANDO...' : 'ATUALIZAR PROMPT'}
+                              {isGenerating ? 'Atualizando...' : 'Atualizar Prompt'}
                             </button>
                           )
                         )}
