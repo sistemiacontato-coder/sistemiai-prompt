@@ -6,13 +6,14 @@ const NAV_ITEMS = [
 ]
 
 const EDITOR_SECTIONS = [
-  { id: 'nav-assistente', label: 'Assistente',  icon: 'smart_toy',    show: 'always' },
-  { id: 'nav-objetivo',   label: 'Objetivo',    icon: 'flag',         show: 'always' },
-  { id: 'nav-tom',        label: 'Tom',         icon: 'tune',         show: 'always' },
-  { id: 'nav-campos',     label: 'Campos',      icon: 'input',        show: 'sections' },
-  { id: 'nav-saidas',     label: 'Saídas',      icon: 'account_tree', show: 'sections' },
-  { id: 'nav-prompt',     label: 'Prompt',      icon: 'code',         show: 'prompt' },
-  { id: 'nav-auditoria',  label: 'Auditoria',   icon: 'fact_check',   show: 'prompt' },
+  { id: 'nav-assistente', label: 'Assistente',   icon: 'smart_toy',    show: 'always' },
+  { id: 'nav-objetivo',   label: 'Objetivo',     icon: 'flag',         show: 'always' },
+  { id: 'nav-tom',        label: 'Tom',          icon: 'tune',         show: 'always' },
+  { id: 'nav-campos',     label: 'Campos',       icon: 'input',        show: 'sections' },
+  { id: 'nav-saidas',     label: 'Saídas',       icon: 'account_tree', show: 'sections' },
+  { id: 'nav-prompt',     label: 'Prompt',       icon: 'code',         show: 'prompt' },
+  { id: 'nav-auditoria',  label: 'Auditoria',    icon: 'fact_check',   show: 'prompt' },
+  { id: 'nav-mensagem',   label: 'Msg. Inicial', icon: 'chat',         show: 'v2' },
 ]
 
 export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollapsed, onToggle, sectionsRevealed, hasPrompt, onNavTo }) {
@@ -101,18 +102,30 @@ export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollap
               </button>
 
               {/* Submenu de seções do editor */}
-              {isEditorItem && isActive && !isCollapsed && visibleSections.length > 0 && (
+              {isEditorItem && isActive && !isCollapsed && (
                 <div className="pb-2 border-l-4 border-primary/20 ml-0">
-                  {visibleSections.map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => onNavTo?.(s.id)}
-                      className="w-full flex items-center gap-2 pl-10 pr-4 py-1.5 text-left text-[11px] font-mono text-on-surface-variant/45 hover:text-primary hover:bg-primary/5 transition-all"
-                    >
-                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 13 }}>{s.icon}</span>
-                      {s.label}
-                    </button>
-                  ))}
+                  {EDITOR_SECTIONS.map(s => {
+                    const enabled =
+                      s.show === 'always' ||
+                      (s.show === 'sections' && sectionsRevealed) ||
+                      (s.show === 'prompt' && hasPrompt) ||
+                      (s.show === 'v2' && (view === 'editor-v2' || view === 'editor'))
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => enabled && onNavTo?.(s.id)}
+                        title={!enabled ? 'Disponível após gerar conteúdo' : undefined}
+                        className={`w-full flex items-center gap-2 pl-10 pr-4 py-1.5 text-left text-[11px] font-mono transition-all ${
+                          enabled
+                            ? 'text-on-surface-variant/45 hover:text-primary hover:bg-primary/5 cursor-pointer'
+                            : 'text-on-surface-variant/20 cursor-default'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 13 }}>{s.icon}</span>
+                        {s.label}
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>

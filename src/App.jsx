@@ -1429,12 +1429,14 @@ export default function App() {
 
                   {/* Mensagem Inicial — Editor V2 */}
                   {view === 'editor-v2' && (
-                    <MensagemInicialPanel
-                      config={config}
-                      mensagemInicial={mensagemInicial}
-                      setMensagemInicial={setMensagemInicial}
-                      aiConfig={aiConfig}
-                    />
+                    <div id="nav-mensagem">
+                      <MensagemInicialPanel
+                        config={config}
+                        mensagemInicial={mensagemInicial}
+                        setMensagemInicial={setMensagemInicial}
+                        aiConfig={aiConfig}
+                      />
+                    </div>
                   )}
 
                   {/* Histórico de Versões */}
