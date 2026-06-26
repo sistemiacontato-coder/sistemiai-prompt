@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 let nextExitId = 20
 const MAX_CHARS = 20
@@ -36,22 +36,34 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
   const isOver = charCount > MAX_CHARS
   const namePart = exit.key.startsWith(PREFIX) ? exit.key.slice(PREFIX.length) : exit.key
 
+  const [descDraft, setDescDraft] = useState(exit.description || '')
+  const [msgDraft, setMsgDraft] = useState(exit.exitMessage || '')
+
+  useEffect(() => { setDescDraft(exit.description || '') }, [exit.description])
+  useEffect(() => { setMsgDraft(exit.exitMessage || '') }, [exit.exitMessage])
+
+  const descDirty = descDraft !== (exit.description || '')
+  const msgDirty = msgDraft !== (exit.exitMessage || '')
+  const hasDraft = descDirty || msgDirty
+
   const handleKeyChange = (val) => {
     const slug = val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')
     const full = PREFIX + slug
     if (full.length <= MAX_CHARS) onChange({ ...exit, key: full })
   }
 
+  const handleSave = () => onChange({ ...exit, description: descDraft, exitMessage: msgDraft })
+  const handleCancel = () => { setDescDraft(exit.description || ''); setMsgDraft(exit.exitMessage || '') }
+
   return (
     <div className={`rounded-lg border ${s.border} overflow-hidden transition-all`}
          style={{ background: 'var(--color-surface-container-high)' }}>
 
-      {/* Barra de acento lateral */}
       <div className="flex">
         <div className="w-0.5 flex-shrink-0" style={{ background: `var(${s.accentVar})`, opacity: 0.5 }} />
 
         <div className="flex-1 min-w-0">
-          {/* Header do card */}
+          {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-outline-variant/40">
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.dot}`} />
 
@@ -76,8 +88,7 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
                 {charCount} / {MAX_CHARS}
               </span>
               {onDelete && (
-                <button onClick={onDelete}
-                  className="text-on-surface-variant/30 hover:text-error transition-colors">
+                <button onClick={onDelete} className="text-on-surface-variant/30 hover:text-error transition-colors">
                   <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
                 </button>
               )}
@@ -88,8 +99,8 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
           {editable ? (
             <textarea
               rows={3}
-              value={exit.description || ''}
-              onChange={e => onChange({ ...exit, description: e.target.value })}
+              value={descDraft}
+              onChange={e => setDescDraft(e.target.value)}
               placeholder="Interrompa a IA quando o cliente..."
               className="w-full bg-transparent px-4 py-3 text-[12px] font-mono text-on-surface/75 placeholder:text-on-surface-variant/25 focus:outline-none resize-none leading-relaxed"
             />
@@ -118,8 +129,8 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
                 <div className="space-y-2">
                   <textarea
                     rows={2}
-                    value={exit.exitMessage || ''}
-                    onChange={e => onChange({ ...exit, exitMessage: e.target.value })}
+                    value={msgDraft}
+                    onChange={e => setMsgDraft(e.target.value)}
                     placeholder="Mensagem enviada ao cliente ao acionar esta saída..."
                     className="w-full rounded-lg border border-outline-variant px-3 py-2 text-[12px] font-mono text-on-surface/80 placeholder:text-on-surface-variant/25 focus:border-primary focus:ring-1 focus:ring-primary/50 focus:outline-none resize-none leading-relaxed transition-all"
                     style={{ background: 'var(--color-surface-container)' }}
@@ -136,12 +147,26 @@ function ExitCard({ exit, editable, onChange, onDelete, onGenerateMessage, isGen
                     }}>
                     {isGeneratingMessage
                       ? <span className="material-symbols-outlined animate-spin" style={{ fontSize: 13 }}>progress_activity</span>
-                      : <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>
-                    }
+                      : <span className="material-symbols-outlined" style={{ fontSize: 13 }}>auto_awesome</span>}
                     {isGeneratingMessage ? 'Gerando...' : exit.exitMessage?.trim() ? 'Regenerar' : 'Gerar com IA'}
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Salvar / Cancelar — aparece apenas quando há alteração */}
+          {editable && hasDraft && (
+            <div className="border-t border-outline-variant/40 px-4 py-2.5 flex items-center justify-end gap-2">
+              <button onClick={handleCancel}
+                className="px-3 py-1 rounded text-[10px] font-mono text-on-surface-variant/60 hover:text-on-surface-variant border border-outline-variant/50 transition-colors">
+                Cancelar
+              </button>
+              <button onClick={handleSave}
+                className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-mono font-bold bg-primary text-on-primary hover:opacity-90 transition-all active:scale-95">
+                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>check</span>
+                Salvar
+              </button>
             </div>
           )}
         </div>

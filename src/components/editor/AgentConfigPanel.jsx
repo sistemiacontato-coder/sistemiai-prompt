@@ -41,8 +41,9 @@ function DraftTextarea({ value, onCommit, rows, placeholder, className, style, e
   const [draft, setDraft] = React.useState(value)
   const isDirty = draft !== value
 
+  // Sincroniza quando o valor externo muda (carregar agente, reverter versão, etc.)
   React.useEffect(() => {
-    if (!isDirty) setDraft(value)
+    setDraft(value)
   }, [value])
 
   return (
@@ -60,7 +61,13 @@ function DraftTextarea({ value, onCommit, rows, placeholder, className, style, e
         {resizeHint}
       </div>
       {isDirty && (
-        <div className="flex items-center gap-2 mt-1.5">
+        <div className="flex items-center justify-end gap-2 mt-1.5">
+          <button
+            onClick={() => setDraft(value)}
+            className="px-3 py-1 rounded text-[10px] font-mono text-on-surface-variant/60 hover:text-on-surface-variant border border-outline-variant/50 transition-colors"
+          >
+            Cancelar
+          </button>
           <button
             onClick={() => onCommit(draft)}
             className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-mono font-bold bg-primary text-on-primary hover:opacity-90 transition-all active:scale-95"
@@ -68,13 +75,6 @@ function DraftTextarea({ value, onCommit, rows, placeholder, className, style, e
             <span className="material-symbols-outlined" style={{ fontSize: 12 }}>check</span>
             Salvar
           </button>
-          <button
-            onClick={() => setDraft(value)}
-            className="px-3 py-1 rounded text-[10px] font-mono text-on-surface-variant/60 hover:text-on-surface-variant border border-outline-variant/50 transition-colors"
-          >
-            Cancelar
-          </button>
-          <span className="text-[9px] font-mono text-on-surface-variant/35 italic">alteração não salva</span>
         </div>
       )}
     </div>
