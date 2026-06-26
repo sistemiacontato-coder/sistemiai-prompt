@@ -409,6 +409,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
   const [isRunningTests, setIsRunningTests] = useState(false)
   const [suiteResults, setSuiteResults] = useState(null)
+  const [expandedResults, setExpandedResults] = useState(new Set())
   const [isRefiningAuto, setIsRefiningAuto] = useState(false)
   const [autoRefineResult, setAutoRefineResult] = useState(null)
   const [editingTestCase, setEditingTestCase] = useState(null)
@@ -1538,56 +1539,142 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
             {/* Resultados individuais de cenários */}
             {suiteResults && (
               <div className="space-y-4">
-                <h3 className="text-xs font-mono font-bold text-on-surface-variant/60 uppercase">Detalhes da Execução</h3>
-                
-                <div className="space-y-3">
-                  {suiteResults.results.map((res, tcIdx) => (
-                    <div key={tcIdx} className={`rounded-lg border p-4 bg-surface-container-high/20 ${res.passed ? 'border-secondary/20 bg-secondary/5' : 'border-error/20 bg-error/5'}`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className={`material-symbols-outlined text-[18px] ${res.passed ? 'text-secondary' : 'text-error'}`}>
-                            {res.passed ? 'check_circle' : 'cancel'}
-                          </span>
-                          <span className="text-xs font-mono font-bold text-on-surface">{res.testCaseName}</span>
-                        </div>
-                        <span className={`text-[10px] font-mono font-bold uppercase ${res.passed ? 'text-secondary' : 'text-error'}`}>
-                          {res.passed ? 'Passou' : 'Falhou'}
-                        </span>
-                      </div>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-mono font-bold text-on-surface-variant/60 uppercase">Detalhes da Execução</h3>
+                  <button
+                    onClick={() => setExpandedResults(
+                      expandedResults.size === suiteResults.results.length
+                        ? new Set()
+                        : new Set(suiteResults.results.map((_, i) => i))
+                    )}
+                    className="text-[10px] font-mono text-on-surface-variant/40 hover:text-on-surface-variant/70 flex items-center gap-0.5 transition-colors"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+                      {expandedResults.size === suiteResults.results.length ? 'unfold_less' : 'unfold_more'}
+                    </span>
+                    {expandedResults.size === suiteResults.results.length ? 'Recolher todos' : 'Expandir todos'}
+                  </button>
+                </div>
 
-                      {/* Passos e asserções */}
-                      <div className="space-y-2 mt-3 pl-6 border-l border-outline-variant/40">
-                        {res.stepResults.map((step, sIdx) => (
-                          <div key={sIdx} className="text-[10px] font-mono space-y-1">
-                            <div className="flex items-start gap-1">
-                              <span className="text-on-surface-variant/40">&gt; Cliente:</span>
-                              <span className="italic">"{step.clientMessage}"</span>
-                            </div>
-                            
-                            {step.parsedResponse ? (
-                              <div className="pl-3 text-[9px] space-y-0.5 text-on-surface-variant/70">
-                                <div><span className="font-bold">Status retornado:</span> `{step.parsedResponse.status}`</div>
-                                {Object.keys(step.parsedResponse.variables || {}).length > 0 && (
-                                  <div><span className="font-bold">Variáveis:</span> {JSON.stringify(step.parsedResponse.variables)}</div>
-                                )}
-                              </div>
-                            ) : step.rawResponse ? (
-                              <div className="pl-3 text-[9px] text-error/80 max-w-full overflow-x-auto whitespace-pre">
-                                {step.rawResponse}
-                              </div>
-                            ) : null}
+                <div className="space-y-2">
+                  {suiteResults.results.map((res, tcIdx) => {
+                    const isExpanded = expandedResults.has(tcIdx)
+                    return (
+                      <div key={tcIdx} className={`rounded-lg border overflow-hidden ${res.passed ? 'border-secondary/20' : 'border-error/20'}`}
+                        style={{ background: res.passed ? 'color-mix(in srgb, var(--color-secondary) 4%, var(--color-surface-container))' : 'color-mix(in srgb, var(--color-error) 4%, var(--color-surface-container))' }}>
 
-                            {!step.passed && (
-                              <div className="pl-3 flex items-center gap-1 text-error font-bold text-[9px]">
-                                <span className="material-symbols-outlined" style={{ fontSize: 12 }}>error</span>
-                                <span>{step.error}</span>
-                              </div>
-                            )}
+                        {/* Header clicável */}
+                        <button
+                          onClick={() => {
+                            const next = new Set(expandedResults)
+                            if (isExpanded) next.delete(tcIdx)
+                            else next.add(tcIdx)
+                            setExpandedResults(next)
+                          }}
+                          className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={`material-symbols-outlined text-[16px] ${res.passed ? 'text-secondary' : 'text-error'}`}>
+                              {res.passed ? 'check_circle' : 'cancel'}
+                            </span>
+                            <span className="text-xs font-mono font-semibold text-on-surface">{res.testCaseName}</span>
+                            <span className="text-[9px] font-mono text-on-surface-variant/40">
+                              {res.stepResults.length} {res.stepResults.length === 1 ? 'passo' : 'passos'}
+                            </span>
                           </div>
-                        ))}
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] font-mono font-bold uppercase ${res.passed ? 'text-secondary' : 'text-error'}`}>
+                              {res.passed ? 'Passou' : 'Falhou'}
+                            </span>
+                            <span className="material-symbols-outlined text-on-surface-variant/40" style={{ fontSize: 16 }}>
+                              {isExpanded ? 'expand_less' : 'expand_more'}
+                            </span>
+                          </div>
+                        </button>
+
+                        {/* Passos expandidos */}
+                        {isExpanded && (
+                          <div className="border-t border-outline-variant/30 px-4 py-3 space-y-4">
+                            {res.stepResults.map((step, sIdx) => (
+                              <div key={sIdx} className="space-y-2">
+                                {/* Número do passo + mensagem do cliente */}
+                                <div className="flex items-start gap-2">
+                                  <span className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-mono font-bold mt-0.5 ${step.passed ? 'bg-secondary/15 text-secondary' : 'bg-error/15 text-error'}`}>
+                                    {sIdx + 1}
+                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[9px] font-mono text-on-surface-variant/40 mb-0.5">CLIENTE</p>
+                                    <p className="text-[11px] font-mono italic text-on-surface/80">"{step.clientMessage}"</p>
+                                  </div>
+                                </div>
+
+                                {step.parsedResponse ? (
+                                  <div className="ml-7 space-y-2">
+                                    {/* Status com comparação */}
+                                    <div className="flex items-center gap-2 text-[10px] font-mono">
+                                      <span className={`material-symbols-outlined text-[14px] ${step.passed ? 'text-secondary' : 'text-error'}`}>
+                                        {step.passed ? 'check_circle' : 'error'}
+                                      </span>
+                                      <span className="text-on-surface-variant/50">Status:</span>
+                                      <code className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${step.passed ? 'bg-secondary/10 text-secondary' : 'bg-error/10 text-error'}`}>
+                                        {step.parsedResponse.status}
+                                      </code>
+                                      {!step.passed && step.error && (
+                                        <span className="text-on-surface-variant/40 text-[9px]">{step.error}</span>
+                                      )}
+                                    </div>
+
+                                    {/* Mensagem do agente */}
+                                    {step.parsedResponse.message && (
+                                      <div className="rounded border border-outline-variant/40 overflow-hidden"
+                                        style={{ background: 'var(--color-surface-container-high)' }}>
+                                        <p className="text-[8px] font-mono font-bold text-on-surface-variant/40 uppercase tracking-wider px-2.5 pt-2 pb-1">
+                                          Resposta do Agente
+                                        </p>
+                                        <p className="text-[11px] font-mono text-on-surface/90 px-2.5 pb-2.5 leading-relaxed">
+                                          {step.parsedResponse.message}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {/* Variáveis */}
+                                    {Object.keys(step.parsedResponse.variables || {}).length > 0 && (
+                                      <div className="rounded border border-outline-variant/30 px-2.5 py-2"
+                                        style={{ background: 'var(--color-surface-container)' }}>
+                                        <p className="text-[8px] font-mono font-bold text-on-surface-variant/40 uppercase tracking-wider mb-1.5">
+                                          Variáveis
+                                        </p>
+                                        <div className="space-y-0.5">
+                                          {Object.entries(step.parsedResponse.variables).map(([k, v]) => (
+                                            <div key={k} className="flex items-baseline gap-1.5 text-[10px] font-mono">
+                                              <span className="text-tertiary flex-shrink-0">{k}</span>
+                                              <span className="text-on-surface-variant/30">:</span>
+                                              <span className="text-on-surface/70 truncate">"{String(v)}"</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Resumo */}
+                                    {step.parsedResponse.summary && (
+                                      <p className="text-[9px] font-mono text-on-surface-variant/40 italic pl-1 border-l-2 border-outline-variant/30">
+                                        {step.parsedResponse.summary}
+                                      </p>
+                                    )}
+                                  </div>
+                                ) : step.rawResponse ? (
+                                  <div className="ml-7 text-[9px] font-mono text-error/80 bg-error/5 rounded p-2 border border-error/20 max-w-full overflow-x-auto whitespace-pre-wrap">
+                                    {step.rawResponse.slice(0, 600)}
+                                  </div>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 {/* Botão de ajuste automático por IA se houver falhas */}
