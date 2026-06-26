@@ -77,10 +77,12 @@ export function buildPrompt(config, settings = {}) {
     .join('\n\n')
 
   // Bloco JSON por status — sem comentários, sem strings de placeholder nas variáveis
-  const jsonBlock = (statusValue, messageValue) => [
+  const jsonBlock = (statusValue, messageValue) => {
+    const escapedMsg = messageValue.replace(/\n/g, '\\n\\n').replace(/"/g, '\\"')
+    return [
     '```json',
     '{',
-    `  "message": "${messageValue}",`,
+    `  "message": "${escapedMsg}",`,
     `  "status": "${statusValue}",`,
     `  "summary": "Resumo acumulado da conversa. Atualizado a cada turno.",`,
     `  "variables": {`,
@@ -90,6 +92,7 @@ export function buildPrompt(config, settings = {}) {
     '}',
     '```',
   ].join('\n')
+  }
 
   const lines = []
 
