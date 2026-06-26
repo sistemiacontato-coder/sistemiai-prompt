@@ -209,7 +209,7 @@ export default function AgentConfigPanel({ config, setConfig }) {
         {/* Persona + Objetivo agrupados */}
         <div className="space-y-4">
 
-        <div>
+        <div id="nav-assistente">
           <FieldLabel hint={config.agentPersona.length > 0 ? `${config.agentPersona.length} chars` : null}>
             PERSONA DO AGENTE
           </FieldLabel>
@@ -226,7 +226,7 @@ export default function AgentConfigPanel({ config, setConfig }) {
         </div>
 
         {/* Objetivo do Assistente */}
-        <div>
+        <div id="nav-objetivo">
           <FieldLabel required hint={config.domain.length > 0 ? `${config.domain.length} chars` : null}>
             OBJETIVO DO ASSISTENTE
           </FieldLabel>

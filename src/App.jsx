@@ -24,6 +24,7 @@ import SettingsView from './components/settings/SettingsView'
 import ToneRulesPanel from './components/editor/ToneRulesPanel'
 import SimulatorView from './components/simulator/SimulatorView'
 import MensagemInicialPanel from './components/editor/MensagemInicialPanel'
+import QuickNavBar from './components/layout/QuickNavBar'
 
 const SETTINGS_DEFAULT = {
   enforceJson: true,
@@ -1056,8 +1057,9 @@ export default function App() {
             <div className="h-full grid grid-cols-12 overflow-hidden">
               {/* Painel Central — Editor */}
               <div className="col-span-8 h-full overflow-y-auto border-r border-outline-variant">
-                {/* Barra sticky: seletor de agente + botões de salvar */}
-                <div className="sticky top-0 z-20 px-6 py-3 border-b border-outline-variant bg-background backdrop-blur-sm">
+                {/* Barra sticky: seletor de agente + quick nav */}
+                <div className="sticky top-0 z-20 bg-background backdrop-blur-sm">
+                  <div className="px-6 py-3 border-b border-outline-variant">
                   <AgentSelectorBar
                     agents={agents}
                     loadedAgentId={loadedAgentId}
@@ -1073,6 +1075,8 @@ export default function App() {
                     isDirty={isDirty}
                     isSupabaseConfigured={isSupabaseConfigured}
                   />
+                  </div>
+                  <QuickNavBar sectionsRevealed={sectionsRevealed} hasPrompt={!!generatedPrompt} />
                 </div>
                 <div className="p-6">
                 <div className="max-w-3xl mx-auto space-y-4 pb-24">
@@ -1090,7 +1094,7 @@ export default function App() {
                   )}
 
                   <AgentConfigPanel config={config} setConfig={setConfig} />
-                  <ToneRulesPanel config={config} setConfig={setConfig} />
+                  <div id="nav-tom"><ToneRulesPanel config={config} setConfig={setConfig} /></div>
 
                   {(() => {
                     const hasAIKey = !!aiConfig?.apiKey
@@ -1306,14 +1310,14 @@ export default function App() {
 
                   {sectionsRevealed && (
                     <>
-                      <VariableManager config={config} setConfig={setConfig} pendingChanges={pendingChanges} />
-                      <ExitDestinations
+                      <div id="nav-campos"><VariableManager config={config} setConfig={setConfig} pendingChanges={pendingChanges} /></div>
+                      <div id="nav-saidas"><ExitDestinations
                         config={config} setConfig={setConfig} pendingChanges={pendingChanges}
                         aiConfig={aiConfig} generatingExitId={generatingExitId}
                         onGenerateExitMessage={handleGenerateExitMessage}
                         hasGeneratedPrompt={!!generatedPrompt}
                         onRegeneratePrompt={handleGenerate}
-                      />
+                      /></div>
 
                       {/* Botão de Geração */}
                       <div className="flex flex-col items-center py-6">
@@ -1374,7 +1378,7 @@ export default function App() {
                   )}
 
                   {/* Preview do Prompt Gerado */}
-                  <div ref={promptRef}>
+                  <div id="nav-prompt" ref={promptRef}>
                     <PromptPreview
                       prompt={generatedPrompt}
                       pendingChanges={pendingChanges}
@@ -1391,7 +1395,7 @@ export default function App() {
 
                   {/* Auditoria de Prompt */}
                   {generatedPrompt && (
-                    <PromptAuditor
+                    <div id="nav-auditoria"><PromptAuditor
                       onAudit={handleAudit}
                       isAuditing={isAuditing}
                       auditResult={auditResult}
@@ -1406,7 +1410,7 @@ export default function App() {
                         setPendingFixIssueIdx(issueIdx ?? null)
                         await handleReview(fix)
                       }}
-                    />
+                    /></div>
                   )}
 
                   {/* Mensagem Inicial — Editor V2 */}
