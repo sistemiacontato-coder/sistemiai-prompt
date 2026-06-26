@@ -1313,7 +1313,7 @@ export default function App() {
                               <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                                 {isGenerating ? 'sync' : 'sync_problem'}
                               </span>
-                              {isGenerating ? 'Regenerando...' : 'Configuração alterada — Regenerar prompt'}
+                              {isGenerating ? 'Atualizando...' : 'Configuração alterada — Atualizar prompt'}
                             </button>
                           ) : (
                             <button
@@ -1327,7 +1327,7 @@ export default function App() {
                               <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
                                 {isGenerating ? 'sync' : 'refresh'}
                               </span>
-                              {isGenerating ? 'Regenerando...' : 'Regenerar prompt'}
+                              {isGenerating ? 'Atualizando...' : 'Atualizar prompt'}
                             </button>
                           )
                         )}
