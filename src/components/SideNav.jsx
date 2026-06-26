@@ -16,7 +16,7 @@ const EDITOR_SECTIONS = [
   { id: 'nav-mensagem',   label: 'Msg. Inicial', icon: 'chat',         show: 'v2' },
 ]
 
-export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollapsed, onToggle, sectionsRevealed, hasPrompt, onNavTo }) {
+export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollapsed, onToggle, sectionsRevealed, hasPrompt, onNavTo, isPromptStale, onGeneratePrompt }) {
   return (
     <aside
       className="fixed left-0 top-16 h-[calc(100vh-64px)] border-r border-outline-variant flex flex-col z-30 transition-all duration-200"
@@ -104,6 +104,19 @@ export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollap
               {/* Submenu de seções do editor */}
               {isEditorItem && isActive && !isCollapsed && (
                 <div className="pb-2 border-l-4 border-primary/20 ml-0">
+
+                  {/* Botão Atualizar Prompt — só aparece quando stale */}
+                  {isPromptStale && (
+                    <button
+                      onClick={onGeneratePrompt}
+                      className="w-full flex items-center gap-2 pl-10 pr-4 py-2 text-left text-[11px] font-mono font-semibold transition-all animate-pulse mb-1"
+                      style={{ color: '#fb923c', background: 'rgba(251,146,60,0.10)' }}
+                    >
+                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 13 }}>sync_problem</span>
+                      Atualizar Prompt
+                    </button>
+                  )}
+
                   {EDITOR_SECTIONS.map(s => {
                     const enabled =
                       s.show === 'always' ||

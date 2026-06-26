@@ -1064,6 +1064,8 @@ export default function App() {
           sectionsRevealed={sectionsRevealed}
           hasPrompt={!!generatedPrompt}
           onNavTo={handleNavTo}
+          isPromptStale={isPromptStale}
+          onGeneratePrompt={handleGenerate}
         />
 
         <main
