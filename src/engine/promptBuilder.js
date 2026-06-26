@@ -119,11 +119,13 @@ export function buildPrompt(config, settings = {}) {
   lines.push('')
 
   if (domain.trim()) {
+    const hasFoEscopo = exitDestinations.some(e => e.key === 'saida_fora_escopo')
+    const outOfScopeExit = hasFoEscopo ? '`saida_fora_escopo`' : '`saida_atendente`'
     lines.push('**Objetivo:**')
     lines.push(domain.trim())
     lines.push('')
     lines.push('Responda exclusivamente sobre assuntos relacionados ao objetivo acima.')
-    lines.push('Para qualquer outra solicitação, utilize `saida_atendente` com orientação ao cliente.')
+    lines.push(`Para qualquer outra solicitação fora do objetivo, utilize ${outOfScopeExit}.`)
     lines.push('')
   }
 
@@ -257,12 +259,14 @@ export function buildPrompt(config, settings = {}) {
   lines.push('- `message` deve ser `""` em todas as transferências, exceto `saida_atendente`.')
   lines.push('')
 
+  const hasFoEscopo = exitDestinations.some(e => e.key === 'saida_fora_escopo')
+  const outOfScopeExit = hasFoEscopo ? '`saida_fora_escopo`' : '`saida_atendente`'
   lines.push('**Casos não mapeados:**')
   lines.push('')
   lines.push('1. NUNCA inventar respostas fora do objetivo.')
   lines.push('2. Solicitar esclarecimento e registrar a tentativa no `summary`.')
   lines.push(`3. Após ${maxAttempts} tentativas sem identificação: acionar \`saida_atendente\`.`)
-  lines.push('4. Se claramente fora do objetivo: acionar `saida_atendente` com orientação ao cliente.')
+  lines.push(`4. Se claramente fora do objetivo: acionar ${outOfScopeExit}.`)
   lines.push('')
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -277,10 +281,12 @@ export function buildPrompt(config, settings = {}) {
 
     // Regra anti-alucinação — bloco próprio, antes de tudo
     if (rule('noHallucination')) {
+      const hasFoEscopoLocal = exitDestinations.some(e => e.key === 'saida_fora_escopo')
+      const outOfScopeLocal = hasFoEscopoLocal ? '`saida_fora_escopo`' : '`saida_atendente`'
       lines.push('**Anti-alucinação — regra de segurança:**')
       lines.push('- NUNCA invente informações, preços, horários, procedimentos, nomes ou qualquer dado não fornecido explicitamente neste prompt.')
       lines.push('- SE não souber a resposta → acionar `saida_atendente` imediatamente. Nunca tente adivinhar.')
-      lines.push('- SE a pergunta estiver fora do objetivo → acionar `saida_atendente` com orientação ao cliente.')
+      lines.push(`- SE a pergunta estiver fora do objetivo → acionar ${outOfScopeLocal}.`)
       lines.push('- **Regra de ouro: dúvida = transferência. Nunca tentativa.**')
       lines.push('')
     }
