@@ -24,7 +24,6 @@ import SettingsView from './components/settings/SettingsView'
 import ToneRulesPanel from './components/editor/ToneRulesPanel'
 import SimulatorView from './components/simulator/SimulatorView'
 import MensagemInicialPanel from './components/editor/MensagemInicialPanel'
-import QuickNavBar from './components/layout/QuickNavBar'
 
 const SETTINGS_DEFAULT = {
   enforceJson: true,
@@ -441,6 +440,7 @@ export default function App() {
     () => localStorage.getItem('pm-sidebar') === 'collapsed'
   )
   const promptRef = useRef(null)
+  const scrollContainerRef = useRef(null)
   const skipNextDirtyRef = useRef(false)
   const skipNextMensagemDirtyRef = useRef(true)
   const handleGenerateRef = useRef(null)
@@ -453,6 +453,20 @@ export default function App() {
       const next = !prev
       localStorage.setItem('pm-sidebar', next ? 'collapsed' : 'expanded')
       return next
+    })
+  }, [])
+
+  const handleNavTo = useCallback((id) => {
+    const el = document.getElementById(id)
+    const container = scrollContainerRef.current
+    if (!el || !container) return
+    const stickyEl = container.querySelector('.sticky')
+    const stickyHeight = stickyEl?.offsetHeight ?? 70
+    const elRect = el.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    container.scrollTo({
+      top: container.scrollTop + elRect.top - containerRect.top - stickyHeight - 12,
+      behavior: 'smooth',
     })
   }, [])
 
@@ -1047,6 +1061,9 @@ export default function App() {
           aiConfig={aiConfig}
           isCollapsed={sidebarCollapsed}
           onToggle={handleToggleSidebar}
+          sectionsRevealed={sectionsRevealed}
+          hasPrompt={!!generatedPrompt}
+          onNavTo={handleNavTo}
         />
 
         <main
@@ -1056,10 +1073,9 @@ export default function App() {
           {(view === 'editor' || view === 'editor-v2') && (
             <div className="h-full grid grid-cols-12 overflow-hidden">
               {/* Painel Central — Editor */}
-              <div className="col-span-8 h-full overflow-y-auto border-r border-outline-variant">
-                {/* Barra sticky: seletor de agente + quick nav */}
-                <div className="sticky top-0 z-20 bg-background backdrop-blur-sm">
-                  <div className="px-6 py-3 border-b border-outline-variant">
+              <div ref={scrollContainerRef} className="col-span-8 h-full overflow-y-auto border-r border-outline-variant">
+                {/* Barra sticky: seletor de agente */}
+                <div className="sticky top-0 z-20 bg-background backdrop-blur-sm border-b border-outline-variant px-6 py-3">
                   <AgentSelectorBar
                     agents={agents}
                     loadedAgentId={loadedAgentId}
@@ -1075,8 +1091,6 @@ export default function App() {
                     isDirty={isDirty}
                     isSupabaseConfigured={isSupabaseConfigured}
                   />
-                  </div>
-                  <QuickNavBar sectionsRevealed={sectionsRevealed} hasPrompt={!!generatedPrompt} />
                 </div>
                 <div className="p-6">
                 <div className="max-w-3xl mx-auto space-y-4 pb-24">

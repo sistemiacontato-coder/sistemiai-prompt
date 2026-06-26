@@ -1,12 +1,21 @@
 const NAV_ITEMS = [
-  // { id: 'editor', icon: 'dashboard', label: 'EDITOR' }, // versão antiga — oculta
   { id: 'editor-v2', icon: 'dashboard',    label: 'EDITOR', badge: null },
   { id: 'simulator', icon: 'science',       label: 'SIMULADOR' },
   { id: 'library',   icon: 'history',       label: 'HISTÓRICO' },
   { id: 'settings',  icon: 'manufacturing', label: 'CONFIGURAÇÕES' },
 ]
 
-export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollapsed, onToggle }) {
+const EDITOR_SECTIONS = [
+  { id: 'nav-assistente', label: 'Assistente',  icon: 'smart_toy',    show: 'always' },
+  { id: 'nav-objetivo',   label: 'Objetivo',    icon: 'flag',         show: 'always' },
+  { id: 'nav-tom',        label: 'Tom',         icon: 'tune',         show: 'always' },
+  { id: 'nav-campos',     label: 'Campos',      icon: 'input',        show: 'sections' },
+  { id: 'nav-saidas',     label: 'Saídas',      icon: 'account_tree', show: 'sections' },
+  { id: 'nav-prompt',     label: 'Prompt',      icon: 'code',         show: 'prompt' },
+  { id: 'nav-auditoria',  label: 'Auditoria',   icon: 'fact_check',   show: 'prompt' },
+]
+
+export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollapsed, onToggle, sectionsRevealed, hasPrompt, onNavTo }) {
   return (
     <aside
       className="fixed left-0 top-16 h-[calc(100vh-64px)] border-r border-outline-variant flex flex-col z-30 transition-all duration-200"
@@ -54,38 +63,63 @@ export default function SideNav({ view, setView, onNewPrompt, aiConfig, isCollap
       </div>
 
       {/* Navegação */}
-      <nav className="flex flex-col flex-1 mt-2">
+      <nav className="flex flex-col flex-1 mt-2 overflow-y-auto">
         {NAV_ITEMS.map(item => {
-          const isActive = view === item.id
+          const isEditorItem = item.id === 'editor-v2'
+          const isActive = view === item.id || (isEditorItem && view === 'editor')
           const showBadge = item.id === 'settings' && aiConfig?.apiKey
+
+          const visibleSections = isEditorItem ? EDITOR_SECTIONS.filter(s => {
+            if (s.show === 'sections') return sectionsRevealed
+            if (s.show === 'prompt') return hasPrompt
+            return true
+          }) : []
+
           return (
-            <button
-              key={item.id}
-              onClick={() => setView(item.id)}
-              title={isCollapsed ? item.label : undefined}
-              className={`py-3 flex items-center transition-all text-left border-l-4 ${
-                isCollapsed ? 'justify-center px-0' : 'px-5 gap-3'
-              } ${
-                isActive
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-on-surface-variant hover:text-on-surface'
-              }`}
-              style={{ background: isActive ? 'var(--color-surface-variant)' : 'transparent' }}
-            >
-              <span className="material-symbols-outlined text-[20px] flex-shrink-0">{item.icon}</span>
-              {!isCollapsed && <span className="label-caps flex-1">{item.label}</span>}
-              {!isCollapsed && item.badge && (
-                <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-secondary) 15%, transparent)', color: 'var(--color-secondary)' }}>
-                  {item.badge}
-                </span>
+            <div key={item.id}>
+              <button
+                onClick={() => setView(item.id)}
+                title={isCollapsed ? item.label : undefined}
+                className={`w-full py-3 flex items-center transition-all text-left border-l-4 ${
+                  isCollapsed ? 'justify-center px-0' : 'px-5 gap-3'
+                } ${
+                  isActive
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-on-surface-variant hover:text-on-surface'
+                }`}
+                style={{ background: isActive ? 'var(--color-surface-variant)' : 'transparent' }}
+              >
+                <span className="material-symbols-outlined text-[20px] flex-shrink-0">{item.icon}</span>
+                {!isCollapsed && <span className="label-caps flex-1">{item.label}</span>}
+                {!isCollapsed && item.badge && (
+                  <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-secondary) 15%, transparent)', color: 'var(--color-secondary)' }}>
+                    {item.badge}
+                  </span>
+                )}
+                {!isCollapsed && showBadge && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-secondary flex-shrink-0" />
+                )}
+                {isCollapsed && showBadge && (
+                  <span className="absolute ml-4 mt-[-8px] w-1.5 h-1.5 rounded-full bg-secondary" />
+                )}
+              </button>
+
+              {/* Submenu de seções do editor */}
+              {isEditorItem && isActive && !isCollapsed && visibleSections.length > 0 && (
+                <div className="pb-2 border-l-4 border-primary/20 ml-0">
+                  {visibleSections.map(s => (
+                    <button
+                      key={s.id}
+                      onClick={() => onNavTo?.(s.id)}
+                      className="w-full flex items-center gap-2 pl-10 pr-4 py-1.5 text-left text-[11px] font-mono text-on-surface-variant/45 hover:text-primary hover:bg-primary/5 transition-all"
+                    >
+                      <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: 13 }}>{s.icon}</span>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
               )}
-              {!isCollapsed && showBadge && (
-                <span className="w-1.5 h-1.5 rounded-full bg-secondary flex-shrink-0" />
-              )}
-              {isCollapsed && showBadge && (
-                <span className="absolute ml-4 mt-[-8px] w-1.5 h-1.5 rounded-full bg-secondary" />
-              )}
-            </button>
+            </div>
           )
         })}
       </nav>
