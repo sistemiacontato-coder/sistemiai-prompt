@@ -67,7 +67,13 @@ export function buildPrompt(config, settings = {}) {
       return `| \`${e.key}\`${' '.repeat(Math.max(1, 20 - e.key.length))}| Transferência        | ${msgCol} | ${desc.slice(0, 45).padEnd(45)} |`
     }),
     hasAtendente
-      ? '| `saida_atendente`  | Transferência humana | Preenchida | EXCEÇÃO: sempre tem mensagem de transição   |'
+      ? (() => {
+          const ae = allExits.find(e => e.key === 'saida_atendente')
+          const aeHasMsg = ae?.sendExitMessage && ae?.exitMessage?.trim()
+          const msgCol = (aeHasMsg ? 'Preenchida' : 'Vazia ""  ').padEnd(10)
+          const desc = aeHasMsg ? 'EXCEÇÃO: sempre tem mensagem de transição' : 'Transferência humana sem mensagem configurada'
+          return `| \`saida_atendente\`  | Transferência humana | ${msgCol} | ${desc.slice(0, 45).padEnd(45)} |`
+        })()
       : null,
   ].filter(Boolean).join('\n')
 
@@ -177,10 +183,12 @@ export function buildPrompt(config, settings = {}) {
 
   if (hasAtendente) {
     const ae = allExits.find(e => e.key === 'saida_atendente')
-    const msgValue = (ae?.sendExitMessage && ae?.exitMessage?.trim())
-      ? ae.exitMessage.trim()
-      : 'Mensagem de transição para o atendente humano'
-    lines.push('SE transferir para atendente humano (EXCEÇÃO — `message` sempre preenchida):')
+    const aeHasMsg = ae?.sendExitMessage && ae?.exitMessage?.trim()
+    const msgValue = aeHasMsg ? ae.exitMessage.trim() : ''
+    const label = aeHasMsg
+      ? 'SE transferir para atendente humano (EXCEÇÃO — `message` sempre preenchida):'
+      : 'SE transferir para atendente humano:'
+    lines.push(label)
     lines.push(jsonBlock('saida_atendente', msgValue))
     lines.push('')
   }
@@ -212,7 +220,15 @@ export function buildPrompt(config, settings = {}) {
   } else {
     lines.push('- `success` está configurado sem mensagem: `message` deve ser `""`.')
   }
-  lines.push('- `saida_atendente` é a ÚNICA transferência com `message` obrigatoriamente preenchida.')
+  if (hasAtendente) {
+    const ae = allExits.find(e => e.key === 'saida_atendente')
+    const aeHasMsg = ae?.sendExitMessage && ae?.exitMessage?.trim()
+    if (aeHasMsg) {
+      lines.push('- `saida_atendente` é a ÚNICA transferência com `message` obrigatoriamente preenchida.')
+    } else {
+      lines.push('- `saida_atendente` não tem mensagem configurada: `message` deve ser `""`.')
+    }
+  }
   lines.push('')
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -262,7 +278,17 @@ export function buildPrompt(config, settings = {}) {
   lines.push('- `variables`: todos os dados coletados com valores reais (nunca vazios se já foram coletados).')
   lines.push('- `ultimaMsgCliente`: última mensagem literal do cliente.')
   lines.push('- O agente de destino NÃO recebe a mensagem do cliente diretamente — apenas o contexto JSON.')
-  lines.push('- `message` deve ser `""` em todas as transferências, exceto `saida_atendente`.')
+  if (hasAtendente) {
+    const ae = allExits.find(e => e.key === 'saida_atendente')
+    const aeHasMsg = ae?.sendExitMessage && ae?.exitMessage?.trim()
+    if (aeHasMsg) {
+      lines.push('- `message` deve ser `""` em todas as transferências, exceto `saida_atendente`.')
+    } else {
+      lines.push('- `message` deve ser `""` em todas as transferências, incluindo `saida_atendente`.')
+    }
+  } else {
+    lines.push('- `message` deve ser `""` em todas as transferências.')
+  }
   lines.push('')
 
   const hasFoEscopo = exitDestinations.some(e => e.key === 'saida_fora_escopo')
