@@ -9,6 +9,11 @@ function formatDate(isoString) {
   })
 }
 
+function diffLines(oldText, newText) {
+  const oldSet = new Set((oldText || '').split('\n'))
+  return (newText || '').split('\n').map(line => ({ line, added: !oldSet.has(line) }))
+}
+
 function LogsModal({ agent, onClose, onRestorePrompt }) {
   const logs = Array.isArray(agent.logs) ? [...agent.logs].reverse() : []
   const [expandedIdx, setExpandedIdx] = useState(null)
@@ -58,20 +63,40 @@ function LogsModal({ agent, onClose, onRestorePrompt }) {
                         </div>
                         <p className="text-[10px] font-mono text-on-surface-variant/50 mt-0.5">{formatDate(entry.at)}</p>
 
-                        {isExpanded && hasPrompt && (
-                          <div className="mt-3 space-y-2">
-                            <pre className="text-[10px] font-mono text-on-surface/70 bg-surface border border-outline-variant/50 rounded-lg p-3 max-h-52 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                              {entry.prompt}
-                            </pre>
-                            <button
-                              onClick={() => { onRestorePrompt(entry.prompt); onClose() }}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-secondary/40 text-[10px] font-mono font-semibold text-secondary hover:bg-secondary/10 transition-colors"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">restore</span>
-                              Restaurar este prompt no editor
-                            </button>
-                          </div>
-                        )}
+                        {isExpanded && hasPrompt && (() => {
+                          const prevEntry = logs[i + 1]
+                          const hasDiff = !!prevEntry?.prompt
+                          const lines = hasDiff
+                            ? diffLines(prevEntry.prompt, entry.prompt)
+                            : (entry.prompt || '').split('\n').map(line => ({ line, added: false }))
+                          return (
+                            <div className="mt-3 space-y-2">
+                              {hasDiff && (
+                                <p className="text-[9px] font-mono text-on-surface-variant/40 flex items-center gap-1">
+                                  <span className="material-symbols-outlined text-[11px]">info</span>
+                                  Linhas em verde são novas em relação à versão anterior
+                                </p>
+                              )}
+                              <div className="text-[10px] font-mono bg-surface border border-outline-variant/50 rounded-lg max-h-52 overflow-y-auto leading-relaxed">
+                                {lines.map((l, li) => (
+                                  <div
+                                    key={li}
+                                    className={`px-3 py-0 whitespace-pre-wrap ${l.added ? 'bg-green-500/15 text-green-400' : 'text-on-surface/70'}`}
+                                  >
+                                    {l.line || ' '}
+                                  </div>
+                                ))}
+                              </div>
+                              <button
+                                onClick={() => { onRestorePrompt(entry.prompt); onClose() }}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-secondary/40 text-[10px] font-mono font-semibold text-secondary hover:bg-secondary/10 transition-colors"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">restore</span>
+                                Restaurar este prompt no editor
+                              </button>
+                            </div>
+                          )
+                        })()}
 
                         {!hasPrompt && (
                           <p className="text-[9px] font-mono text-on-surface-variant/30 mt-1 italic">
@@ -234,18 +259,18 @@ function AgentCard({ agent, onLoad, onDelete, onRename, onRestoreLogPrompt }) {
               <span className="material-symbols-outlined text-[18px]">history</span>
             </button>
             <button
-              onClick={() => onLoad(agent, 'editor')}
-              className="px-2 py-1 rounded text-[10px] font-mono font-bold text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-all"
+              onClick={() => onLoad(agent, 'editor-v2')}
+              className="p-1.5 text-on-surface-variant hover:text-primary transition-colors"
               title="Abrir no Editor"
             >
-              E1
+              <span className="material-symbols-outlined text-[18px]">edit</span>
             </button>
             <button
-              onClick={() => onLoad(agent, 'editor-v2')}
-              className="px-2 py-1 rounded text-[10px] font-mono font-bold text-on-surface-variant hover:text-secondary hover:bg-secondary/10 transition-all"
-              title="Abrir no Editor V2"
+              onClick={() => onLoad(agent, 'simulator')}
+              className="p-1.5 text-on-surface-variant hover:text-secondary transition-colors"
+              title="Abrir no Simulador"
             >
-              E2
+              <span className="material-symbols-outlined text-[18px]">science</span>
             </button>
             <button
               onClick={() => onDelete(agent.id)}

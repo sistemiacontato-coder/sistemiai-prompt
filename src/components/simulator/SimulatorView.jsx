@@ -418,6 +418,11 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [selectedGenerated, setSelectedGenerated] = useState(new Set())
   const [generateError, setGenerateError] = useState(null)
 
+  // Revisão de passos com falha
+  const [stepReviews, setStepReviews] = useState({})
+  const [reviewModal, setReviewModal] = useState(null) // { tcIdx, sIdx }
+  const [reviewDraft, setReviewDraft] = useState({ status: '', response: '', variables: {} })
+
   const chatEndRef = useRef(null)
 
   const oldPrompt = activePromptText
@@ -676,6 +681,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setIsRunningTests(true)
     setSuiteResults(null)
     setAutoRefineResult(null)
+    setStepReviews({})
+    setReviewModal(null)
 
     try {
       const results = await runTestSuite(activePromptText, config, testCases, targetModelConfig)
@@ -1611,18 +1618,57 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                 {step.parsedResponse ? (
                                   <div className="ml-7 space-y-2">
                                     {/* Status com comparação */}
-                                    <div className="flex items-center gap-2 text-[10px] font-mono">
+                                    <div className="flex items-center gap-2 text-[10px] font-mono flex-wrap">
                                       <span className={`material-symbols-outlined text-[14px] ${step.passed ? 'text-secondary' : 'text-error'}`}>
                                         {step.passed ? 'check_circle' : 'error'}
                                       </span>
                                       <span className="text-on-surface-variant/50">Status:</span>
-                                      <code className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${step.passed ? 'bg-secondary/10 text-secondary' : 'bg-error/10 text-error'}`}>
+                                      <button
+                                        onClick={() => {
+                                          setReviewModal({ tcIdx, sIdx })
+                                          setReviewDraft({
+                                            status: step.parsedResponse.status || '',
+                                            response: step.parsedResponse.message || '',
+                                            variables: Object.fromEntries(
+                                              Object.entries(step.parsedResponse.variables || {}).map(([k, v]) => [k, String(v)])
+                                            )
+                                          })
+                                        }}
+                                        title="Clique para revisar"
+                                        className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-0.5 transition-all group/chip ${
+                                          stepReviews[`${tcIdx}-${sIdx}`]
+                                            ? 'bg-secondary/10 text-secondary border border-secondary/30'
+                                            : step.passed
+                                              ? 'bg-secondary/10 text-secondary border border-secondary/20 hover:border-primary/40 hover:bg-primary/5 hover:text-primary'
+                                              : 'bg-error/10 text-error border border-error/20 hover:bg-primary/10 hover:text-primary hover:border-primary/40'
+                                        }`}
+                                      >
                                         {step.parsedResponse.status}
-                                      </code>
+                                        {!stepReviews[`${tcIdx}-${sIdx}`] && (
+                                          <span className={`material-symbols-outlined ${step.passed ? 'opacity-0 group-hover/chip:opacity-50' : 'opacity-60'}`} style={{ fontSize: 11 }}>edit</span>
+                                        )}
+                                      </button>
                                       {!step.passed && step.error && (
                                         <span className="text-on-surface-variant/40 text-[9px]">{step.error}</span>
                                       )}
                                     </div>
+
+                                    {/* Badge após revisão */}
+                                    {stepReviews[`${tcIdx}-${sIdx}`] && (
+                                      <div className="flex items-center gap-2 text-[9px] font-mono px-2 py-1 rounded bg-secondary/5 border border-secondary/20">
+                                        <span className="material-symbols-outlined text-[12px] text-secondary">check_circle</span>
+                                        <span className="text-secondary font-semibold">
+                                          {stepReviews[`${tcIdx}-${sIdx}`].action === 'fix_test' ? 'Expectativa corrigida →' : 'Exemplo salvo →'}
+                                        </span>
+                                        <code className="text-secondary/70">{stepReviews[`${tcIdx}-${sIdx}`].correctedStatus}</code>
+                                        <button
+                                          onClick={() => setStepReviews(prev => { const n = { ...prev }; delete n[`${tcIdx}-${sIdx}`]; return n })}
+                                          className="ml-auto text-on-surface-variant/30 hover:text-error transition-colors"
+                                        >
+                                          <span className="material-symbols-outlined text-[11px]">close</span>
+                                        </button>
+                                      </div>
+                                    )}
 
                                     {/* Mensagem do agente */}
                                     {step.parsedResponse.message && (
@@ -1662,6 +1708,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                         {step.parsedResponse.summary}
                                       </p>
                                     )}
+
                                   </div>
                                 ) : step.rawResponse ? (
                                   <div className="ml-7 text-[9px] font-mono text-error/80 bg-error/5 rounded p-2 border border-error/20 max-w-full overflow-x-auto whitespace-pre-wrap">
@@ -1679,23 +1726,41 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
                 {/* Botão de ajuste automático por IA se houver falhas */}
                 {suiteResults.successRate < 100 && (
-                  <div className="p-4 rounded-lg border border-error/20 bg-error/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-start gap-2.5">
-                      <span className="material-symbols-outlined text-error" style={{ fontSize: 22 }}>build</span>
-                      <div>
-                        <h4 className="text-xs font-mono font-bold text-error">Ajustes Automáticos Recomendados</h4>
-                        <p className="text-[9px] font-mono text-on-surface-variant/60 mt-1 max-w-md">
-                          A IA pode analisar onde os testes falharam e re-escrever de forma inteligente as regras do prompt para consertá-los.
-                        </p>
+                  <div className="p-4 rounded-lg border border-error/20 bg-error/5 flex flex-col gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-2.5">
+                        <span className="material-symbols-outlined text-error" style={{ fontSize: 22 }}>build</span>
+                        <div>
+                          <h4 className="text-xs font-mono font-bold text-error">Ajustes Automáticos Recomendados</h4>
+                          <p className="text-[9px] font-mono text-on-surface-variant/60 mt-1 max-w-md">
+                            A IA pode analisar onde os testes falharam e re-escrever de forma inteligente as regras do prompt para consertá-los.
+                          </p>
+                        </div>
                       </div>
+                      <button
+                        onClick={handleRefineAuto}
+                        disabled={isRefiningAuto}
+                        className="px-5 py-2.5 rounded bg-error text-on-error text-[10px] font-mono font-bold uppercase tracking-wider hover:opacity-90 active:scale-95 disabled:opacity-40 whitespace-nowrap"
+                      >
+                        {isRefiningAuto ? 'Analisando...' : 'AUTO-AJUSTAR PROMPT'}
+                      </button>
                     </div>
-                    <button
-                      onClick={handleRefineAuto}
-                      disabled={isRefiningAuto}
-                      className="px-5 py-2.5 rounded bg-error text-on-error text-[10px] font-mono font-bold uppercase tracking-wider hover:opacity-90 active:scale-95 disabled:opacity-40 whitespace-nowrap"
-                    >
-                      {isRefiningAuto ? 'Analisando...' : 'AUTO-AJUSTAR PROMPT'}
-                    </button>
+                    {(() => {
+                      const examplesCount = Object.values(stepReviews).filter(r => r.action === 'add_example').length
+                      const fixedCount = Object.values(stepReviews).filter(r => r.action === 'fix_test').length
+                      if (examplesCount === 0 && fixedCount === 0) return null
+                      return (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded border border-primary/30 bg-primary/5 text-[9px] font-mono">
+                          <span className="material-symbols-outlined text-primary text-[13px]">edit_note</span>
+                          <span className="text-primary/80">
+                            {examplesCount > 0 && `${examplesCount} exemplo(s) salvos`}
+                            {examplesCount > 0 && fixedCount > 0 && ' · '}
+                            {fixedCount > 0 && `${fixedCount} teste(s) corrigidos`}
+                            {' — o AUTO-AJUSTAR usará suas correções como base'}
+                          </span>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
@@ -1956,6 +2021,109 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
           </div>
         )}
       </main>
+
+      {/* Modal de revisão de passo */}
+      {reviewModal && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setReviewModal(null)}>
+          <div className="w-full max-w-md bg-surface-container border border-outline-variant rounded-xl shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant flex-shrink-0">
+              <div>
+                <p className="text-sm font-semibold text-on-surface">Revisar passo</p>
+                <p className="text-[10px] font-mono text-on-surface-variant/50 mt-0.5">O que deveria ter acontecido</p>
+              </div>
+              <button onClick={() => setReviewModal(null)} className="p-1.5 rounded text-on-surface-variant hover:text-on-surface transition-colors">
+                <span className="material-symbols-outlined text-[20px]">close</span>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+              {/* Status */}
+              <div>
+                <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1.5 uppercase">Status correto</label>
+                <select
+                  autoFocus
+                  value={reviewDraft.status}
+                  onChange={e => setReviewDraft(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
+                >
+                  <option value="">Selecionar...</option>
+                  {[
+                    { key: 'in_process', label: 'in_process — Em andamento' },
+                    { key: 'success', label: 'success — Concluído' },
+                    ...(config.exitDestinations || []).map(e => ({ key: e.key, label: e.key }))
+                  ].map(o => (
+                    <option key={o.key} value={o.key}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Resposta do agente */}
+              <div>
+                <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1.5 uppercase">Resposta correta do agente</label>
+                <textarea
+                  value={reviewDraft.response}
+                  onChange={e => setReviewDraft(prev => ({ ...prev, response: e.target.value }))}
+                  rows={4}
+                  placeholder="Como o agente deveria ter respondido..."
+                  className="w-full bg-surface border border-outline-variant rounded-lg px-3 py-2 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary resize-none leading-relaxed"
+                />
+              </div>
+
+              {/* Variáveis */}
+              {Object.keys(reviewDraft.variables).length > 0 && (
+                <div>
+                  <label className="block text-[10px] font-mono font-semibold text-on-surface-variant/60 mb-1.5 uppercase">Variáveis corretas</label>
+                  <div className="space-y-2">
+                    {Object.entries(reviewDraft.variables).map(([k, v]) => (
+                      <div key={k} className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-tertiary flex-shrink-0 w-28 truncate">{k}</span>
+                        <input
+                          type="text"
+                          value={v}
+                          onChange={e => setReviewDraft(prev => ({ ...prev, variables: { ...prev.variables, [k]: e.target.value } }))}
+                          className="flex-1 bg-surface border border-outline-variant rounded-lg px-2.5 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-outline-variant flex gap-2 flex-shrink-0">
+              <button
+                disabled={!reviewDraft.status}
+                onClick={() => {
+                  const { tcIdx, sIdx } = reviewModal
+                  const reviewKey = `${tcIdx}-${sIdx}`
+                  setTestCases(prev => prev.map(tc => {
+                    if (tc.name !== suiteResults?.results?.[tcIdx]?.testCaseName) return tc
+                    return { ...tc, steps: tc.steps.map((s, i) => i === sIdx ? { ...s, expectedStatus: reviewDraft.status } : s) }
+                  }))
+                  setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'fix_test' } }))
+                  setReviewModal(null)
+                }}
+                className="flex-1 py-2.5 text-[11px] font-mono font-semibold border border-outline-variant rounded-lg hover:bg-surface-container-high disabled:opacity-40 transition-colors"
+              >
+                Atualizar teste
+              </button>
+              <button
+                disabled={!reviewDraft.status}
+                onClick={() => {
+                  const { tcIdx, sIdx } = reviewModal
+                  const reviewKey = `${tcIdx}-${sIdx}`
+                  setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'add_example' } }))
+                  setReviewModal(null)
+                }}
+                className="flex-1 py-2.5 text-[11px] font-mono font-semibold bg-primary text-on-primary rounded-lg hover:opacity-90 disabled:opacity-40 transition-colors"
+              >
+                Salvar como exemplo
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* Modal de prompt completo */}
       {promptModalOpen && createPortal(
