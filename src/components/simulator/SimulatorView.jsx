@@ -2146,36 +2146,19 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                 Está correto — atualizar expectativa do teste
               </button>
 
-              <div className="flex gap-2">
-                <button
-                  disabled={!reviewDraft.status}
-                  onClick={() => {
-                    const { tcIdx, sIdx } = reviewModal
-                    const reviewKey = `${tcIdx}-${sIdx}`
-                    setTestCases(prev => prev.map(tc => {
-                      if (tc.name !== suiteResults?.results?.[tcIdx]?.testCaseName) return tc
-                      return { ...tc, steps: tc.steps.map((s, i) => i === sIdx ? { ...s, expectedStatus: reviewDraft.status } : s) }
-                    }))
-                    setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'fix_test' } }))
-                    setReviewModal(null)
-                  }}
-                  className="flex-1 py-2 text-[11px] font-mono font-semibold border border-outline-variant rounded-lg hover:bg-surface-container-high disabled:opacity-40 transition-colors"
-                >
-                  Atualizar com correção
-                </button>
-                <button
-                  disabled={!reviewDraft.status}
-                  onClick={() => {
-                    const { tcIdx, sIdx } = reviewModal
-                    const reviewKey = `${tcIdx}-${sIdx}`
-                    setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'add_example' } }))
-                    setReviewModal(null)
-                  }}
-                  className="flex-1 py-2 text-[11px] font-mono font-semibold bg-primary text-on-primary rounded-lg hover:opacity-90 disabled:opacity-40 transition-colors"
-                >
-                  Salvar como exemplo
-                </button>
-              </div>
+              <button
+                disabled={!reviewDraft.status}
+                onClick={() => {
+                  const { tcIdx, sIdx } = reviewModal
+                  const reviewKey = `${tcIdx}-${sIdx}`
+                  setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'add_example' } }))
+                  setReviewModal(null)
+                }}
+                className="w-full py-2.5 text-[11px] font-mono font-semibold bg-primary text-on-primary rounded-lg hover:opacity-90 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[14px]">school</span>
+                Salvar como exemplo
+              </button>
             </div>
           </div>
         </div>,
