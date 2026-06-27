@@ -1698,17 +1698,25 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                     )}
 
                                     {/* Mensagem do agente */}
-                                    {step.parsedResponse.message && (
-                                      <div className="rounded border border-outline-variant/40 overflow-hidden"
-                                        style={{ background: 'var(--color-surface-container-high)' }}>
-                                        <p className="text-[8px] font-mono font-bold text-on-surface-variant/40 uppercase tracking-wider px-2.5 pt-2 pb-1">
-                                          Resposta do Agente
-                                        </p>
+                                    <div className="rounded border overflow-hidden"
+                                      style={{
+                                        borderColor: step.parsedResponse.message ? undefined : 'color-mix(in srgb, var(--color-on-surface) 12%, transparent)',
+                                        background: step.parsedResponse.message ? 'var(--color-surface-container-high)' : 'transparent',
+                                      }}>
+                                      <p className="text-[8px] font-mono font-bold text-on-surface-variant/40 uppercase tracking-wider px-2.5 pt-2 pb-1">
+                                        Resposta do Agente
+                                      </p>
+                                      {step.parsedResponse.message ? (
                                         <p className="text-[11px] font-mono text-on-surface/90 px-2.5 pb-2.5 leading-relaxed">
                                           {step.parsedResponse.message}
                                         </p>
-                                      </div>
-                                    )}
+                                      ) : (
+                                        <p className="text-[10px] font-mono text-on-surface-variant/30 italic px-2.5 pb-2 flex items-center gap-1">
+                                          <span className="material-symbols-outlined text-[13px]">speaker_notes_off</span>
+                                          Sem resposta — o agente não enviou mensagem neste turno
+                                        </p>
+                                      )}
+                                    </div>
 
                                     {/* Variáveis */}
                                     {Object.keys(step.parsedResponse.variables || {}).length > 0 && (
