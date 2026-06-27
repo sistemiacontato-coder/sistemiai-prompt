@@ -39,7 +39,7 @@ const MODELS_BY_PROVIDER = {
             'meta-llama/llama-3.3-70b-instruct', 'mistral-small-latest'],
 }
 
-function ModelSelector({ value, onChange, apiKey, endpoint, label, provider }) {
+function ModelSelector({ value, onChange, apiKey, endpoint, label, provider, defaultModel }) {
   const [isOpen, setIsOpen] = useState(false)
   const defaultList = MODELS_BY_PROVIDER[provider] || MODELS_BY_PROVIDER.default
   const [models, setModels] = useState(defaultList)
@@ -71,7 +71,7 @@ function ModelSelector({ value, onChange, apiKey, endpoint, label, provider }) {
           value={value}
           onChange={e => { onChange(e.target.value); setIsOpen(true) }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Ex: gpt-4o-mini"
+          placeholder={`Ex: ${defaultModel || defaultList[0] || 'gpt-4o-mini'}`}
           className="w-full rounded-lg border border-outline-variant px-3 py-2.5 text-xs font-mono text-on-surface focus:border-primary focus:ring-1 focus:ring-primary/50 focus:outline-none transition-all bg-surface"
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none">
@@ -226,6 +226,7 @@ function AIKeyBlock({ title, subtitle, badge, accentColor,
             apiKey={isCompat ? (apiKey || fallbackKey) : undefined}
             endpoint={isCompat ? effectiveEndpoint : undefined}
             provider={detected?.provider}
+            defaultModel={defaultModel}
           />
         )}
 
