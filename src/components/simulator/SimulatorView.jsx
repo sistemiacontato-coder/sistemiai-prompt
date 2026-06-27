@@ -439,6 +439,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [suiteResults, setSuiteResults] = useState(null)
   const [expandedResults, setExpandedResults] = useState(new Set())
   const [isRefiningAuto, setIsRefiningAuto] = useState(false)
+  const [isApplyingAdjustments, setIsApplyingAdjustments] = useState(false)
   const [autoRefineResult, setAutoRefineResult] = useState(null)
   const [editingTestCase, setEditingTestCase] = useState(null)
   const [isGeneratingScenarios, setIsGeneratingScenarios] = useState(false)
@@ -2031,7 +2032,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
                   <div className="flex gap-3 pt-1">
                     <button
-                      onClick={() => {
+                      disabled={isApplyingAdjustments}
+                      onClick={async () => {
                         const filtered = {
                           ...res,
                           agentPersona: enabledItems.has('persona') ? res.agentPersona : '',
@@ -2040,11 +2042,13 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                           update_variables: (res.update_variables || []).filter((_, i) => enabledItems.has(`var_${i}`)),
                           update_exits: (res.update_exits || []).filter((_, i) => enabledItems.has(`exit_${i}`)),
                         }
-                        handleApplyAdjustments(filtered)
+                        setIsApplyingAdjustments(true)
+                        try { await handleApplyAdjustments(filtered) } finally { setIsApplyingAdjustments(false) }
                       }}
-                      className="flex-1 py-3 bg-secondary text-on-secondary rounded font-mono text-xs font-bold uppercase tracking-wider hover:opacity-90 transition-all"
+                      className={`flex-1 py-3 bg-secondary text-on-secondary rounded font-mono text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${isApplyingAdjustments ? 'opacity-70 cursor-wait' : 'hover:opacity-90'}`}
                     >
-                      Aplicar Selecionados
+                      {isApplyingAdjustments && <span className="material-symbols-outlined animate-spin text-[14px]">progress_activity</span>}
+                      {isApplyingAdjustments ? 'Aplicando...' : 'Aplicar Selecionados'}
                     </button>
                     <button
                       onClick={() => { setManualRefineResult(null); setAutoRefineResult(null); setAdjustmentFeedback('') }}
