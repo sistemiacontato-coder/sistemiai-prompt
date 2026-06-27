@@ -340,12 +340,26 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     }
   }
 
+  const isPresetDirty = useMemo(() => {
+    if (!activePreset || isEditingPreset) return false
+    return activePreset.model !== model || activePreset.temperature !== temperature
+  }, [activePreset, model, temperature, isEditingPreset])
+
+  const handleSavePresetChanges = () => {
+    setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, model, temperature } : p))
+  }
+
+  const handleDiscardPresetChanges = () => {
+    if (activePreset) {
+      setModel(activePreset.model)
+      setTemperature(activePreset.temperature)
+      setConfig(prev => ({ ...prev, testModel: activePreset.model }))
+    }
+  }
+
   const handleModelChange = (newModel) => {
     setModel(newModel)
     setConfig(prev => ({ ...prev, testModel: newModel }))
-    if (activePresetId) {
-      setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, model: newModel } : p))
-    }
   }
 
   // Usa exatamente o que está configurado em Configurações — sem nenhum valor pré-definido
@@ -988,44 +1002,65 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                 </select>
 
                 {activePresetId && (
-                  <div className="flex gap-1">
-                    <button
-                      onClick={handleStartEditPreset}
-                      title="Editar Preset (Nome, Provedor e Temperatura)"
-                      className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>edit</span>
-                      <span className="text-[9px] font-mono">Editar</span>
-                    </button>
-
-                    <button
-                      onClick={handleToggleDefaultPreset}
-                      title={activePreset?.isDefault ? 'Preset padrão atual' : 'Tornar Padrão Inicial'}
-                      className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <span
-                        className={`material-symbols-outlined ${activePreset?.isDefault ? 'text-yellow-500' : 'text-on-surface-variant/40'}`}
-                        style={{
-                          fontSize: 12,
-                          fontVariationSettings: activePreset?.isDefault
-                            ? "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24"
-                            : "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24",
-                        }}
+                  isPresetDirty ? (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={handleDiscardPresetChanges}
+                        title="Descartar alterações e voltar ao preset salvo"
+                        className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
                       >
-                        star
-                      </span>
-                      <span className="text-[9px] font-mono">{activePreset?.isDefault ? 'Padrão' : 'Padrão'}</span>
-                    </button>
+                        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>undo</span>
+                        <span className="text-[9px] font-mono">Descartar</span>
+                      </button>
+                      <button
+                        onClick={handleSavePresetChanges}
+                        title="Salvar modelo e temperatura no preset ativo"
+                        className="flex-1 py-1 border border-primary bg-primary/10 hover:bg-primary/20 rounded text-primary flex items-center justify-center gap-1 transition-colors cursor-pointer font-semibold"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>save</span>
+                        <span className="text-[9px] font-mono">Salvar</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={handleStartEditPreset}
+                        title="Renomear preset"
+                        className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>edit</span>
+                        <span className="text-[9px] font-mono">Renomear</span>
+                      </button>
 
-                    <button
-                      onClick={handleDeletePreset}
-                      title="Excluir Preset"
-                      className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>delete</span>
-                      <span className="text-[9px] font-mono">Excluir</span>
-                    </button>
-                  </div>
+                      <button
+                        onClick={handleToggleDefaultPreset}
+                        title={activePreset?.isDefault ? 'Preset padrão atual' : 'Tornar Padrão Inicial'}
+                        className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span
+                          className={`material-symbols-outlined ${activePreset?.isDefault ? 'text-yellow-500' : 'text-on-surface-variant/40'}`}
+                          style={{
+                            fontSize: 12,
+                            fontVariationSettings: activePreset?.isDefault
+                              ? "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24"
+                              : "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24",
+                          }}
+                        >
+                          star
+                        </span>
+                        <span className="text-[9px] font-mono">Padrão</span>
+                      </button>
+
+                      <button
+                        onClick={handleDeletePreset}
+                        title="Excluir Preset"
+                        className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>delete</span>
+                        <span className="text-[9px] font-mono">Excluir</span>
+                      </button>
+                    </div>
+                  )
                 )}
               </div>
             )}
@@ -1049,13 +1084,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
               max="1"
               step="0.01"
               value={temperature}
-              onChange={e => {
-                const t = parseFloat(e.target.value)
-                setTemperature(t)
-                if (activePresetId) {
-                  setPresets(prev => prev.map(p => p.id === activePresetId ? { ...p, temperature: t } : p))
-                }
-              }}
+              onChange={e => setTemperature(parseFloat(e.target.value))}
               className="w-full accent-secondary"
             />
           </div>
