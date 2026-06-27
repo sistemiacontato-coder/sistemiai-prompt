@@ -212,14 +212,14 @@ function AIKeyBlock({ title, subtitle, badge, accentColor,
           </div>
         )}
 
-        {/* Modelo — só para provedores compat */}
-        {isCompat && (
+        {/* Modelo — para provedores compat e Gemini */}
+        {(isCompat || detected?.provider === 'gemini') && (
           <ModelSelector
             label="MODELO"
             value={model}
             onChange={v => { setModel(v); setTestResult(null) }}
-            apiKey={apiKey || fallbackKey}
-            endpoint={effectiveEndpoint}
+            apiKey={isCompat ? (apiKey || fallbackKey) : undefined}
+            endpoint={isCompat ? effectiveEndpoint : undefined}
           />
         )}
 
