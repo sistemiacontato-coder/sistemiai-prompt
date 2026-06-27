@@ -53,13 +53,24 @@ export function loadAIConfig() {
 }
 
 // Carrega do Supabase (assíncrono) — usar em useEffect após montagem
+// Migra automaticamente do localStorage se Supabase ainda não tiver dados
 export async function loadAIConfigAsync() {
   try {
     const stored = await fetchSettings('ai_config')
-    return stored || getEnvDefault()
-  } catch {
-    return getEnvDefault()
-  }
+    if (stored) return stored
+
+    // Migração única: recupera do localStorage e salva no Supabase
+    const localRaw = localStorage.getItem('pm-ai-config')
+    if (localRaw) {
+      const localConfig = JSON.parse(localRaw)
+      if (localConfig?.apiKey) {
+        await saveSettings('ai_config', localConfig)
+        localStorage.removeItem('pm-ai-config')
+        return localConfig
+      }
+    }
+  } catch {}
+  return getEnvDefault()
 }
 
 // Salva no Supabase
