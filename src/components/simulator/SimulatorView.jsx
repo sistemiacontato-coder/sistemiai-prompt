@@ -1004,9 +1004,14 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                     >
                       <span
                         className={`material-symbols-outlined ${activePreset?.isDefault ? 'text-yellow-500' : 'text-on-surface-variant/40'}`}
-                        style={{ fontSize: 12 }}
+                        style={{
+                          fontSize: 12,
+                          fontVariationSettings: activePreset?.isDefault
+                            ? "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 24"
+                            : "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24",
+                        }}
                       >
-                        {activePreset?.isDefault ? 'star' : 'star_outline'}
+                        star
                       </span>
                     </button>
 
