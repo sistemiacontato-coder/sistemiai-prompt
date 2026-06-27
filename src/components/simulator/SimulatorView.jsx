@@ -1101,6 +1101,17 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                 >
                   <span className="material-symbols-outlined text-[12px]">add</span> Adicionar
                 </button>
+                {testCases.length > 0 && (
+                  <>
+                    <span className="text-on-surface-variant/20 text-[10px]">|</span>
+                    <button
+                      onClick={() => { if (window.confirm(`Apagar todos os ${testCases.length} testes? Isso não pode ser desfeito.`)) setTestCases([]) }}
+                      className="text-[10px] font-mono flex items-center gap-0.5 text-error/70 hover:text-error hover:underline"
+                    >
+                      <span className="material-symbols-outlined text-[12px]">delete_sweep</span> Limpar todos
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
