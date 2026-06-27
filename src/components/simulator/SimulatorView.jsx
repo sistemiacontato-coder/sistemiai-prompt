@@ -1667,7 +1667,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                           setReviewModal({ tcIdx, sIdx })
                                           setReviewDraft({
                                             status: existing?.correctedStatus || step.parsedResponse.status || '',
-                                            response: existing?.correctedResponse || step.parsedResponse.message || '',
+                                            response: existing ? (existing.correctedResponse ?? '') : (step.parsedResponse.message || ''),
                                             variables: existing?.correctedVariables || Object.fromEntries(
                                               Object.entries(step.parsedResponse.variables || {}).map(([k, v]) => [k, String(v)])
                                             )
@@ -1710,17 +1710,23 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                     )}
 
                                     {/* Mensagem do agente */}
-                                    <div className="rounded border overflow-hidden"
-                                      style={{
-                                        borderColor: step.parsedResponse.message ? undefined : 'color-mix(in srgb, var(--color-on-surface) 12%, transparent)',
-                                        background: step.parsedResponse.message ? 'var(--color-surface-container-high)' : 'transparent',
-                                      }}>
-                                      <p className="text-[8px] font-mono font-bold text-on-surface-variant/40 uppercase tracking-wider px-2.5 pt-2 pb-1">
+                                    {(() => {
+                                      const review = stepReviews[`${tcIdx}-${sIdx}`]
+                                      const displayMsg = review ? (review.correctedResponse ?? '') : (step.parsedResponse.message || '')
+                                      const isOverridden = review && review.correctedResponse !== step.parsedResponse.message
+                                      return (
+                                      <div className="rounded border overflow-hidden"
+                                        style={{
+                                          borderColor: displayMsg ? undefined : 'color-mix(in srgb, var(--color-on-surface) 12%, transparent)',
+                                          background: displayMsg ? 'var(--color-surface-container-high)' : 'transparent',
+                                        }}>
+                                      <p className="text-[8px] font-mono font-bold text-on-surface-variant/40 uppercase tracking-wider px-2.5 pt-2 pb-1 flex items-center gap-1">
                                         Resposta do Agente
+                                        {isOverridden && <span className="text-secondary">(corrigida)</span>}
                                       </p>
-                                      {step.parsedResponse.message ? (
+                                      {displayMsg ? (
                                         <p className="text-[11px] font-mono text-on-surface/90 px-2.5 pb-2.5 leading-relaxed">
-                                          {step.parsedResponse.message}
+                                          {displayMsg}
                                         </p>
                                       ) : (
                                         <p className="text-[10px] font-mono text-on-surface-variant/30 italic px-2.5 pb-2 flex items-center gap-1">
@@ -1729,6 +1735,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                         </p>
                                       )}
                                     </div>
+                                      )
+                                    })()}
 
                                     {/* Variáveis */}
                                     {Object.keys(step.parsedResponse.variables || {}).length > 0 && (
