@@ -973,11 +973,11 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                 </button>
               </div>
             ) : (
-              <div className="flex gap-1">
+              <div className="flex flex-col gap-1">
                 <select
                   value={activePresetId}
                   onChange={e => handleSelectPreset(e.target.value)}
-                  className="flex-1 bg-surface border border-outline-variant rounded px-2 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
+                  className="w-full bg-surface border border-outline-variant rounded px-2 py-1.5 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary"
                 >
                   <option value="">Nenhum preset selecionado</option>
                   {presets.map(p => (
@@ -986,21 +986,22 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                     </option>
                   ))}
                 </select>
-                
+
                 {activePresetId && (
-                  <>
+                  <div className="flex gap-1">
                     <button
                       onClick={handleStartEditPreset}
                       title="Editar Preset (Nome, Provedor e Temperatura)"
-                      className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                      className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[12px]">edit</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>edit</span>
+                      <span className="text-[9px] font-mono">Editar</span>
                     </button>
-                    
+
                     <button
                       onClick={handleToggleDefaultPreset}
                       title={activePreset?.isDefault ? 'Preset padrão atual' : 'Tornar Padrão Inicial'}
-                      className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                      className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
                     >
                       <span
                         className={`material-symbols-outlined ${activePreset?.isDefault ? 'text-yellow-500' : 'text-on-surface-variant/40'}`}
@@ -1013,16 +1014,18 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                       >
                         star
                       </span>
+                      <span className="text-[9px] font-mono">{activePreset?.isDefault ? 'Padrão' : 'Padrão'}</span>
                     </button>
 
                     <button
                       onClick={handleDeletePreset}
                       title="Excluir Preset"
-                      className="px-2 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                      className="flex-1 py-1 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center gap-1 transition-colors cursor-pointer"
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: 12 }}>delete</span>
+                      <span className="text-[9px] font-mono">Excluir</span>
                     </button>
-                  </>
+                  </div>
                 )}
               </div>
             )}
