@@ -310,9 +310,13 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   }
 
   const handleDeletePreset = async () => {
-    if (presets.length <= 1) return
     const ok = await showDialog({ type: 'confirm', message: "Tem certeza de que deseja excluir este preset de teste?" })
     if (!ok) return
+    if (presets.length <= 1) {
+      setPresets([])
+      setActivePresetId('')
+      return
+    }
     const index = presets.findIndex(p => p.id === activePresetId)
     const nextActive = presets[index === 0 ? 1 : index - 1]
     setPresets(prev => prev.filter(p => p.id !== activePresetId))
@@ -996,22 +1000,23 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                     <button
                       onClick={handleToggleDefaultPreset}
                       title={activePreset?.isDefault ? 'Preset padrão atual' : 'Tornar Padrão Inicial'}
-                      className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded flex items-center justify-center transition-colors cursor-pointer"
+                      className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
                     >
-                      <span className={`material-symbols-outlined text-[12px] ${activePreset?.isDefault ? 'text-yellow-500' : 'text-on-surface-variant/40'}`}>
+                      <span
+                        className={`material-symbols-outlined ${activePreset?.isDefault ? 'text-yellow-500' : 'text-on-surface-variant/40'}`}
+                        style={{ fontSize: 12 }}
+                      >
                         {activePreset?.isDefault ? 'star' : 'star_outline'}
                       </span>
                     </button>
 
-                    {presets.length > 1 && (
-                      <button
-                        onClick={handleDeletePreset}
-                        title="Excluir Preset"
-                        className="px-2 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
-                      >
-                        <span className="material-symbols-outlined text-[12px]">delete</span>
-                      </button>
-                    )}
+                    <button
+                      onClick={handleDeletePreset}
+                      title="Excluir Preset"
+                      className="px-2 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: 12 }}>delete</span>
+                    </button>
                   </>
                 )}
               </div>
