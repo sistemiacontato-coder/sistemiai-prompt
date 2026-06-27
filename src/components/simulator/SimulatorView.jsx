@@ -978,7 +978,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                   <option value="">Nenhum preset selecionado</option>
                   {presets.map(p => (
                     <option key={p.id} value={p.id}>
-                      {p.name} {p.isDefault ? '⭐' : ''}
+                      {p.name}{p.isDefault ? ' ★' : ''}
                     </option>
                   ))}
                 </select>
@@ -995,20 +995,23 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                     
                     <button
                       onClick={handleToggleDefaultPreset}
-                      title="Tornar Padrão Inicial"
-                      className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                      title={activePreset?.isDefault ? 'Preset padrão atual' : 'Tornar Padrão Inicial'}
+                      className="px-2 border border-outline-variant bg-surface hover:bg-surface-container-high rounded flex items-center justify-center transition-colors cursor-pointer"
                     >
-                      <span className="material-symbols-outlined text-[12px] text-yellow-500">star</span>
+                      <span className={`material-symbols-outlined text-[12px] ${activePreset?.isDefault ? 'text-yellow-500' : 'text-on-surface-variant/40'}`}>
+                        {activePreset?.isDefault ? 'star' : 'star_outline'}
+                      </span>
                     </button>
 
-                    <button
-                      onClick={handleDeletePreset}
-                      title="Excluir Preset"
-                      className="px-2 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
-                      disabled={presets.length <= 1}
-                    >
-                      <span className="material-symbols-outlined text-[12px]">delete</span>
-                    </button>
+                    {presets.length > 1 && (
+                      <button
+                        onClick={handleDeletePreset}
+                        title="Excluir Preset"
+                        className="px-2 border border-outline-variant bg-surface hover:bg-red-500/10 hover:text-red-500 rounded text-on-surface-variant flex items-center justify-center transition-colors cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[12px]">delete</span>
+                      </button>
+                    )}
                   </>
                 )}
               </div>
