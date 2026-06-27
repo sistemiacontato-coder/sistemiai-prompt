@@ -141,6 +141,9 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       agentKey: a.agent_name,
       description: a.agent_name,
       prompt: a.generated_prompt || '',
+      domain: a.domain || '',
+      variables: a.variables || [],
+      exitDestinations: a.exit_destinations || [],
     }))
   }, [agents])
 
@@ -149,6 +152,19 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     const found = historyList.find(h => h.id?.toString() === promptSource?.toString())
     return found ? found.prompt : ''
   }, [promptSource, historyList, generatedPrompt])
+
+  // Config efetivo: usa o agente salvo quando não está no modo 'current'
+  const activeConfig = useMemo(() => {
+    if (promptSource === 'current') return config
+    const found = historyList.find(h => h.id?.toString() === promptSource?.toString())
+    if (!found) return config
+    return {
+      ...config,
+      domain: found.domain,
+      variables: found.variables,
+      exitDestinations: found.exitDestinations,
+    }
+  }, [promptSource, historyList, config])
 
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
   const [promptModalOpen, setPromptModalOpen] = useState(false)
@@ -685,7 +701,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setReviewModal(null)
 
     try {
-      const results = await runTestSuite(activePromptText, config, testCases, targetModelConfig)
+      const results = await runTestSuite(activePromptText, activeConfig, testCases, targetModelConfig)
       setSuiteResults(results)
     } catch (err) {
       await showDialog({ type: 'alert', message: `Erro na execução dos testes: ${err.message}` })
@@ -700,7 +716,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setAutoRefineResult(null)
 
     try {
-      const adjustments = await refineConfigWithFeedback(config, suiteResults, aiConfig)
+      const adjustments = await refineConfigWithFeedback(activeConfig, suiteResults, aiConfig)
       setAutoRefineResult(adjustments)
     } catch (err) {
       await showDialog({ type: 'alert', message: `Erro no refinamento automático: ${err.message}` })
@@ -825,13 +841,13 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
   const handleGenerateScenarios = async () => {
     if (!aiConfig?.apiKey) { setGenerateError('Nenhuma chave de IA configurada. Vá em Configurações.'); return }
-    if (!config?.domain?.trim()) { setGenerateError('Configure o objetivo do agente antes de gerar cenários.'); return }
+    if (!activeConfig?.domain?.trim()) { setGenerateError('Configure o objetivo do agente antes de gerar cenários.'); return }
     setIsGeneratingScenarios(true)
     setGeneratedScenarios(null)
     setSelectedGenerated(new Set())
     setGenerateError(null)
     try {
-      const scenarios = await generateTestScenarios(config, aiConfig, 8)
+      const scenarios = await generateTestScenarios(activeConfig, aiConfig, 8)
       setGeneratedScenarios(scenarios)
       setSelectedGenerated(new Set(scenarios.map(s => s.id)))
     } catch (err) {
@@ -2061,7 +2077,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                   {[
                     { key: 'in_process', label: 'in_process — Em andamento' },
                     { key: 'success', label: 'success — Concluído' },
-                    ...(config.exitDestinations || [])
+                    ...(activeConfig.exitDestinations || [])
                       .filter(e => e.key !== 'in_process' && e.key !== 'success')
                       .map(e => ({ key: e.key, label: e.key }))
                   ].map(o => (
