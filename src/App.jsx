@@ -345,7 +345,9 @@ export default function App() {
     checkSession().then(ok => setAuthed(ok))
   }, [])
 
-  const [isDark, setIsDark] = useState(false)
+  const [isDark, setIsDark] = useState(() => {
+    try { return localStorage.getItem('pm-theme') === 'dark' } catch { return false }
+  })
   const isLoadingThemeRef = useRef(false)
   const isFirstThemeRenderRef = useRef(true)
   const [view, setView] = useState(() => {
@@ -504,12 +506,18 @@ export default function App() {
 
   useEffect(() => {
     const html = document.documentElement
+    // Primeiro render: DOM já está correto (inline script + useState inicial leram do localStorage)
+    if (isFirstThemeRenderRef.current) { isFirstThemeRenderRef.current = false; return }
     if (isDark) html.classList.add('dark')
     else html.classList.remove('dark')
-    // Não salvar na primeira renderização (isDark ainda é o default false)
-    if (isFirstThemeRenderRef.current) { isFirstThemeRenderRef.current = false; return }
-    // Não salvar quando o valor veio do Supabase (carga assíncrona)
-    if (isLoadingThemeRef.current) { isLoadingThemeRef.current = false; return }
+    // Quando veio do Supabase: atualizar cache e sair (não re-salvar no Supabase)
+    if (isLoadingThemeRef.current) {
+      isLoadingThemeRef.current = false
+      try { localStorage.setItem('pm-theme', isDark ? 'dark' : 'light') } catch {}
+      return
+    }
+    // Troca manual do usuário: salvar no Supabase e no cache
+    try { localStorage.setItem('pm-theme', isDark ? 'dark' : 'light') } catch {}
     saveSettings('ui_theme', isDark ? 'dark' : 'light').catch(err => console.error('Erro ao salvar tema:', err))
   }, [isDark])
 
