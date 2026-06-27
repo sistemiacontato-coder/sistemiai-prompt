@@ -377,13 +377,33 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [testCases, setTestCases] = useState([])
   const isLoadingTestCasesRef = useRef(false)
 
-  // Carregar test cases do agente ativo no Supabase
+  // Carregar test cases do agente ativo no Supabase (com migração automática do localStorage)
   useEffect(() => {
     const agentId = promptSource === 'current' ? loadedAgentId : promptSource
     if (!agentId) { setTestCases([]); return }
     const agent = agents.find(a => a.id?.toString() === agentId?.toString())
+    const supabaseCases = agent?.test_cases || []
+
+    if (supabaseCases.length === 0) {
+      // Migração única: se Supabase vazio mas localStorage tem dados, migrar e limpar
+      try {
+        const localRaw = localStorage.getItem('pm-test-cases')
+        if (localRaw) {
+          const localCases = JSON.parse(localRaw)
+          if (Array.isArray(localCases) && localCases.length > 0) {
+            isLoadingTestCasesRef.current = true
+            setTestCases(localCases)
+            saveAgentTestCases(agentId, localCases)
+              .then(() => localStorage.removeItem('pm-test-cases'))
+              .catch(err => console.error('Erro na migração de test cases:', err))
+            return
+          }
+        }
+      } catch {}
+    }
+
     isLoadingTestCasesRef.current = true
-    setTestCases(agent?.test_cases || [])
+    setTestCases(supabaseCases)
   }, [promptSource, loadedAgentId, agents])
 
   // Salvar test cases no Supabase quando mudarem
