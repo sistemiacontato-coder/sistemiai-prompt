@@ -1666,8 +1666,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                           const existing = stepReviews[reviewKey]
                                           setReviewModal({ tcIdx, sIdx })
                                           setReviewDraft({
-                                            status: existing?.correctedStatus || step.parsedResponse.status || '',
-                                            response: existing ? (existing.correctedResponse ?? '') : (step.parsedResponse.message || ''),
+                                            status: existing?.correctedStatus || step.expectedStatus || step.parsedResponse.status || '',
+                                            response: existing ? (existing.correctedResponse ?? '') : (step.expectedResponse !== undefined ? step.expectedResponse : (step.parsedResponse.message || '')),
                                             variables: existing?.correctedVariables || Object.fromEntries(
                                               Object.entries(step.parsedResponse.variables || {}).map(([k, v]) => [k, String(v)])
                                             )
@@ -1712,8 +1712,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                     {/* Mensagem do agente */}
                                     {(() => {
                                       const review = stepReviews[`${tcIdx}-${sIdx}`]
-                                      const displayMsg = review ? (review.correctedResponse ?? '') : (step.parsedResponse.message || '')
-                                      const isOverridden = review && review.correctedResponse !== step.parsedResponse.message
+                                      const displayMsg = review ? (review.correctedResponse ?? '') : (step.expectedResponse !== undefined ? step.expectedResponse : (step.parsedResponse.message || ''))
+                                      const isOverridden = step.expectedResponse !== undefined ? step.expectedResponse !== step.parsedResponse.message : (review && review.correctedResponse !== step.parsedResponse.message)
                                       return (
                                       <div className="rounded border overflow-hidden"
                                         style={{
@@ -2150,7 +2150,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                   const reviewKey = `${tcIdx}-${sIdx}`
                   setTestCases(prev => prev.map(tc => {
                     if (tc.name !== suiteResults?.results?.[tcIdx]?.testCaseName) return tc
-                    return { ...tc, steps: tc.steps.map((s, i) => i === sIdx ? { ...s, expectedStatus: reviewDraft.status } : s) }
+                    return { ...tc, steps: tc.steps.map((s, i) => i === sIdx ? { ...s, expectedStatus: reviewDraft.status, expectedResponse: reviewDraft.response } : s) }
                   }))
                   setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'fix_test' } }))
                   setReviewModal(null)
