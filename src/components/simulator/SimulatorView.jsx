@@ -184,6 +184,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [presets, setPresets] = useState(DEFAULT_PRESETS)
   const [activePresetId, setActivePresetId] = useState(DEFAULT_PRESETS.find(p => p.isDefault)?.id || DEFAULT_PRESETS[0]?.id || '')
   const isLoadingPresetsRef = useRef(false)
+  const isFirstPresetsRenderRef = useRef(true)
 
   const activePreset = useMemo(() => {
     return presets.find(p => p.id === activePresetId)
@@ -239,6 +240,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
   // Persistir presets no Supabase
   useEffect(() => {
+    if (isFirstPresetsRenderRef.current) { isFirstPresetsRenderRef.current = false; return }
     if (isLoadingPresetsRef.current) { isLoadingPresetsRef.current = false; return }
     saveSettings('test_presets', { presets, activePresetId }).catch(err => console.error('Erro ao salvar presets:', err))
   }, [presets, activePresetId])
