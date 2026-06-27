@@ -192,7 +192,9 @@ export async function saveAgentTestCases(id, testCases) {
 // ── Busca uma configuração global ─────────────────────────────────────────────
 export async function fetchSettings(key) {
   if (IS_PROD) {
-    const res = await fetch(`/api/settings?key=${encodeURIComponent(key)}`)
+    const res = await fetch(`/api/settings?key=${encodeURIComponent(key)}`, {
+      credentials: 'include',
+    })
     if (!res.ok) return null
     return res.json()
   }
@@ -212,6 +214,7 @@ export async function saveSettings(key, value) {
     const res = await fetch('/api/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ key, value }),
     })
     if (!res.ok) {
