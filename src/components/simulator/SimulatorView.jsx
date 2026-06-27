@@ -1652,11 +1652,13 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                                       <span className="text-on-surface-variant/50">Status:</span>
                                       <button
                                         onClick={() => {
+                                          const reviewKey = `${tcIdx}-${sIdx}`
+                                          const existing = stepReviews[reviewKey]
                                           setReviewModal({ tcIdx, sIdx })
                                           setReviewDraft({
-                                            status: step.parsedResponse.status || '',
-                                            response: step.parsedResponse.message || '',
-                                            variables: Object.fromEntries(
+                                            status: existing?.correctedStatus || step.parsedResponse.status || '',
+                                            response: existing?.correctedResponse || step.parsedResponse.message || '',
+                                            variables: existing?.correctedVariables || Object.fromEntries(
                                               Object.entries(step.parsedResponse.variables || {}).map(([k, v]) => [k, String(v)])
                                             )
                                           })
