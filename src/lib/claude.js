@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'pm-ai-config'
+import { fetchSettings, saveSettings } from './supabase'
 
 // Endpoints OpenAI-compatíveis populares
 export const COMPAT_ENDPOINTS = [
@@ -47,18 +47,24 @@ function getEnvDefault() {
   return null
 }
 
+// Retorno síncrono com fallback para vars de ambiente (usado no useState inicial)
 export function loadAIConfig() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch {}
   return getEnvDefault()
 }
 
-export function saveAIConfig(config) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
+// Carrega do Supabase (assíncrono) — usar em useEffect após montagem
+export async function loadAIConfigAsync() {
+  try {
+    const stored = await fetchSettings('ai_config')
+    return stored || getEnvDefault()
+  } catch {
+    return getEnvDefault()
+  }
+}
+
+// Salva no Supabase
+export async function saveAIConfig(config) {
+  await saveSettings('ai_config', config)
 }
 
 export async function fetchOpenAIModels(apiKey, endpoint) {

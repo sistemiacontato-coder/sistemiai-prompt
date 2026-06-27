@@ -163,6 +163,71 @@ export async function saveAgentExamples(id, examples) {
   return data
 }
 
+// ── Salva test cases de um agente ───────────────────────────────────────────
+export async function saveAgentTestCases(id, testCases) {
+  if (IS_PROD) {
+    const res = await fetch(`/api/agents/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test_cases: testCases }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Erro ao salvar test cases.')
+    }
+    return res.json()
+  }
+
+  if (!supabaseDirect) throw new Error('Supabase não configurado.')
+  const { data, error } = await supabaseDirect
+    .from('prompt_bc_agents')
+    .update({ test_cases: testCases })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+// ── Busca uma configuração global ─────────────────────────────────────────────
+export async function fetchSettings(key) {
+  if (IS_PROD) {
+    const res = await fetch(`/api/settings?key=${encodeURIComponent(key)}`)
+    if (!res.ok) return null
+    return res.json()
+  }
+
+  if (!supabaseDirect) return null
+  const { data } = await supabaseDirect
+    .from('prompt_bc_settings')
+    .select('value')
+    .eq('key', key)
+    .maybeSingle()
+  return data?.value ?? null
+}
+
+// ── Salva uma configuração global ─────────────────────────────────────────────
+export async function saveSettings(key, value) {
+  if (IS_PROD) {
+    const res = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Erro ao salvar configuração.')
+    }
+    return res.json()
+  }
+
+  if (!supabaseDirect) throw new Error('Supabase não configurado.')
+  const { error } = await supabaseDirect
+    .from('prompt_bc_settings')
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+  if (error) throw error
+}
+
 // ── Deleta um agente ─────────────────────────────────────────────────────────
 export async function deleteAgent(id) {
   if (IS_PROD) {

@@ -13,8 +13,8 @@ import ValidatorPanel from './components/output/ValidatorPanel'
 import HistoryPanel from './components/history/HistoryPanel'
 import { buildPrompt, getDefaultConfig, normalizeCondition } from './engine/promptBuilder'
 import { validateConfig, hasCriticalErrors } from './engine/ruleValidator'
-import { deployAgent, updateAgent, renameAgent, fetchAgentHistory, deleteAgent, isSupabaseConfigured, makeLogEntry } from './lib/supabase'
-import { analyzeAgentObjective, generateExitMessage, loadAIConfig, saveAIConfig, detectProviderFromKey } from './lib/claude'
+import { deployAgent, updateAgent, renameAgent, fetchAgentHistory, deleteAgent, isSupabaseConfigured, makeLogEntry, fetchSettings, saveSettings } from './lib/supabase'
+import { analyzeAgentObjective, generateExitMessage, loadAIConfig, loadAIConfigAsync, saveAIConfig, detectProviderFromKey } from './lib/claude'
 import { reviewPromptChanges, refinePromptChanges } from './lib/promptReviewer'
 import { auditPrompt } from './lib/promptAuditor'
 import PromptAuditor from './components/output/PromptAuditor'
@@ -345,10 +345,8 @@ export default function App() {
     checkSession().then(ok => setAuthed(ok))
   }, [])
 
-  const [isDark, setIsDark] = useState(() => {
-    const saved = localStorage.getItem('pm-theme')
-    return saved ? saved === 'dark' : false
-  })
+  const [isDark, setIsDark] = useState(false)
+  const isLoadingThemeRef = useRef(false)
   const [view, setView] = useState(() => {
     const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase()
     const hashMap = { biblioteca: 'library', simulador: 'simulator', config: 'settings' }
@@ -375,10 +373,10 @@ export default function App() {
   const [aiConfig, setAIConfig] = useState(() => loadAIConfig())
   const [pendingChanges, setPendingChanges] = useState(null)
   const [isReviewing, setIsReviewing] = useState(false)
-  const [history, setHistory] = useState(() => loadHistory())
+  const [history, setHistory] = useState([])
 
   useEffect(() => {
-    setHistory(loadHistory())
+    loadHistory().then(h => setHistory(h)).catch(() => {})
   }, [view])
   const [generatingExitId, setGeneratingExitId] = useState(null)
   const [isAuditing, setIsAuditing] = useState(false)
@@ -410,19 +408,22 @@ export default function App() {
 
   const agentKey = (config.agentName || '').trim()
 
-  // Carrega títulos dispensados do localStorage quando o agente muda
+  const isLoadingDismissedRef = useRef(false)
+
+  // Carrega títulos dispensados do Supabase quando o agente muda
   useEffect(() => {
     if (!agentKey) { setDismissedIssueTitles([]); return }
-    try {
-      const saved = JSON.parse(localStorage.getItem(`dismissed_v1_${agentKey}`) || '[]')
-      setDismissedIssueTitles(Array.isArray(saved) ? saved : [])
-    } catch { setDismissedIssueTitles([]) }
+    fetchSettings(`dismissed_${agentKey}`).then(v => {
+      isLoadingDismissedRef.current = true
+      setDismissedIssueTitles(Array.isArray(v) ? v : [])
+    }).catch(() => setDismissedIssueTitles([]))
   }, [agentKey])
 
-  // Persiste títulos dispensados no localStorage quando mudam
+  // Persiste títulos dispensados no Supabase quando mudam
   useEffect(() => {
     if (!agentKey) return
-    localStorage.setItem(`dismissed_v1_${agentKey}`, JSON.stringify(dismissedIssueTitles))
+    if (isLoadingDismissedRef.current) { isLoadingDismissedRef.current = false; return }
+    saveSettings(`dismissed_${agentKey}`, dismissedIssueTitles).catch(err => console.error('Erro ao salvar dismissed:', err))
   }, [agentKey, dismissedIssueTitles])
 
   const filteredHistory = useMemo(() => {
@@ -436,9 +437,7 @@ export default function App() {
     })
   }, [history, agentKey])
   const [sectionsRevealed, setSectionsRevealed] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(
-    () => localStorage.getItem('pm-sidebar') === 'collapsed'
-  )
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const promptRef = useRef(null)
   const scrollContainerRef = useRef(null)
   const skipNextDirtyRef = useRef(false)
@@ -451,7 +450,7 @@ export default function App() {
   const handleToggleSidebar = useCallback(() => {
     setSidebarCollapsed(prev => {
       const next = !prev
-      localStorage.setItem('pm-sidebar', next ? 'collapsed' : 'expanded')
+      saveSettings('ui_sidebar', next ? 'collapsed' : 'expanded').catch(err => console.error('Erro ao salvar sidebar:', err))
       return next
     })
   }, [])
@@ -491,15 +490,23 @@ export default function App() {
     handleSaveRef.current?.()
   }, [generatedPrompt, loadedAgentId])
 
+  // Carregar preferências de UI e AI config do Supabase na montagem
+  useEffect(() => {
+    fetchSettings('ui_theme').then(v => {
+      if (v === 'dark' || v === 'light') { isLoadingThemeRef.current = true; setIsDark(v === 'dark') }
+    }).catch(() => {})
+    fetchSettings('ui_sidebar').then(v => {
+      if (v === 'collapsed') setSidebarCollapsed(true)
+    }).catch(() => {})
+    loadAIConfigAsync().then(cfg => { if (cfg) setAIConfig(cfg) }).catch(() => {})
+  }, [])
+
   useEffect(() => {
     const html = document.documentElement
-    if (isDark) {
-      html.classList.add('dark')
-      localStorage.setItem('pm-theme', 'dark')
-    } else {
-      html.classList.remove('dark')
-      localStorage.setItem('pm-theme', 'light')
-    }
+    if (isDark) html.classList.add('dark')
+    else html.classList.remove('dark')
+    if (isLoadingThemeRef.current) { isLoadingThemeRef.current = false; return }
+    saveSettings('ui_theme', isDark ? 'dark' : 'light').catch(err => console.error('Erro ao salvar tema:', err))
   }, [isDark])
 
   const handleToggleTheme = useCallback(() => setIsDark(prev => !prev), [])
@@ -523,7 +530,7 @@ export default function App() {
   }, [])
 
   const handleSaveAIConfig = useCallback((cfg) => {
-    saveAIConfig(cfg)
+    saveAIConfig(cfg).catch(err => console.error('Erro ao salvar config IA:', err))
     setAIConfig(cfg)
   }, [])
 

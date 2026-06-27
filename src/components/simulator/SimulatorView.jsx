@@ -6,7 +6,7 @@ import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
 import { loadHistory, saveSnapshot } from '../../lib/promptHistory'
 import { diffLines } from '../../lib/promptDiff'
-import { deployAgent, updateAgent, isSupabaseConfigured, makeLogEntry, saveAgentExamples } from '../../lib/supabase'
+import { deployAgent, updateAgent, isSupabaseConfigured, makeLogEntry, saveAgentExamples, saveAgentTestCases, fetchSettings, saveSettings } from '../../lib/supabase'
 
 
 function ModelSelector({ value, onChange, apiKey, endpoint }) {
@@ -181,61 +181,34 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
   const [promptModalOpen, setPromptModalOpen] = useState(false)
   const [promptCopied, setPromptCopied] = useState(false)
-  const [presets, setPresets] = useState(() => {
-    const saved = localStorage.getItem('pm-test-presets')
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
-      } catch {}
-    }
-    return DEFAULT_PRESETS
-  })
-
-  const [activePresetId, setActivePresetId] = useState(() => {
-    const saved = localStorage.getItem('pm-test-presets')
-    let list = DEFAULT_PRESETS
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) list = parsed
-      } catch {}
-    }
-    const def = list.find(p => p.isDefault)
-    return def ? def.id : (list[0]?.id || '')
-  })
+  const [presets, setPresets] = useState(DEFAULT_PRESETS)
+  const [activePresetId, setActivePresetId] = useState(DEFAULT_PRESETS.find(p => p.isDefault)?.id || DEFAULT_PRESETS[0]?.id || '')
+  const isLoadingPresetsRef = useRef(false)
 
   const activePreset = useMemo(() => {
     return presets.find(p => p.id === activePresetId)
   }, [presets, activePresetId])
 
-  const [model, setModel] = useState(() => {
-    if (config?.testModel) return config.testModel
-    const saved = localStorage.getItem('pm-test-presets')
-    let list = DEFAULT_PRESETS
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) list = parsed
-      } catch {}
-    }
-    const def = list.find(p => p.isDefault)
-    // modelo vazio = usa o de Configurações em targetModelConfig
-    return def ? (def.model || '') : ''
-  })
+  const [model, setModel] = useState(config?.testModel || '')
+  const [temperature, setTemperature] = useState(0.1)
 
-  const [temperature, setTemperature] = useState(() => {
-    const saved = localStorage.getItem('pm-test-presets')
-    let list = DEFAULT_PRESETS
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed) && parsed.length > 0) list = parsed
-      } catch {}
-    }
-    const def = list.find(p => p.isDefault)
-    return def ? def.temperature : 0.1
-  })
+  // Carregar presets do Supabase na montagem
+  useEffect(() => {
+    fetchSettings('test_presets').then(value => {
+      if (value && Array.isArray(value.presets) && value.presets.length > 0) {
+        isLoadingPresetsRef.current = true
+        setPresets(value.presets)
+        const saved = value.presets.find(p => p.id === value.activePresetId)
+          || value.presets.find(p => p.isDefault)
+          || value.presets[0]
+        if (saved) {
+          setActivePresetId(saved.id)
+          setModel(saved.model || config?.testModel || '')
+          setTemperature(saved.temperature ?? 0.1)
+        }
+      }
+    }).catch(() => {})
+  }, [])
 
   // Sincronizar o modelo quando carregar outro rascunho
   useEffect(() => {
@@ -244,10 +217,11 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     }
   }, [config?.testModel])
 
-  // Persistir presets no LocalStorage
+  // Persistir presets no Supabase
   useEffect(() => {
-    localStorage.setItem('pm-test-presets', JSON.stringify(presets))
-  }, [presets])
+    if (isLoadingPresetsRef.current) { isLoadingPresetsRef.current = false; return }
+    saveSettings('test_presets', { presets, activePresetId }).catch(err => console.error('Erro ao salvar presets:', err))
+  }, [presets, activePresetId])
 
   const [isEditingPreset, setIsEditingPreset] = useState(false)
   const [editPresetName, setEditPresetName] = useState('')
@@ -400,40 +374,25 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   })
 
   // --- MODO AUTOMÁTICO (TEST SUITE) ---
-  const [testCases, setTestCases] = useState(() => {
-    const saved = localStorage.getItem('pm-test-cases')
-    if (saved) {
-      try { return JSON.parse(saved) } catch {}
-    }
-    // Caso padrão inicial de demonstração
-    return [
-      {
-        id: 1,
-        name: 'Fluxo Padrão de Identificação',
-        steps: [
-          {
-            clientMessage: 'Olá, sou o Saymon e gostaria de agendar uma consulta.',
-            expectedStatus: 'in_process',
-            expectedVariables: { nome_cliente: 'Saymon' }
-          },
-          {
-            clientMessage: 'Na verdade, quero falar com um atendente humano.',
-            expectedStatus: 'saida_atendente'
-          }
-        ]
-      },
-      {
-        id: 2,
-        name: 'Tratamento de Pergunta Fora do Escopo',
-        steps: [
-          {
-            clientMessage: 'Vocês vendem passagens aéreas?',
-            expectedStatus: 'saida_atendente' // Pelo domínio restrito ou dadas tentativas
-          }
-        ]
-      }
-    ]
-  })
+  const [testCases, setTestCases] = useState([])
+  const isLoadingTestCasesRef = useRef(false)
+
+  // Carregar test cases do agente ativo no Supabase
+  useEffect(() => {
+    const agentId = promptSource === 'current' ? loadedAgentId : promptSource
+    if (!agentId) { setTestCases([]); return }
+    const agent = agents.find(a => a.id?.toString() === agentId?.toString())
+    isLoadingTestCasesRef.current = true
+    setTestCases(agent?.test_cases || [])
+  }, [promptSource, loadedAgentId, agents])
+
+  // Salvar test cases no Supabase quando mudarem
+  useEffect(() => {
+    if (isLoadingTestCasesRef.current) { isLoadingTestCasesRef.current = false; return }
+    const agentId = promptSource === 'current' ? loadedAgentId : promptSource
+    if (!agentId) return
+    saveAgentTestCases(agentId, testCases).catch(err => console.error('Erro ao salvar test cases:', err))
+  }, [testCases])
 
   const [isRunningTests, setIsRunningTests] = useState(false)
   const [suiteResults, setSuiteResults] = useState(null)
@@ -497,10 +456,6 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     if (!oldPrompt || !nextPromptText) return []
     return diffLines(oldPrompt, nextPromptText)
   }, [oldPrompt, nextPromptText])
-
-  useEffect(() => {
-    localStorage.setItem('pm-test-cases', JSON.stringify(testCases))
-  }, [testCases])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -715,7 +670,23 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
 
     try {
       const results = await runTestSuite(activePromptText, activeConfig, testCases, targetModelConfig)
-      setSuiteResults(results)
+      // Injeta expectedResponse e expectedStatus de testCases nos stepResults
+      // para que o card sempre tenha acesso às expectativas salvas, mesmo após reload
+      const enriched = {
+        ...results,
+        results: results.results.map(res => {
+          const tc = testCases.find(t => t.id === res.testCaseId)
+          return {
+            ...res,
+            stepResults: res.stepResults.map((step, i) => ({
+              ...step,
+              expectedResponse: tc?.steps[i]?.expectedResponse,
+              expectedStatus: tc?.steps[i]?.expectedStatus ?? step.expectedStatus,
+            }))
+          }
+        })
+      }
+      setSuiteResults(enriched)
     } catch (err) {
       await showDialog({ type: 'alert', message: `Erro na execução dos testes: ${err.message}` })
     } finally {
@@ -809,8 +780,8 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setConfig(nextConfig)
     setGeneratedPrompt(nextPrompt)
 
-    // Salva snapshot local
-    try { saveSnapshot({ config: nextConfig, prompt: nextPrompt, description: logAction }) } catch (_) {}
+    // Salva snapshot no Supabase (fire-and-forget)
+    saveSnapshot({ config: nextConfig, prompt: nextPrompt, description: logAction }).catch(() => {})
 
     // Salva no Supabase
     let saveMsg = 'Prompt ajustado, mas nenhum agente identificado para salvar no banco.'

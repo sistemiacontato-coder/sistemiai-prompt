@@ -1,29 +1,26 @@
-const STORAGE_KEY = 'sistemia_prompt_history'
+import { fetchSettings, saveSettings } from './supabase'
+
+const SETTINGS_KEY = 'prompt_history'
 const MAX_ENTRIES = 30
 
-export function loadHistory() {
+export async function loadHistory() {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]')
-    // Deduplica: mantém só a entrada mais recente por agentKey
+    const raw = await fetchSettings(SETTINGS_KEY)
+    if (!Array.isArray(raw)) return []
     const seen = new Set()
-    const deduped = raw.filter(e => {
+    return raw.filter(e => {
       const key = e.agentKey !== undefined ? e.agentKey : (e.config?.agentName || '').trim()
       if (seen.has(key)) return false
       seen.add(key)
       return true
     })
-    // Persiste a versão limpa se houve duplicatas
-    if (deduped.length !== raw.length) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(deduped))
-    }
-    return deduped
   } catch {
     return []
   }
 }
 
-export function saveSnapshot({ config, prompt, description }) {
-  const history = loadHistory()
+export async function saveSnapshot({ config, prompt, description }) {
+  const history = await loadHistory()
   const agentKey = (config.agentName || '').trim()
   const entry = {
     id: Date.now(),
@@ -33,32 +30,29 @@ export function saveSnapshot({ config, prompt, description }) {
     config: JSON.parse(JSON.stringify(config)),
     prompt,
   }
-  // Upsert: remove entradas anteriores do mesmo agente e mantém só a mais recente
   const rest = history.filter(e => {
     const key = e.agentKey !== undefined ? e.agentKey : (e.config?.agentName || '').trim()
     return key !== agentKey
   })
   const updated = [entry, ...rest].slice(0, MAX_ENTRIES)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+  await saveSettings(SETTINGS_KEY, updated)
   return updated
 }
 
-export function deleteSnapshot(id) {
-  const history = loadHistory()
+export async function deleteSnapshot(id) {
+  const history = await loadHistory()
   const updated = history.filter(e => e.id !== id)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+  await saveSettings(SETTINGS_KEY, updated)
   return updated
 }
 
-export function clearHistory(agentKey) {
-  const history = loadHistory()
-  if (agentKey !== undefined) {
-    const updated = history.filter(e => e.agentKey !== agentKey)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-    return updated
-  }
-  localStorage.removeItem(STORAGE_KEY)
-  return []
+export async function clearHistory(agentKey) {
+  const history = await loadHistory()
+  const updated = agentKey !== undefined
+    ? history.filter(e => e.agentKey !== agentKey)
+    : []
+  await saveSettings(SETTINGS_KEY, updated)
+  return updated
 }
 
 export function formatTimestamp(iso) {

@@ -81,20 +81,20 @@ export default function PromptVersionPanel({ history, currentPrompt, currentConf
     setConfirmDeleteId(id)
   }
 
-  const handleDeleteConfirm = (id) => {
-    const updated = deleteSnapshot(id)
+  const handleDeleteConfirm = async (id) => {
+    const updated = await deleteSnapshot(id)
     onHistoryChange(updated)
     setConfirmDeleteId(null)
     if (detailId === id) setDetailId(null)
   }
 
-  const handleClear = () => {
+  const handleClear = async () => {
     if (!confirmClear) {
       setConfirmClear(true)
       setTimeout(() => setConfirmClear(false), 3000)
       return
     }
-    const updated = clearHistory(agentKey)
+    const updated = await clearHistory(agentKey)
     onHistoryChange(updated)
     setConfirmClear(false)
     setDetailId(null)
