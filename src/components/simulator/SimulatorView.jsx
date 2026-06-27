@@ -6,7 +6,7 @@ import { buildPrompt } from '../../engine/promptBuilder'
 import { detectProviderFromKey, fetchOpenAIModels, detectProviderFromModel } from '../../lib/claude'
 import { loadHistory, saveSnapshot } from '../../lib/promptHistory'
 import { diffLines } from '../../lib/promptDiff'
-import { deployAgent, updateAgent, isSupabaseConfigured, makeLogEntry } from '../../lib/supabase'
+import { deployAgent, updateAgent, isSupabaseConfigured, makeLogEntry, saveAgentExamples } from '../../lib/supabase'
 
 
 function ModelSelector({ value, onChange, apiKey, endpoint }) {
@@ -165,6 +165,18 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
       exitDestinations: found.exitDestinations,
     }
   }, [promptSource, historyList, config])
+
+  // Exemplos de classificação persistidos no Supabase
+  const [savedExamples, setSavedExamples] = useState([])
+
+  useEffect(() => {
+    const agentId = promptSource === 'current' ? loadedAgentId : promptSource
+    if (!agentId) { setSavedExamples([]); return }
+    const agent = agents.find(a => a.id?.toString() === agentId?.toString())
+    setSavedExamples(agent?.classification_examples || [])
+  }, [promptSource, loadedAgentId, agents])
+
+  const activeAgentId = promptSource === 'current' ? loadedAgentId : promptSource
 
   const [activeTab, setActiveTab] = useState('manual') // 'manual' | 'automated'
   const [promptModalOpen, setPromptModalOpen] = useState(false)
@@ -716,7 +728,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
     setAutoRefineResult(null)
 
     try {
-      const adjustments = await refineConfigWithFeedback(activeConfig, suiteResults, aiConfig)
+      const adjustments = await refineConfigWithFeedback(activeConfig, suiteResults, aiConfig, savedExamples)
       setAutoRefineResult(adjustments)
     } catch (err) {
       await showDialog({ type: 'alert', message: `Erro no refinamento automático: ${err.message}` })
@@ -1779,22 +1791,14 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                         {isRefiningAuto ? 'Analisando...' : 'AUTO-AJUSTAR PROMPT'}
                       </button>
                     </div>
-                    {(() => {
-                      const examplesCount = Object.values(stepReviews).filter(r => r.action === 'add_example').length
-                      const fixedCount = Object.values(stepReviews).filter(r => r.action === 'fix_test').length
-                      if (examplesCount === 0 && fixedCount === 0) return null
-                      return (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded border border-primary/30 bg-primary/5 text-[9px] font-mono">
-                          <span className="material-symbols-outlined text-primary text-[13px]">edit_note</span>
-                          <span className="text-primary/80">
-                            {examplesCount > 0 && `${examplesCount} exemplo(s) salvos`}
-                            {examplesCount > 0 && fixedCount > 0 && ' · '}
-                            {fixedCount > 0 && `${fixedCount} teste(s) corrigidos`}
-                            {' — o AUTO-AJUSTAR usará suas correções como base'}
-                          </span>
-                        </div>
-                      )
-                    })()}
+                    {savedExamples.length > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded border border-primary/30 bg-primary/5 text-[9px] font-mono">
+                        <span className="material-symbols-outlined text-primary text-[13px]">school</span>
+                        <span className="text-primary/80">
+                          {savedExamples.length} exemplo(s) salvos no Supabase — o AUTO-AJUSTAR vai usá-los como base
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2150,7 +2154,23 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                 onClick={() => {
                   const { tcIdx, sIdx } = reviewModal
                   const reviewKey = `${tcIdx}-${sIdx}`
+                  // Badge visual
                   setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'add_example' } }))
+                  // Persistir no Supabase
+                  const step = suiteResults?.results?.[tcIdx]?.stepResults?.[sIdx]
+                  const newExample = {
+                    clientMessage: step?.clientMessage || '',
+                    scenario: suiteResults?.results?.[tcIdx]?.testCaseName || '',
+                    correctStatus: reviewDraft.status,
+                    correctResponse: reviewDraft.response || '',
+                    correctVariables: reviewDraft.variables || {},
+                    savedAt: new Date().toISOString(),
+                  }
+                  const newExamples = [...savedExamples, newExample]
+                  setSavedExamples(newExamples)
+                  if (activeAgentId) {
+                    saveAgentExamples(activeAgentId, newExamples).catch(err => console.error('Erro ao salvar exemplo:', err))
+                  }
                   setReviewModal(null)
                 }}
                 className="w-full py-2.5 text-[11px] font-mono font-semibold bg-primary text-on-primary rounded-lg hover:opacity-90 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5"

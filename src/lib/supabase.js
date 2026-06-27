@@ -137,6 +137,32 @@ export async function fetchAgentHistory() {
   return data || []
 }
 
+// ── Salva exemplos de classificação de um agente ────────────────────────────
+export async function saveAgentExamples(id, examples) {
+  if (IS_PROD) {
+    const res = await fetch(`/api/agents/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classification_examples: examples }),
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error || 'Erro ao salvar exemplos.')
+    }
+    return res.json()
+  }
+
+  if (!supabaseDirect) throw new Error('Supabase não configurado.')
+  const { data, error } = await supabaseDirect
+    .from('prompt_bc_agents')
+    .update({ classification_examples: examples })
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // ── Deleta um agente ─────────────────────────────────────────────────────────
 export async function deleteAgent(id) {
   if (IS_PROD) {
@@ -157,6 +183,8 @@ export async function deleteAgent(id) {
 export const SETUP_SQL = `
 -- Adicionar coluna de logs (rodar se a tabela já existir):
 ALTER TABLE prompt_bc_agents ADD COLUMN IF NOT EXISTS logs JSONB DEFAULT '[]'::jsonb;
+-- Adicionar coluna de exemplos de classificação:
+ALTER TABLE prompt_bc_agents ADD COLUMN IF NOT EXISTS classification_examples JSONB DEFAULT '[]'::jsonb;
 
 CREATE TABLE IF NOT EXISTS prompt_bc_agents (
   id                UUID        DEFAULT gen_random_uuid() PRIMARY KEY,

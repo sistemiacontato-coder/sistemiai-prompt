@@ -165,7 +165,7 @@ export async function runTestSuite(systemPrompt, config, testCases, modelConfig)
 /**
  * Uses LLM to refine the config to fix failing tests
  */
-export async function refineConfigWithFeedback(config, testSuiteResults, aiConfig) {
+export async function refineConfigWithFeedback(config, testSuiteResults, aiConfig, savedExamples = []) {
   // Coletar apenas as falhas estruturadas
   const failures = testSuiteResults.results.filter(r => !r.passed).map(r => {
     return {
@@ -205,12 +205,24 @@ export async function refineConfigWithFeedback(config, testSuiteResults, aiConfi
     exitDestinations: config.exitDestinations.filter(e => !e.isSystem).map(e => ({ key: e.key, label: e.label, description: e.description || '', sendExitMessage: e.sendExitMessage, exitMessage: e.exitMessage || '' })),
   }
 
+  const examplesBlock = savedExamples.length > 0 ? `
+EXEMPLOS DE CLASSIFICAÇÃO CORRETOS (validados pelo usuário):
+Estes exemplos mostram o comportamento CORRETO esperado. Use-os para inferir regras GERAIS — nunca crie regras específicas para cada exemplo.
+${JSON.stringify(savedExamples.map(e => ({
+  mensagem_do_cliente: e.clientMessage,
+  status_correto: e.correctStatus,
+  resposta_correta: e.correctResponse || '(sem mensagem)',
+  variaveis_corretas: e.correctVariables,
+})), null, 2)}
+
+` : ''
+
   const prompt = `Você é um Engenheiro de Prompt especialista na otimização de agentes de WhatsApp para o BotConversa.
 Sua missão é corrigir os campos de configuração do agente com base no feedback do testador.
 
 CONFIGURAÇÃO ATUAL DO AGENTE:
 ${JSON.stringify(existingConfig, null, 2)}
-
+${examplesBlock}
 FALHAS IDENTIFICADAS:
 ${JSON.stringify(failures, null, 2)}
 
