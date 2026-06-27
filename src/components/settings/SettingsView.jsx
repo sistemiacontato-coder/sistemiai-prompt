@@ -29,15 +29,20 @@ function SectionCard({ accentColor = 'primary', icon, title, subtitle, badge, ch
   )
 }
 
-function ModelSelector({ value, onChange, apiKey, endpoint, label }) {
+const MODELS_BY_PROVIDER = {
+  gemini:  ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro'],
+  claude:  ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-3-5-haiku-20241022', 'claude-3-5-sonnet-20241022'],
+  default: ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
+            'openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-mini', 'openai/gpt-4.1',
+            'claude-haiku-4-5-20251001', 'claude-3-5-haiku-20241022',
+            'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
+            'meta-llama/llama-3.3-70b-instruct', 'mistral-small-latest'],
+}
+
+function ModelSelector({ value, onChange, apiKey, endpoint, label, provider }) {
   const [isOpen, setIsOpen] = useState(false)
-  const [models, setModels] = useState([
-    'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
-    'openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-mini', 'openai/gpt-4.1',
-    'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022',
-    'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
-    'meta-llama/llama-3.3-70b-instruct', 'mistral-small-latest',
-  ])
+  const defaultList = MODELS_BY_PROVIDER[provider] || MODELS_BY_PROVIDER.default
+  const [models, setModels] = useState(defaultList)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -220,6 +225,7 @@ function AIKeyBlock({ title, subtitle, badge, accentColor,
             onChange={v => { setModel(v); setTestResult(null) }}
             apiKey={isCompat ? (apiKey || fallbackKey) : undefined}
             endpoint={isCompat ? effectiveEndpoint : undefined}
+            provider={detected?.provider}
           />
         )}
 
