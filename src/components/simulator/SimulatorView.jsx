@@ -1600,10 +1600,7 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                         {/* Header clicável */}
                         <button
                           onClick={() => {
-                            const next = new Set(expandedResults)
-                            if (isExpanded) next.delete(tcIdx)
-                            else next.add(tcIdx)
-                            setExpandedResults(next)
+                            setExpandedResults(isExpanded ? new Set() : new Set([tcIdx]))
                           }}
                           className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors text-left"
                         >
