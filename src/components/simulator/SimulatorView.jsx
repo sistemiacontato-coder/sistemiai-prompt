@@ -2050,7 +2050,9 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                   {[
                     { key: 'in_process', label: 'in_process — Em andamento' },
                     { key: 'success', label: 'success — Concluído' },
-                    ...(config.exitDestinations || []).map(e => ({ key: e.key, label: e.key }))
+                    ...(config.exitDestinations || [])
+                      .filter(e => e.key !== 'in_process' && e.key !== 'success')
+                      .map(e => ({ key: e.key, label: e.key }))
                   ].map(o => (
                     <option key={o.key} value={o.key}>{o.label}</option>
                   ))}
@@ -2090,9 +2092,9 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
               )}
             </div>
 
-            <div className="px-5 py-4 border-t border-outline-variant flex gap-2 flex-shrink-0">
+            <div className="px-5 py-4 border-t border-outline-variant flex flex-col gap-2 flex-shrink-0">
+              {/* Está correto — confirma sem mudar nada */}
               <button
-                disabled={!reviewDraft.status}
                 onClick={() => {
                   const { tcIdx, sIdx } = reviewModal
                   const reviewKey = `${tcIdx}-${sIdx}`
@@ -2103,22 +2105,42 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
                   setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'fix_test' } }))
                   setReviewModal(null)
                 }}
-                className="flex-1 py-2.5 text-[11px] font-mono font-semibold border border-outline-variant rounded-lg hover:bg-surface-container-high disabled:opacity-40 transition-colors"
+                className="w-full py-2.5 text-[11px] font-mono font-semibold bg-secondary text-on-secondary rounded-lg hover:opacity-90 transition-colors flex items-center justify-center gap-1.5"
               >
-                Atualizar teste
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Está correto — atualizar expectativa do teste
               </button>
-              <button
-                disabled={!reviewDraft.status}
-                onClick={() => {
-                  const { tcIdx, sIdx } = reviewModal
-                  const reviewKey = `${tcIdx}-${sIdx}`
-                  setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'add_example' } }))
-                  setReviewModal(null)
-                }}
-                className="flex-1 py-2.5 text-[11px] font-mono font-semibold bg-primary text-on-primary rounded-lg hover:opacity-90 disabled:opacity-40 transition-colors"
-              >
-                Salvar como exemplo
-              </button>
+
+              <div className="flex gap-2">
+                <button
+                  disabled={!reviewDraft.status}
+                  onClick={() => {
+                    const { tcIdx, sIdx } = reviewModal
+                    const reviewKey = `${tcIdx}-${sIdx}`
+                    setTestCases(prev => prev.map(tc => {
+                      if (tc.name !== suiteResults?.results?.[tcIdx]?.testCaseName) return tc
+                      return { ...tc, steps: tc.steps.map((s, i) => i === sIdx ? { ...s, expectedStatus: reviewDraft.status } : s) }
+                    }))
+                    setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'fix_test' } }))
+                    setReviewModal(null)
+                  }}
+                  className="flex-1 py-2 text-[11px] font-mono font-semibold border border-outline-variant rounded-lg hover:bg-surface-container-high disabled:opacity-40 transition-colors"
+                >
+                  Atualizar com correção
+                </button>
+                <button
+                  disabled={!reviewDraft.status}
+                  onClick={() => {
+                    const { tcIdx, sIdx } = reviewModal
+                    const reviewKey = `${tcIdx}-${sIdx}`
+                    setStepReviews(prev => ({ ...prev, [reviewKey]: { correctedStatus: reviewDraft.status, correctedResponse: reviewDraft.response, correctedVariables: reviewDraft.variables, action: 'add_example' } }))
+                    setReviewModal(null)
+                  }}
+                  className="flex-1 py-2 text-[11px] font-mono font-semibold bg-primary text-on-primary rounded-lg hover:opacity-90 disabled:opacity-40 transition-colors"
+                >
+                  Salvar como exemplo
+                </button>
+              </div>
             </div>
           </div>
         </div>,
