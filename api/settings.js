@@ -36,8 +36,8 @@ export default async function handler(req, res) {
       if (!key) return res.status(400).json({ error: 'key é obrigatório' })
       const { error } = await supabase
         .from('prompt_bc_settings')
-        .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
-      if (error) return res.status(500).json({ error: error.message })
+        .upsert({ key, value, updated_at: new Date().toISOString() })
+      if (error) return res.status(500).json({ error: error.message, code: error.code, details: error.details, hint: error.hint })
       return res.status(200).json({ ok: true })
     }
 
