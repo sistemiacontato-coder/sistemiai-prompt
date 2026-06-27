@@ -328,13 +328,24 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
     || scenarioModel !== (aiConfig?.scenarioModel || '')
     || effectiveScenarioEndpoint !== (aiConfig?.scenarioEndpoint || '')
 
-  const handleSave = () => {
-    saveAIConfig(currentConfig)
-    onSaveAIConfig(currentConfig)
-    setSaved(true)
-    setTestResult(null)
-    setTestRefinerResult(null)
-    setTimeout(() => setSaved(false), 3000)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await saveAIConfig(currentConfig)
+      onSaveAIConfig(currentConfig)
+      setSaved(true)
+      setTestResult(null)
+      setTestRefinerResult(null)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (err) {
+      setSaveError('Erro ao salvar. Tente novamente.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -346,11 +357,11 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
             <h2 className="text-lg font-bold text-on-surface leading-none">Configurações</h2>
             <p className="text-[11px] font-mono text-on-surface-variant/50 mt-1">SistemIA Prompt v1.0.0 · BotConversa</p>
           </div>
-          {isDirty && (
-            <button onClick={handleSave}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary text-[11px] font-mono font-semibold hover:opacity-90 transition-all active:scale-95">
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>save</span>
-              SALVAR CONFIGURAÇÕES
+          {(isDirty || saveError) && (
+            <button onClick={handleSave} disabled={saving}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary text-[11px] font-mono font-semibold hover:opacity-90 transition-all active:scale-95 disabled:opacity-60">
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{saving ? 'hourglass_empty' : 'save'}</span>
+              {saving ? 'SALVANDO...' : 'SALVAR CONFIGURAÇÕES'}
             </button>
           )}
         </div>
@@ -421,16 +432,22 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
           <div>
             {saved && (
               <div className="flex items-center gap-1.5">
-                <span className="material-symbols-outlined text-secondary animate-pulse" style={{ fontSize: 16 }}>check</span>
-                <span className="text-[11px] font-mono text-secondary">Todas as alterações salvas com sucesso!</span>
+                <span className="material-symbols-outlined text-secondary" style={{ fontSize: 16 }}>check</span>
+                <span className="text-[11px] font-mono text-secondary">Salvo com sucesso!</span>
+              </div>
+            )}
+            {saveError && (
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-error" style={{ fontSize: 16 }}>error</span>
+                <span className="text-[11px] font-mono text-error">{saveError}</span>
               </div>
             )}
           </div>
-          {isDirty && (
-            <button onClick={handleSave}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-on-primary text-xs font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-all active:scale-95">
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>save</span>
-              SALVAR ALTERAÇÕES
+          {(isDirty || saveError) && (
+            <button onClick={handleSave} disabled={saving}
+              className="flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-on-primary text-xs font-mono font-bold uppercase tracking-wider hover:opacity-90 transition-all active:scale-95 disabled:opacity-60">
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>{saving ? 'hourglass_empty' : 'save'}</span>
+              {saving ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}
             </button>
           )}
         </div>
