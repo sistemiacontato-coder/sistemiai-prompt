@@ -347,6 +347,7 @@ export default function App() {
 
   const [isDark, setIsDark] = useState(false)
   const isLoadingThemeRef = useRef(false)
+  const isFirstThemeRenderRef = useRef(true)
   const [view, setView] = useState(() => {
     const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase()
     const hashMap = { biblioteca: 'library', simulador: 'simulator', config: 'settings' }
@@ -505,6 +506,9 @@ export default function App() {
     const html = document.documentElement
     if (isDark) html.classList.add('dark')
     else html.classList.remove('dark')
+    // Não salvar na primeira renderização (isDark ainda é o default false)
+    if (isFirstThemeRenderRef.current) { isFirstThemeRenderRef.current = false; return }
+    // Não salvar quando o valor veio do Supabase (carga assíncrona)
     if (isLoadingThemeRef.current) { isLoadingThemeRef.current = false; return }
     saveSettings('ui_theme', isDark ? 'dark' : 'light').catch(err => console.error('Erro ao salvar tema:', err))
   }, [isDark])
