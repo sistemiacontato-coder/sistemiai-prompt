@@ -302,6 +302,21 @@ export default function SettingsView({ aiConfig, onSaveAIConfig }) {
 
   const [saved, setSaved] = useState(false)
 
+  // Sincroniza campos quando aiConfig carrega do Supabase (assíncrono)
+  useEffect(() => {
+    if (!aiConfig) return
+    setApiKey(aiConfig.apiKey || '')
+    setModel(aiConfig.model || '')
+    setTemperature(typeof aiConfig.temperature === 'number' ? aiConfig.temperature : 0.2)
+    setCustomEndpoint(aiConfig.endpoint || '')
+    setRefinerApiKey(aiConfig.refinerApiKey || '')
+    setRefinerModel(aiConfig.refinerModel || '')
+    setCustomRefinerEndpoint(aiConfig.refinerEndpoint || '')
+    setScenarioApiKey(aiConfig.scenarioApiKey || '')
+    setScenarioModel(aiConfig.scenarioModel || '')
+    setCustomScenarioEndpoint(aiConfig.scenarioEndpoint || '')
+  }, [aiConfig])
+
   const detected = detectProviderFromKey(apiKey)
   const detectedRefiner = detectProviderFromKey(refinerApiKey)
   const detectedScenario = detectProviderFromKey(scenarioApiKey)
