@@ -192,15 +192,35 @@ export default function SimulatorView({ config, setConfig, generatedPrompt, setG
   const [model, setModel] = useState(config?.testModel || '')
   const [temperature, setTemperature] = useState(0.1)
 
-  // Carregar presets do Supabase na montagem
+  // Carregar presets do Supabase na montagem (com migração automática do localStorage)
   useEffect(() => {
     fetchSettings('test_presets').then(value => {
-      if (value && Array.isArray(value.presets) && value.presets.length > 0) {
+      let presetList = value?.presets
+      let activeId = value?.activePresetId
+
+      // Migração única: se Supabase vazio mas localStorage tem dados, migrar
+      if (!presetList || presetList.length === 0) {
+        try {
+          const localRaw = localStorage.getItem('pm-test-presets')
+          if (localRaw) {
+            const localPresets = JSON.parse(localRaw)
+            if (Array.isArray(localPresets) && localPresets.length > 0) {
+              presetList = localPresets
+              activeId = localPresets.find(p => p.isDefault)?.id || localPresets[0]?.id
+              saveSettings('test_presets', { presets: presetList, activePresetId: activeId })
+                .then(() => localStorage.removeItem('pm-test-presets'))
+                .catch(() => {})
+            }
+          }
+        } catch {}
+      }
+
+      if (presetList && presetList.length > 0) {
         isLoadingPresetsRef.current = true
-        setPresets(value.presets)
-        const saved = value.presets.find(p => p.id === value.activePresetId)
-          || value.presets.find(p => p.isDefault)
-          || value.presets[0]
+        setPresets(presetList)
+        const saved = presetList.find(p => p.id === activeId)
+          || presetList.find(p => p.isDefault)
+          || presetList[0]
         if (saved) {
           setActivePresetId(saved.id)
           setModel(saved.model || config?.testModel || '')
