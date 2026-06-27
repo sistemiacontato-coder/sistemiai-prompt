@@ -35,7 +35,7 @@ function ModelSelector({ value, onChange, apiKey, endpoint, label }) {
     'gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo',
     'openai/gpt-4o-mini', 'openai/gpt-4o', 'openai/gpt-4.1-mini', 'openai/gpt-4.1',
     'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022',
-    'gemini-2.0-flash', 'gemini-1.5-pro',
+    'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
     'meta-llama/llama-3.3-70b-instruct', 'mistral-small-latest',
   ])
   const [loading, setLoading] = useState(false)

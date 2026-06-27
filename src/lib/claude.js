@@ -151,8 +151,8 @@ function extractJson(text) {
   return JSON.parse(match[0])
 }
 
-async function callGemini(apiKey, prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+async function callGemini(apiKey, prompt, model = 'gemini-2.0-flash') {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -271,7 +271,7 @@ export async function callAI(prompt, config) {
 
   let text
   if (provider === 'claude')  text = await callClaude(cfg.apiKey, prompt, maxTokens)
-  else if (provider === 'gemini') text = await callGemini(cfg.apiKey, prompt)
+  else if (provider === 'gemini') text = await callGemini(cfg.apiKey, prompt, cfg.model || 'gemini-2.0-flash')
   else {
     let model = cfg.model || detected?.model || 'gpt-4o-mini'
     if (detected?.name === 'OpenAI' && model.startsWith('openai/')) model = model.slice(7)
